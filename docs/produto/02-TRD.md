@@ -1649,3 +1649,9 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
   - `relatorioExclusaoPdf` está em `churn-exclusao.service.ts`.
 - **Correção junto:** `BRAND.site` não existia, e o cabeçalho do contrato e do termo de renegociação saía sem o site. Agora mostra www.prosystemnet.com.br.
 - **Testes:** `tests/churn-exclusao-pdf.test.ts`.
+
+### Correção 15/10/2026: áudio gravado pelo navegador dava "Transcrição indisponível (HTTP 400)"
+
+- **Sintoma:** em áudios gravados no CRM, o botão "Transcrever áudio" mostrava "Transcrição indisponível (HTTP 400)". Áudios em mp3 transcreviam normalmente.
+- **Causa:** o navegador grava em WebM (`data:audio/webm;codecs=opus`). A transcrição da OpenAI recebia o arquivo com o nome `audio.ogg`, porque WebM não estava na lista de extensões. A OpenAI confere a extensão com o conteúdo e recusava.
+- **Correção:** `extensaoAudio(mime)` em `lib/assistente/ia-texto.ts` manda WebM como `.webm` e cobre ogg/opus, mp3, m4a/aac, wav e flac. É usada em `transcreverOpenAI` (`ia-gemini.service.ts`). Testes em `tests/data-url.test.ts`.

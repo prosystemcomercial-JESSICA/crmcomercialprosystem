@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { registrarUsoIa } from './uso-ia.service';
-import { jsonParaIa } from '@/lib/assistente/ia-texto';
+import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
@@ -53,7 +53,7 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
 
 async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number): Promise<string> {
   registrarUsoIa('openai');
-  const ext = mime.includes('ogg') || mime.includes('opus') ? 'ogg' : mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : mime.includes('mp4') || mime.includes('m4a') ? 'm4a' : mime.includes('wav') ? 'wav' : 'ogg';
+  const ext = extensaoAudio(mime);
   const form = new FormData();
   form.append('file', new Blob([Buffer.from(base64, 'base64')], { type: mime }), `audio.${ext}`);
   form.append('model', process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe');

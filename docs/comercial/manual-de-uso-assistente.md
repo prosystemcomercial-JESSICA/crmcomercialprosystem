@@ -1267,3 +1267,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
   - **📄 Gerar relatório PDF**: baixa um relatório com o padrão visual da Prosystem, com resumo, total das mensalidades, valor devido, motivo, relato, financeiro e últimas observações de cada cliente, e caixas para marcar. Você posta no Teams para o CEO. Nenhum WhatsApp é enviado.
   - **📲 Enviar por WhatsApp**: o CEO recebe a lista no número dele.
   - Nos dois casos, os clientes vão para **Com o CEO** para as confirmações. Precisa do PDF de novo? Use **📄 Baixar relatório dos pendentes**.
+
+### Correção 15/10/2026: transcrição dos áudios gravados no CRM
+
+- Os áudios que você grava pelo CRM, que davam "Transcrição indisponível (HTTP 400)", agora transcrevem pelo botão "Transcrever áudio".

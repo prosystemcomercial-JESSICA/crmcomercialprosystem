@@ -4,6 +4,7 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **15/10/2026 (áudio webm):** "Transcrição indisponível (HTTP 400)" nos áudios gravados pelo navegador: o WebM ia para a OpenAI como `.ogg`. Corrigido com `extensaoAudio` (lib/assistente/ia-texto) em `transcreverOpenAI`.
 - **15/10/2026 (churn → CEO: PDF ou WhatsApp):** a aba Exclusões ganhou **📄 Gerar relatório PDF** (o principal, para o Teams, sem WhatsApp) e **📲 Enviar por WhatsApp**. O PDF sai no padrão Prosystem (`lib/churn-exclusao-pdf.ts`) com as observações de cada cliente; rota `POST /casos-churn/exclusao/relatorio`; `canal` no registro. Corrigido `BRAND.site` (cabeçalho do contrato e da renegociação sem o site).
 - **15/10/2026 (valor → dados da proposta):** cliente que pede o valor recebe a faixa e o pedido de CNPJ, e-mail e quantidade de computadores (e loja nova/troca, se não estiver claro), como a Jessica pediu por áudio a uma cliente. Com os três, o agente usa `passar_vendedora`. Os dados vão para `SdrLead.dados` e para o Lead (`cnpj`, `responsavel_email`, `qtd_caixas`, só se vazios). Regra em `lib/assistente/sdr.ts` (DADOS PARA A PROPOSTA).
 - **15/10/2026 (Ana no churn → CEO):** a Ana Clara (SDR) pode selecionar e enviar ao CEO na aba Exclusões. A regra é "administrar" no módulo Cancelamentos / Churn (Usuários e Permissões); as confirmações de suporte e cobrança continuam só com a gestão.
