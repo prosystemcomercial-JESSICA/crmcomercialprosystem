@@ -69,14 +69,14 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
 
 1. `npx tsc` (backend com `--rootDir .`, frontend) e `npx vitest run`.
 2. `git commit` e `git push origin HEAD:main`.
-3. Script `deploy-tmp.sh` via SSH (chave `~/.ssh/crm_comercial_vps`): `mysqldump` → `git pull` → `prisma generate` → checagem do diff do banco contra a lista `PERMITIDO` (só mudanças aditivas autorizadas) → `prisma db push` → `build` → `pm2 restart --update-env` → health check.
+3. Script `backend/scripts/deploy-vps.sh <commit>` rodado no servidor (acesso e chave só no arquivo local fora do Git, `C:/Users/prosy/CONTEXTO-CRM-COMERCIAL-LOCAL.md`): `mysqldump` → `git pull` → `prisma generate` → checagem do diff do banco contra a lista `PERMITIDO` (só mudanças aditivas autorizadas) → `prisma db push` → `build` → `pm2 restart --update-env` → health check.
 4. Backups em `/root/backups-deploy`; Caderno da Laya em `/root/laya-caderno`.
 
 ## 7. Segurança
 
 - JWT com papéis (`CEO`, `ADMIN`, `DIRETOR`, `SUPERVISAO_COMERCIAL`, `SUPERVISAO`, `VENDEDOR`, `SDR`, `TECNICO_IMPLANTACAO`); rotas de gestão com `requireGestor`; conversas com `whereLeituraConversa` e `whereAcaoConversa`.
 - 2FA, auditoria de usuários, contas de consulta só leitura.
-- Senhas da VPS e do MySQL: mantidas (decisão da Jessica em 28/09). O deploy usa só a chave SSH `~/.ssh/crm_comercial_vps`.
+- Senhas da VPS e do MySQL: mantidas (decisão da Jessica em 28/09). O deploy usa só chave SSH; o acesso fica no arquivo local fora do Git.
 
 ## 8. Testes
 

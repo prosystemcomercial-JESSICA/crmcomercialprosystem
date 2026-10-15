@@ -2,6 +2,10 @@
 
 Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar cada tarefa, atualize este arquivo.
 
+## Registro de mudanças após 14/10/2026 (mais novo primeiro)
+
+- **15/10/2026:** regra nova da Jessica: tudo o que for feito é registrado na hora (este arquivo, o arquivo local e commit + push). Referências a acesso de servidor e chave SSH foram tiradas do repositório (`deploy-vps.sh`, `02-TRD.md`, `LEIA-PRIMEIRO.md`) e ficam só no arquivo local `C:\Users\prosy\CONTEXTO-CRM-COMERCIAL-LOCAL.md`.
+
 ## Resumo em 5 linhas
 
 1. Outubro estava com **0 contratos** contra meta de 15; o gargalo era a fila de primeiros contatos, travada desde 05/10.
