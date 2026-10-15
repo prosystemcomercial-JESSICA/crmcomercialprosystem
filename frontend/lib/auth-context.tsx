@@ -126,12 +126,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     eventos.forEach(ev => window.addEventListener(ev, tocar, { passive: true }));
+    // Servidor recusou a sessão e não deu para renovar (api-client): vai para o login (15/10/2026).
+    window.addEventListener('sessao:expirada', encerrarSessao);
     const intervalo = setInterval(() => {
       if (localStorage.getItem('accessToken') && expirou()) encerrarSessao();
     }, 60 * 1000);   // verifica a cada minuto
 
     return () => {
       eventos.forEach(ev => window.removeEventListener(ev, tocar));
+      window.removeEventListener('sessao:expirada', encerrarSessao);
       clearInterval(intervalo);
     };
   }, []);

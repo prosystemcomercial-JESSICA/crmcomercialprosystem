@@ -8,7 +8,7 @@ import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/impla
 import { PainelInicio } from '@/components/implantacao/Inicio';
 import { OnboardingTecnico } from '@/components/implantacao/Portal';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket, InventarioTicket } from '@/components/implantacao/Portal';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
   CheckCircle, X, Loader2, FileText, Briefcase, Coins, BookOpen,
@@ -353,6 +353,10 @@ type Tab = 'inicio' | 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | '
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading, user } = useAuth();
+  // Sem sessão (navegador sem login ou sessão vencida): vai para o login, como as outras telas. Antes o portal
+  // mostrava o menu e ficava em "Carregando…" para sempre (15/10/2026).
+  const roteador = useRouter();
+  useEffect(() => { if (!loading && !isAuthenticated) roteador.replace('/'); }, [loading, isAuthenticated, roteador]);
   const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;

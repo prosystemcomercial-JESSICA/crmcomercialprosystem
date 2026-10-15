@@ -99,8 +99,17 @@ class ApiClient {
             return this.client(originalRequest);
           } catch (err) {
             this.clearTokens();
+            if (originalRequest?.headers?.Authorization) this.avisarSessaoExpirada();
             return Promise.reject(err);
           }
+        }
+
+        // 401 sem como renovar (sem refreshToken): a sessão acabou. Avisa o app para levar ao login, em vez de a tela
+        // ficar parada em "Carregando…" (Portal Técnico, 15/10/2026). Login com senha errada (/auth/) não conta.
+        // Só quando a tela estava logada (o pedido levava a sessão): páginas públicas (proposta, acompanhamento, TV) não.
+        if (error.response?.status === 401 && originalRequest?.headers?.Authorization && !String(originalRequest?.url || '').includes('/auth/')) {
+          this.clearTokens();
+          this.avisarSessaoExpirada();
         }
 
         return Promise.reject(error);
@@ -108,7 +117,16 @@ class ApiClient {
     );
   }
 
+  /** Sessão acabou: o AuthProvider escuta e leva para o login (uma vez por página). */
+  private sessaoAvisada = false;
+  avisarSessaoExpirada() {
+    if (typeof window === 'undefined' || this.sessaoAvisada) return;
+    this.sessaoAvisada = true;
+    window.dispatchEvent(new Event('sessao:expirada'));
+  }
+
   setTokens(accessToken: string, refreshToken: string) {
+    this.sessaoAvisada = false;
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
     this.setAuthHeader();
