@@ -94,13 +94,15 @@ async function recusasDaSemana(prisma: PrismaClient, agora: Date) {
   };
 }
 
-export async function revisarConversas(prisma: PrismaClient) {
+// limite: quantas conversas de agente avaliar (rotina: 40; revisão completa do dia sob demanda, ex.: 200).
+export async function revisarConversas(prisma: PrismaClient, opts: { limite?: number } = {}) {
+  const limite = Math.min(Math.max(opts.limite || 40, 1), 300);
   const agora = new Date();
   const desde = new Date(agora.getTime() - 48 * 3600_000);
   const convs = await prisma.whatsappConversa.findMany({
     where: { ultima_em: { gte: desde }, finalizada_em: null } as any,
     select: { id: true, contato_nome: true, contato_numero: true, dono_id: true, ultima_em: true, lead_id: true },
-    orderBy: { ultima_em: 'desc' }, take: 80,
+    orderBy: { ultima_em: 'desc' }, take: Math.max(80, limite * 2),
   });
   // Deixadas de lado: a última mensagem é do cliente e ninguém respondeu há mais de 2 h.
   const { contatoSemAgentes } = await import('@/lib/laya');
@@ -121,7 +123,7 @@ export async function revisarConversas(prisma: PrismaClient) {
     if (ult.direcao === 'ENTRADA' && horas >= 2 && !ehRespostaAutomatica(txtUlt) && !ehSoConfirmacao(txtUlt)) deLado.push({ nome, horas: Math.round(horas), texto: ((ult.tipo === 'AUDIO' ? ult.transcricao : ult.conteudo) || '').slice(0, 120), id: c.id });
     // Foco: toda conversa em que um agente falou nas últimas 24 h (até 40).
     const agenteFalou = ms.some(m => m.direcao === 'SAIDA' && AUTOMATICOS.includes(m.enviada_por || '') && m.created_at >= desdeAgente);
-    if (paraAvaliar.length < 40 && agenteFalou) {
+    if (paraAvaliar.length < limite && agenteFalou) {
       const linhas = ms.slice().reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : AUTOMATICOS.includes(m.enviada_por || '') ? `Agente(${m.enviada_por})` : 'Equipe'}: ${(m.tipo === 'AUDIO' ? `(áudio) ${m.transcricao || ''}` : m.conteudo || '').slice(0, 260)}`);
       paraAvaliar.push({ nome, texto: linhas.join('\n'), id: c.id });
     }
