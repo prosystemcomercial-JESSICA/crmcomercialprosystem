@@ -56,7 +56,9 @@ npx prisma migrate diff --from-url "$URL" --to-schema-datamodel prisma/schema.pr
 FORA=$(grep -v '^--' /tmp/diff-$TS.sql | grep -v '^\s*$' | grep -v 'DROP TABLE `UsuarioPerfil`' || true)
 if [ -n "$FORA" ] && [ -z "$PERMITIDO" ]; then echo "SCHEMA COM ALTERAÇÃO FORA DO PERMITIDO (nenhuma esperada), abortando:"; echo "$FORA" | head -20; exit 1; fi
 echo "banco sem alterações"
-cd ../frontend && npm run build > /tmp/build-front-$TS.log 2>&1 && echo "build ok" || { echo "BUILD FALHOU"; tail -30 /tmp/build-front-$TS.log; exit 1; }
+# Build falhou (16/10/2026: fonte do Google não baixou e o cache do Turbopack ficou corrompido)? Limpa o .next e tenta
+# uma vez mais; se falhar de novo, para SEM reiniciar (o site segue na versão em memória; rode de novo antes de reiniciar).
+cd ../frontend && { npm run build > /tmp/build-front-$TS.log 2>&1 || { echo "build falhou: limpando o cache e tentando de novo"; rm -rf .next; npm run build > /tmp/build-front-$TS.log 2>&1; }; } && echo "build ok" || { echo "BUILD FALHOU (o frontend NÃO foi reiniciado)"; tail -30 /tmp/build-front-$TS.log; exit 1; }
 cd .. && pm2 restart ecosystem.config.js --only comercial-backend,comercial-frontend --update-env >/dev/null && echo "pm2 reiniciado"
 for i in $(seq 1 20); do
   if curl -fsS -o /dev/null https://comercial.prosystemnet.com/escritorio; then echo "frontend ok"; break; fi; sleep 3
