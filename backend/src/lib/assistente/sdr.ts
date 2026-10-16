@@ -287,7 +287,7 @@ export function ehRespostaAutomatica(texto: string | null | undefined): boolean 
  */
 export function ehEncerramentoAutomatico(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[*_~]/g, '');
-  return /(atendimento (foi )?(finalizado|encerrado|concluido)|encerrar (seu|o) atendimento|nao precisa responder|correspondente a sua nota|digite o numero|avalie (o |nosso )?(nosso )?atendimento|pesquisa de satisfacao|de 1 a 5|obrigad[oa] pela (sua )?(procura|preferencia)|fica a disposicao sempre que precisar|aperfeicoar (o |nosso )?atendimento|como foi (a )?sua experiencia)/.test(t);
+  return /(atendimento (foi )?(finalizado|encerrado|concluido)|encerrar (seu|o) atendimento|nao precisa responder|correspondente a sua nota|digite o numero|avalie (o |nosso )?(nosso )?atendimento|pesquisa de satisfacao|de 1 a 5|obrigad[oa] pela (sua )?(procura|preferencia)|fica a disposicao sempre que precisar|aperfeicoar (o |nosso )?atendimento|como foi (a )?sua experiencia|agradecemos (pela|a) (sua )?preferencia)/.test(t);
 }
 
 /**
@@ -295,7 +295,8 @@ export function ehEncerramentoAutomatico(texto: string | null | undefined): bool
  * mídia sem fala (o folheto em imagem que vem junto com as boas-vindas). Áudio é sempre de uma pessoa.
  */
 export function soRoboDaLoja(novas: { tipo: string; conteudo: string | null }[]): boolean {
-  const auto = (m: { tipo: string; conteudo: string | null }) => m.tipo === 'TEXTO' && ehRespostaAutomatica(m.conteudo);
+  // Imagem com legenda automática (boas-vindas em imagem, 16/10/2026) também é o robô falando.
+  const auto = (m: { tipo: string; conteudo: string | null }) => (m.tipo === 'TEXTO' || m.tipo === 'IMAGEM') && ehRespostaAutomatica(m.conteudo);
   return novas.some(auto) && novas.every(m => auto(m) || ['IMAGEM', 'DOCUMENTO', 'OUTRO'].includes(m.tipo));
 }
 
