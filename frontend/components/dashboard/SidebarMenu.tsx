@@ -6,11 +6,14 @@ import { ChevronDown, ChevronsDownUp, ChevronsUpDown, PanelLeftClose, PanelLeftO
 import { activeMenuHref, useMenuGroups } from '@/lib/use-menu-groups';
 import './sidebar-menu.css';
 
-type MenuItem = { href: string; icon: LucideIcon; label: string; destaque?: 'whatsapp'; externoComToken?: boolean };
+// badge: contador ao lado do item (ex.: tickets abertos no Portal Técnico).
+type MenuItem = { href: string; icon: LucideIcon; label: string; destaque?: 'whatsapp'; externoComToken?: boolean; badge?: number | null };
 type MenuGroup = { label: string; items: MenuItem[] };
 
-export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExternal }: {
-  groups: MenuGroup[]; pathname: string | null; open: boolean; onClose: () => void; onOpenExternal: (item: MenuItem) => void;
+// onSelect (Portal Técnico, 16/10/2026): o mesmo menu do CRM navegando por abas; `href` vira a chave da aba e `pathname` a aba atual.
+export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExternal, onSelect, rodape = 'Prosystem · Desde 2008' }: {
+  groups: MenuGroup[]; pathname: string | null; open: boolean; onClose: () => void; onOpenExternal?: (item: MenuItem) => void;
+  onSelect?: (item: MenuItem) => void; rodape?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const { isClosed, toggle, toggleAll } = useMenuGroups();
@@ -20,7 +23,7 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
   const compact = collapsed && !open;
   const labels = groups.map(g => g.label);
   const allClosed = labels.every(g => isClosed(g));
-  const current = activeMenuHref(pathname, groups.flatMap(g => g.items.map(i => i.href)));
+  const current = onSelect ? pathname : activeMenuHref(pathname, groups.flatMap(g => g.items.map(i => i.href)));
   const toggleWidth = () => {
     setCollapsed(!collapsed);
     try { localStorage.setItem('ps_sidebar_collapsed', collapsed ? '0' : '1'); } catch { /* preferência opcional */ }
@@ -48,10 +51,11 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
               {group.items.map(item => {
                 const Icon = item.icon;
                 const active = item.href === current;
-                const content = <><Icon size={14} aria-hidden="true" /><span className={compact ? 'sr-only' : 'ps-menu-label'}>{item.label}</span>{!compact && item.externoComToken && <span className="ps-menu-external" aria-hidden="true">↗</span>}{!compact && item.destaque === 'whatsapp' && <span className="ps-menu-status" aria-hidden="true" />}</>;
+                const content = <><Icon size={14} aria-hidden="true" /><span className={compact ? 'sr-only' : 'ps-menu-label'}>{item.label}</span>{!compact && item.externoComToken && <span className="ps-menu-external" aria-hidden="true">↗</span>}{!compact && item.destaque === 'whatsapp' && <span className="ps-menu-status" aria-hidden="true" />}{!compact && item.badge ? <span className="ps-menu-badge">{item.badge}</span> : null}</>;
                 const className = 'ps-sidebar-item ps-menu-link' + (active ? ' active' : '');
+                if (onSelect) return <li key={item.href}><button type="button" className={className} aria-current={active ? 'page' : undefined} title={compact ? item.label : undefined} onClick={() => { onSelect(item); onClose(); }}>{content}</button></li>;
                 return <li key={item.href}>{item.externoComToken
-                  ? <a href={item.href} target="_blank" rel="noopener" className={className} title={compact ? item.label : undefined} onClick={e => { e.preventDefault(); onOpenExternal(item); }}>{content}</a>
+                  ? <a href={item.href} target="_blank" rel="noopener" className={className} title={compact ? item.label : undefined} onClick={e => { e.preventDefault(); onOpenExternal?.(item); }}>{content}</a>
                   : <Link href={item.href} className={className} aria-current={active ? 'page' : undefined} title={compact ? item.label : undefined}>{content}</Link>}
                 </li>;
               })}
@@ -59,7 +63,7 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
           </section>;
         })}
       </nav>
-      {!compact && <div className="ps-menu-footer">Prosystem · Desde 2008</div>}
+      {!compact && <div className="ps-menu-footer">{rodape}</div>}
     </aside>
   );
 }

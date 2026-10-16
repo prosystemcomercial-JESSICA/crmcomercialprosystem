@@ -22,9 +22,9 @@ export function ConfirmarLeitura({ aviso, onFechar }: { aviso: any | null; onFec
   return (
     <div onClick={onFechar} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(13,34,56,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div role="dialog" aria-label="Recado" onClick={e => e.stopPropagation()}
-        style={{ width: 'min(460px, 100%)', background: 'var(--t-card-bg)', borderRadius: 16, boxShadow: '0 20px 50px rgba(13,34,56,.3)', padding: 20, display: 'grid', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 15, color: urgente ? '#dc2626' : 'var(--t-text-primary)' }}>
-          {urgente ? <AlertTriangle size={18} /> : <Bell size={18} color="#2E6EAB" />} {urgente ? 'Recado urgente' : 'Recado'}
+        style={{ width: 'min(460px, 100%)', background: 'var(--t-card-bg)', borderRadius: 6, boxShadow: '0 20px 50px rgba(13,34,56,.3)', padding: 20, display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, color: urgente ? '#dc2626' : 'var(--t-text-primary)' }}>
+          {urgente ? <AlertTriangle size={18} /> : <Bell size={18} color="#286397" />} {urgente ? 'Recado urgente' : 'Recado'}
         </div>
         <div style={{ fontSize: 15, lineHeight: 1.5, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{aviso.texto}</div>
         <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
@@ -34,9 +34,9 @@ export function ConfirmarLeitura({ aviso, onFechar }: { aviso: any | null; onFec
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#16a34a', fontWeight: 700 }}><CheckCircle size={15} /> Leitura confirmada em {fmtDataHora(aviso.lido_em)}</div>
         ) : null}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          <button onClick={onFechar} style={{ minHeight: 44, padding: '0 16px', borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Fechar</button>
+          <button onClick={onFechar} style={{ minHeight: 44, padding: '0 16px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Fechar</button>
           {!aviso.lido_em && (
-            <button onClick={confirmar} disabled={salvando} style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: '#2E6EAB', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={confirmar} disabled={salvando} style={{ minHeight: 44, padding: '0 18px', borderRadius: 6, border: 'none', background: '#286397', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <CheckCircle size={16} /> {salvando ? 'Confirmando…' : 'Confirmo que li'}
             </button>
           )}
@@ -64,9 +64,9 @@ export function RadarLeitura() {
   }, [carregar]);
   const pendentes = itens.filter(a => !a.lido_em);
   return (
-    <section style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)', padding: '14px 16px 10px' }}>
-        <Eye size={16} color="#2E6EAB" /> Leitura dos recados
+    <section style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)', padding: '14px 16px 10px' }}>
+        <Eye size={16} color="#286397" /> Leitura dos recados
         <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: pendentes.length ? '#d97706' : '#16a34a' }}>{pendentes.length ? `${pendentes.length} sem confirmação` : 'todos confirmados'}</span>
       </div>
       <div style={{ padding: '0 16px 14px', display: 'grid', gap: 4 }}>

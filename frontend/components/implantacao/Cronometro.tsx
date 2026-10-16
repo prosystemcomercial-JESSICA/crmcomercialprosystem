@@ -49,7 +49,7 @@ export function useCronometro() {
 }
 
 const btn = (cor: string, cheio = true): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, borderRadius: 8, padding: '6px 11px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '6px 11px', cursor: 'pointer',
   border: cheio ? 'none' : `1px solid ${cor}55`, background: cheio ? cor : 'transparent', color: cheio ? '#fff' : cor,
 });
 
@@ -65,7 +65,7 @@ export function ModalPausa({ onClose }: { onClose: () => void }) {
   };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.4)', display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Motivo da pausa" style={{ background: 'var(--t-card-bg)', borderRadius: 14, padding: 18, width: 'min(420px, 100%)', display: 'grid', gap: 12, boxShadow: '0 20px 50px rgba(0,0,0,.2)' }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Motivo da pausa" style={{ background: 'var(--t-card-bg)', borderRadius: 6, padding: 18, width: 'min(420px, 100%)', display: 'grid', gap: 12, boxShadow: '0 20px 50px rgba(0,0,0,.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>Por que vai pausar?</b>
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)' }}><X size={18} /></button>
@@ -95,18 +95,18 @@ export function CronometroBarra() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
       {sessao ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#16a34a14', border: '1px solid #16a34a40', borderRadius: 10, padding: '4px 6px 4px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#16a34a14', border: '1px solid #16a34a40', borderRadius: 6, padding: '4px 6px 4px 10px' }}>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: '#16a34a', animation: 'pulse 1.6s infinite' }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rotulo || ''}>{rotulo}</span>
-          <span style={{ fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: '#15803d' }}>{fmtRelogio(decorrido)}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#15803d' }}>{fmtRelogio(decorrido)}</span>
           <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
         </div>
       ) : (
         <span style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coffee size={13} /> Cronômetro parado</span>
       )}
-      <button onClick={() => setMenu(m => !m)} style={btn('#2E6EAB', false)}>Outra atividade</button>
+      <button onClick={() => setMenu(m => !m)} style={btn('#286397', false)}>Outra atividade</button>
       {menu && (
-        <div style={{ position: 'absolute', top: 36, right: 90, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 60, minWidth: 170 }}>
+        <div style={{ position: 'absolute', top: 36, right: 90, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 60, minWidth: 170 }}>
           {OUTRAS.map(o => (
             <button key={o.key} disabled={ocupado} onClick={() => acao(() => apiClient.playCronometro({ tipo: o.key }))}
               style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, padding: '9px 12px', fontSize: 13, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--t-text-primary)' }}>
@@ -169,10 +169,10 @@ function ModalEspera({ implantacao, onClose }: { implantacao: { id: string; clie
   };
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, textAlign: 'left' }} onClick={onClose}>
-      <div style={{ background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'var(--t-card-bg)', borderRadius: 6, width: '100%', maxWidth: 460 }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--t-text-primary)' }}>Demanda em espera</div>
+            <div style={{ fontWeight: 700, color: 'var(--t-text-primary)' }}>Demanda em espera</div>
             <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{implantacao.cliente_razao_social}</div>
           </div>
           <button onClick={onClose}><X size={16} style={{ color: 'var(--t-text-muted)' }} /></button>
@@ -180,7 +180,7 @@ function ModalEspera({ implantacao, onClose }: { implantacao: { id: string; clie
         <div style={{ padding: 18, display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gap: 6 }}>
             {ESPERAS.map(e => (
-              <label key={e.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${tipo === e.key ? '#d97706' : 'var(--t-card-border)'}`, background: tipo === e.key ? '#d9770610' : 'transparent' }}>
+              <label key={e.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${tipo === e.key ? '#d97706' : 'var(--t-card-border)'}`, background: tipo === e.key ? '#d9770610' : 'transparent' }}>
                 <input type="radio" checked={tipo === e.key} onChange={() => setTipo(e.key)} style={{ marginTop: 3 }} />
                 <span><b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{e.label}</b><br /><span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{e.dica}</span></span>
               </label>
@@ -234,7 +234,7 @@ export function PainelMeuDia({ gestao }: { gestao: boolean }) {
   const card = (label: string, valor: string, cor: string, dica?: string) => (
     <div className="ps-card rounded-xl" style={{ padding: 14, border: '1px solid var(--t-card-border)' }} title={dica}>
       <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: cor, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: cor, fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
     </div>
   );
   const hora = (s?: string | null) => s ? new Date(s).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : 'agora';
@@ -252,13 +252,13 @@ export function PainelMeuDia({ gestao }: { gestao: boolean }) {
       {r && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {card('Trabalhado', fmtDur(r.trabalhado_ms), 'var(--t-text-primary)', 'Duas demandas ao mesmo tempo contam uma vez só')}
-          {card('Na jornada', `${fmtDur(r.dentro_ms)} de ${fmtDur(r.jornada_ms)}`, '#2E6EAB', r.virada ? 'Dia de virada: jornada a partir das 7h' : 'Jornada 8h às 18h, 1h de almoço')}
+          {card('Na jornada', `${fmtDur(r.dentro_ms)} de ${fmtDur(r.jornada_ms)}`, '#286397', r.virada ? 'Dia de virada: jornada a partir das 7h' : 'Jornada 8h às 18h, 1h de almoço')}
           {card('Aproveitamento', r.aproveitamento == null ? '—' : `${Math.round(r.aproveitamento * 100)}%`, r.aproveitamento == null ? 'var(--t-text-muted)' : r.aproveitamento >= 0.75 ? '#16a34a' : r.aproveitamento >= 0.5 ? '#d97706' : '#dc2626', 'Tempo registrado dentro da jornada ÷ horas da jornada')}
           {card('Hora extra', fmtDur(r.extra_ms), r.extra_ms ? '#7c3aed' : 'var(--t-text-muted)', 'Fora do horário (noite, madrugada, fim de semana)')}
         </div>
       )}
       <div className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
-        <div style={{ padding: '10px 14px', fontWeight: 800, fontSize: 13, color: 'var(--t-text-primary)', borderBottom: '1px solid var(--t-card-border)' }}>Registros do dia</div>
+        <div style={{ padding: '10px 14px', fontWeight: 700, fontSize: 13, color: 'var(--t-text-primary)', borderBottom: '1px solid var(--t-card-border)' }}>Registros do dia</div>
         {(dia?.sessoes || []).length === 0 && <div style={{ padding: 18, color: 'var(--t-text-muted)', fontSize: 13 }}>Nenhum play neste dia.</div>}
         {(dia?.sessoes || []).map((s: any) => (
           <div key={s.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid var(--t-card-border)', fontSize: 13, alignItems: 'center' }}>
@@ -270,7 +270,7 @@ export function PainelMeuDia({ gestao }: { gestao: boolean }) {
         ))}
       </div>
       <div className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
-        <div style={{ padding: '10px 14px', fontWeight: 800, fontSize: 13, color: 'var(--t-text-primary)', borderBottom: '1px solid var(--t-card-border)' }}>Esperas abertas</div>
+        <div style={{ padding: '10px 14px', fontWeight: 700, fontSize: 13, color: 'var(--t-text-primary)', borderBottom: '1px solid var(--t-card-border)' }}>Esperas abertas</div>
         {esperas.length === 0 && <div style={{ padding: 18, color: 'var(--t-text-muted)', fontSize: 13 }}>Nenhuma demanda parada.</div>}
         {esperas.map(e => (
           <div key={e.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', fontSize: 13, alignItems: 'center' }}>

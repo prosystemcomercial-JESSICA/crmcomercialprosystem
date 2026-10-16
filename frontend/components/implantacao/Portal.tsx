@@ -25,10 +25,10 @@ const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-B
 const fmtDataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 const paraInputData = (s?: string | null) => (s ? new Date(new Date(s).getTime() - 3 * 3600000).toISOString().slice(0, 10) : '');
 const btn = (cor: string, cheio = true): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, borderRadius: 8, padding: '7px 12px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '7px 12px', cursor: 'pointer',
   border: cheio ? 'none' : `1px solid ${cor}55`, background: cheio ? cor : 'transparent', color: cheio ? '#fff' : cor,
 });
-const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12 };
+const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6 };
 const rotulo: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 };
 
 const COR_SLA: Record<string, { cor: string; txt: string }> = {
@@ -47,7 +47,7 @@ function SlaBadge({ sla, etapa }: { sla: any; etapa?: string }) {
   );
 }
 
-function Barra({ pct, cor = '#2E6EAB' }: { pct: number; cor?: string }) {
+function Barra({ pct, cor = '#286397' }: { pct: number; cor?: string }) {
   return (
     <div style={{ height: 6, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden' }} aria-label={`${pct}%`}>
       <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', background: cor, borderRadius: 99, transition: 'width .3s' }} />
@@ -110,7 +110,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }} role="tablist" aria-label="Tipo de demanda">
         {([['', 'Tudo'], ['IMPLANTACAO', 'Implantações'], ['SERVICO', 'Serviços']] as const).map(([k, l]) => (
           <button key={k || 'tudo'} role="tab" aria-selected={modulo === k} onClick={() => setModulo(k)}
-            style={{ fontSize: 13, fontWeight: 700, padding: '7px 14px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${modulo === k ? '#2E6EAB' : 'var(--t-card-border)'}`, background: modulo === k ? '#2E6EAB' : 'var(--t-card-bg)', color: modulo === k ? '#fff' : 'var(--t-text-secondary)' }}>
+            style={{ fontSize: 13, fontWeight: 700, padding: '7px 14px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${modulo === k ? '#286397' : 'var(--t-card-border)'}`, background: modulo === k ? '#286397' : 'var(--t-card-bg)', color: modulo === k ? '#fff' : 'var(--t-text-secondary)' }}>
             {l} <span style={{ opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>{contagem(k)}</span>
           </button>
         ))}
@@ -118,7 +118,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
       {gestao && <CargaEquipe />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         {[
-          ['Em andamento', resumo.ativos, '#2E6EAB'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
+          ['Em andamento', resumo.ativos, '#286397'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
           ['Paradas em espera', resumo.esperando, '#a16207'], ...(modulo !== 'SERVICO' ? [['Cobrança a lançar', resumo.cobranca, '#7c3aed']] : []),
         ].map(([l, v, cor]) => (
           <div key={l as string} style={{ ...cartao, padding: '8px 14px', display: 'flex', gap: 8, alignItems: 'baseline' }}>
@@ -133,12 +133,12 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
         </button>
         {([['meus', 'Meus'], ['virada', 'Virada esta semana'], ['cliente', 'Esperando cliente']] as [string, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setRapidos(r => (r.includes(k) ? r.filter(x => x !== k) : [...r, k]))} aria-pressed={rapidos.includes(k)}
-            style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${rapidos.includes(k) ? '#2E6EAB' : 'var(--t-card-border)'}`, background: rapidos.includes(k) ? '#2E6EAB0f' : 'transparent', color: rapidos.includes(k) ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{l}</button>
+            style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${rapidos.includes(k) ? '#286397' : 'var(--t-card-border)'}`, background: rapidos.includes(k) ? '#2863970f' : 'transparent', color: rapidos.includes(k) ? '#286397' : 'var(--t-text-secondary)' }}>{l}</button>
         ))}
-        <div role="tablist" aria-label="Vista do quadro" style={{ display: 'inline-flex', border: '1px solid var(--t-card-border)', borderRadius: 8, overflow: 'hidden' }}>
+        <div role="tablist" aria-label="Vista do quadro" style={{ display: 'inline-flex', border: '1px solid var(--t-card-border)', borderRadius: 6, overflow: 'hidden' }}>
           {([['kanban', 'Quadro'], ['lista', 'Lista'], ['calendario', 'Calendário'], ...(gestao ? [['equipe', 'Equipe']] : [])] as [typeof vista, string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={vista === k} onClick={() => setVista(k)}
-              style={{ fontSize: 12, fontWeight: vista === k ? 600 : 500, padding: '6px 12px', minHeight: 32, border: 'none', cursor: 'pointer', background: vista === k ? '#2E6EAB' : 'transparent', color: vista === k ? '#fff' : 'var(--t-text-secondary)' }}>{l}</button>
+              style={{ fontSize: 12, fontWeight: vista === k ? 600 : 500, padding: '6px 12px', minHeight: 32, border: 'none', cursor: 'pointer', background: vista === k ? '#286397' : 'transparent', color: vista === k ? '#fff' : 'var(--t-text-secondary)' }}>{l}</button>
           ))}
         </div>
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente ou técnico" className="ps-input" style={{ width: 220 }} />
@@ -162,7 +162,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
             <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Abrir ${col.label}`}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, width: 52, flexShrink: 0, alignSelf: 'stretch', minHeight: 160, cursor: 'pointer', background: sobre === col.key ? '#2E6EAB10' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
+              style={{ ...cartao, width: 52, flexShrink: 0, alignSelf: 'stretch', minHeight: 160, cursor: 'pointer', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
               <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>{col.label}</span>
             </button>
@@ -171,7 +171,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#2E6EAB10' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
+              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
                 <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{col.label}</b>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
@@ -179,13 +179,13 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
               {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '14px 0' }}>Arraste um card para cá</div>}
               {doCol.map(c => (
                 <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => setAberta(c.id)}
-                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, borderLeft: `3px solid ${c.sla?.situacao === 'ESTOURADO' ? '#dc2626' : c.sla?.situacao === 'EM_RISCO' ? '#d97706' : '#2E6EAB'}` }}>
+                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, borderLeft: `3px solid ${c.sla?.situacao === 'ESTOURADO' ? '#dc2626' : c.sla?.situacao === 'EM_RISCO' ? '#d97706' : '#286397'}` }}>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
                     {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
                     {c.esperas_abertas.length > 0 && <Etq cor="#a16207">⏳ {NOME_ESPERA[c.esperas_abertas[0].tipo]}</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
-                    {c.virada_agendada_para && !c.virada_inicio_em && <Etq cor="#2E6EAB">📅 Virada {new Date(c.virada_agendada_para).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</Etq>}
+                    {c.virada_agendada_para && !c.virada_inicio_em && <Etq cor="#286397">📅 Virada {new Date(c.virada_agendada_para).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</Etq>}
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
@@ -194,14 +194,14 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
                   </div>
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
-                    <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#2E6EAB' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <SlaBadge sla={c.sla} etapa={c.sla_etapa} />
                     <Iniciais nome={c.tecnico_nome} />
                   </div>
                   <div title={`${c.progresso}% concluído`} style={{ height: 3, borderRadius: 99, background: 'var(--t-content-bg)', margin: '2px -2px -4px' }}>
-                    <div style={{ height: 3, borderRadius: 99, width: `${c.progresso}%`, background: c.progresso >= 100 ? '#16a34a' : '#2E6EAB' }} />
+                    <div style={{ height: 3, borderRadius: 99, width: `${c.progresso}%`, background: c.progresso >= 100 ? '#16a34a' : '#286397' }} />
                   </div>
                 </div>
               ))}
@@ -264,13 +264,13 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--t-card-border)', display: 'grid', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', marginBottom: 4 }}>{d.tipo_demanda}</div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 650, letterSpacing: '-0.01em', lineHeight: 1.25, color: 'var(--t-text-primary)', textWrap: 'balance' as any }}>{i.cliente_razao_social}</h2>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#286397', marginBottom: 4 }}>{d.tipo_demanda}</div>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.25, color: 'var(--t-text-primary)', textWrap: 'balance' as any }}>{i.cliente_razao_social}</h2>
             <div style={{ fontSize: 13, color: 'var(--t-text-muted)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico', d.prazo_ajuste_ms >= 36e5 ? `prazo pausado +${Math.round(d.prazo_ajuste_ms / 36e5)}h (espera do cliente)` : null].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
             </div>
           </div>
-          <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
+          <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
         {d.saude && d.saude.nivel !== 'VERDE' && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, color: COR_SAUDE[d.saude.nivel] }}>
@@ -287,7 +287,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       <div style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: '1px solid var(--t-card-border)', overflowX: 'auto' }}>
         {grupos.map(g => (
           <button key={g.k} onClick={() => !g.subs.includes(aba) && setAba(g.subs[0])}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 12px', fontSize: 13, fontWeight: grupoAtual.k === g.k ? 600 : 500, whiteSpace: 'nowrap', border: 'none', background: 'transparent', cursor: 'pointer', color: grupoAtual.k === g.k ? '#2E6EAB' : 'var(--t-text-secondary)', borderBottom: grupoAtual.k === g.k ? '2px solid #2E6EAB' : '2px solid transparent' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 12px', fontSize: 13, fontWeight: grupoAtual.k === g.k ? 600 : 500, whiteSpace: 'nowrap', border: 'none', background: 'transparent', cursor: 'pointer', color: grupoAtual.k === g.k ? '#286397' : 'var(--t-text-secondary)', borderBottom: grupoAtual.k === g.k ? '2px solid #286397' : '2px solid transparent' }}>
             {g.l}
           </button>
         ))}
@@ -296,7 +296,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         <div style={{ display: 'flex', gap: 6, padding: '10px 20px 0', overflowX: 'auto' }}>
           {grupoAtual.subs.map(k => (
             <button key={k} onClick={() => setAba(k)}
-              style={{ fontSize: 12, fontWeight: aba === k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, whiteSpace: 'nowrap', cursor: 'pointer', border: `1px solid ${aba === k ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: aba === k ? '#2E6EAB0f' : 'transparent', color: aba === k ? '#2E6EAB' : 'var(--t-text-secondary)' }}>
+              style={{ fontSize: 12, fontWeight: aba === k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, whiteSpace: 'nowrap', cursor: 'pointer', border: `1px solid ${aba === k ? '#28639755' : 'var(--t-card-border)'}`, background: aba === k ? '#2863970f' : 'transparent', color: aba === k ? '#286397' : 'var(--t-text-secondary)' }}>
               {dispo.get(k)?.l}
             </button>
           ))}
@@ -348,8 +348,8 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
     <div style={{ display: 'grid', gap: 16 }}>
       <ResumoDemanda d={d} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={() => baixarPdf(false)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Relatório final (PDF)</button>
-        {i.modulo === 'IMPLANTACAO' && <button onClick={() => baixarPdf(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}><FileText size={13} /> Prévia do termo de aceite</button>}
+        <button onClick={() => baixarPdf(false)} style={{ ...btn('#286397', false), minHeight: 36 }}><FileText size={13} /> Relatório final (PDF)</button>
+        {i.modulo === 'IMPLANTACAO' && <button onClick={() => baixarPdf(true)} style={{ ...btn('#286397', false), minHeight: 36 }}><FileText size={13} /> Prévia do termo de aceite</button>}
         {(d.pos_venda || []).length > 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Pós-implantação: {(d.pos_venda as any[]).map(p => `${p.marco}d ${p.feita_em ? (p.risco ? '⚠️' : '✓') : fmtData(p.prevista_em)}`).join(' · ')}</span>}
         {i.aceite_status && <span style={{ fontSize: 12, color: i.aceite_status === 'ASSINADO' ? '#16a34a' : i.aceite_status === 'RECUSADO' ? '#dc2626' : '#b45309' }}>Termo de aceite: {i.aceite_status === 'ASSINADO' ? `assinado em ${fmtData(i.aceite_assinado_em)}` : i.aceite_status === 'RECUSADO' ? 'recusado pelo cliente' : `aguardando assinatura desde ${fmtData(i.aceite_enviado_em)}`}</span>}
       </div>
@@ -380,7 +380,7 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
           )}
           <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{i.modulo === 'SERVICO' ? 'Concluir até' : 'Finalização até'}<br />
             <input type="date" disabled={!gestao} value={prazos.f} onChange={e => setPrazos(p => ({ ...p, f: e.target.value }))} className="ps-input" /></label>
-          {gestao && <button style={btn('#2E6EAB')} onClick={async () => { try { await apiClient.ajustarPrazos(i.id, { prazo_virada: prazos.v || null, prazo_finalizacao: prazos.f || null }); recarregar(); } catch (e) { alert(erroDe(e)); } }}>Salvar prazos</button>}
+          {gestao && <button style={btn('#286397')} onClick={async () => { try { await apiClient.ajustarPrazos(i.id, { prazo_virada: prazos.v || null, prazo_finalizacao: prazos.f || null }); recarregar(); } catch (e) { alert(erroDe(e)); } }}>Salvar prazos</button>}
         </div>
         {!gestao && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Só a gestão altera os prazos.</span>}
       </div>
@@ -412,11 +412,11 @@ function ResumoDemanda({ d }: { d: any }) {
       <style>{`.pt-dl-linha{display:grid;grid-template-columns:170px 1fr;gap:16px;padding:11px 14px;align-items:baseline}@media (max-width:560px){.pt-dl-linha{grid-template-columns:1fr;gap:2px}}.pt-de-para{display:grid;grid-template-columns:1fr 1fr}@media (max-width:560px){.pt-de-para{grid-template-columns:1fr}.pt-de-para-novo{border-left:none!important;border-top:1px solid var(--t-card-border)}}`}</style>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <div style={os.secao}>O que fazer</div>
-        <button onClick={copiar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, color: copiado ? '#16a34a' : '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px', minHeight: 44 }}>
+        <button onClick={copiar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, color: copiado ? '#16a34a' : '#286397', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px', minHeight: 44 }}>
           {copiado ? <CheckCircle size={13} /> : <Copy size={13} />} {copiado ? 'Copiado' : 'Copiar resumo'}
         </button>
       </div>
-      <div style={{ ...os.painel, overflow: 'hidden', borderColor: '#2E6EAB40' }}>
+      <div style={{ ...os.painel, overflow: 'hidden', borderColor: '#28639740' }}>
         <p style={{ margin: 0, padding: '14px 14px 12px', fontSize: 15, fontWeight: 600, lineHeight: 1.45, color: 'var(--t-text-primary)', textWrap: 'pretty' as any }}>{r.acao}</p>
         {r.detalhes.length > 0 && (
           <dl style={{ margin: 0, borderTop: `1px solid ${os.linha}` }}>
@@ -433,8 +433,8 @@ function ResumoDemanda({ d }: { d: any }) {
             {r.grupos.map((g: any, gi: number) => {
               const novo = gi > 0;
               return (
-                <div key={gi} style={{ padding: '12px 14px', display: 'grid', gap: 8, alignContent: 'start', background: novo ? '#2E6EAB08' : 'transparent', borderLeft: novo ? `1px solid ${os.linha}` : 'none' }} className={novo ? 'pt-de-para-novo' : undefined}>
-                  <div style={{ ...os.secao, color: novo ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{g.titulo}</div>
+                <div key={gi} style={{ padding: '12px 14px', display: 'grid', gap: 8, alignContent: 'start', background: novo ? '#28639708' : 'transparent', borderLeft: novo ? `1px solid ${os.linha}` : 'none' }} className={novo ? 'pt-de-para-novo' : undefined}>
+                  <div style={{ ...os.secao, color: novo ? '#286397' : 'var(--t-text-secondary)' }}>{g.titulo}</div>
                   <dl style={{ margin: 0, display: 'grid', gap: 8 }}>
                     {g.itens.map(([l, v]: [string, string], k: number) => (
                       <div key={k}>
@@ -500,7 +500,7 @@ function Mini({ l, v, s, cor }: { l: string; v: string; s?: string; cor?: string
   return (
     <div style={{ ...cartao, padding: 12 }}>
       <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600 }}>{l}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: cor || 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: cor || 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
       {s && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{s}</div>}
     </div>
   );
@@ -553,16 +553,16 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
           </div>
         </div>
       ))}
-      <button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), justifyContent: 'center', padding: '10px 14px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : null} Salvar ficha</button>
+      <button disabled={salvando} onClick={salvar} style={{ ...btn('#286397'), justifyContent: 'center', padding: '10px 14px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : null} Salvar ficha</button>
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Tela do Suporte (liberação do sistema)</div>
         <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{i.tela_suporte_arquivo_id ? '✅ Tela anexada. Pode substituir enviando outra.' : 'Obrigatória para iniciar a virada.'}</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <label style={{ ...btn('#2E6EAB', false), cursor: 'pointer' }}><ImageIcon size={13} /> Enviar imagem ou PDF
+          <label style={{ ...btn('#286397', false), cursor: 'pointer' }}><ImageIcon size={13} /> Enviar imagem ou PDF
             <input type="file" accept="image/*,application/pdf" hidden onChange={e => e.target.files?.[0] && enviarTela(e.target.files[0])} /></label>
           {i.tela_suporte_arquivo_id && <button onClick={verTela} style={btn('#64748b', false)}>Ver tela</button>}
         </div>
-        {tela && (tela.startsWith('data:application/pdf') ? <a href={tela} download="tela-suporte.pdf" style={{ fontSize: 13 }}>Baixar PDF</a> : <img src={tela} alt="Tela do Suporte" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--t-card-border)' }} />)}
+        {tela && (tela.startsWith('data:application/pdf') ? <a href={tela} download="tela-suporte.pdf" style={{ fontSize: 13 }}>Baixar PDF</a> : <img src={tela} alt="Tela do Suporte" style={{ maxWidth: '100%', borderRadius: 6, border: '1px solid var(--t-card-border)' }} />)}
       </div>
     </div>
   );
@@ -592,7 +592,7 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
         <Barra pct={itens.length ? (feitos / itens.length) * 100 : 0} cor={d.onboarding_ok ? '#16a34a' : '#0369a1'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{feitos} de {itens.length} itens</span>
-          <button onClick={() => irPara('ficha')} style={btn('#2E6EAB', false)}><FileText size={12} /> Preencher a ficha de coleta</button>
+          <button onClick={() => irPara('ficha')} style={btn('#286397', false)}><FileText size={12} /> Preencher a ficha de coleta</button>
           <button onClick={copiarLink} style={btn('#0369a1', false)}><Link2 size={12} /> {copiado ? 'Link copiado' : 'Copiar link para o cliente aprovar'}</button>
           {i.onboarding_aprovado_em && <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>Aprovado pelo cliente: {i.onboarding_aprovado_por} em {fmtDataHora(i.onboarding_aprovado_em)}</span>}
         </div>
@@ -646,7 +646,7 @@ function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () =>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button disabled={salvando} onClick={salvar} style={btn('#2E6EAB')}>{salvando ? <Loader2 size={13} className="animate-spin" /> : null} Salvar respostas</button>
+        <button disabled={salvando} onClick={salvar} style={btn('#286397')}>{salvando ? <Loader2 size={13} className="animate-spin" /> : null} Salvar respostas</button>
         <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Com as 15 respondidas, o item "Perguntas principais" do roteiro se marca sozinho.</span>
       </div>
     </div>
@@ -656,7 +656,7 @@ function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () =>
 const ETAPA_ONB: { key: string; label: string; cor: string; dica: string }[] = [
   { key: 'SEM_TECNICO', label: 'Sem técnico', cor: '#dc2626', dica: 'A gestão designa o técnico' },
   { key: 'PRIMEIRO_CONTATO', label: 'Primeiro contato', cor: '#0369a1', dica: 'Técnico se apresenta ao cliente' },
-  { key: 'DIAGNOSTICO', label: 'Diagnóstico', cor: '#2E6EAB', dica: 'Levantando a ficha da loja' },
+  { key: 'DIAGNOSTICO', label: 'Diagnóstico', cor: '#286397', dica: 'Levantando a ficha da loja' },
   { key: 'APROVACAO', label: 'Aprovação do cliente', cor: '#7c3aed', dica: 'Cliente confere e aprova' },
   { key: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', dica: 'Implantação liberada' },
 ];
@@ -762,7 +762,7 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
     </div>
   );
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
+    <div style={{ display: 'grid', gap: 12 }}>
       {legado && <div style={{ ...cartao, padding: 12, fontSize: 13, color: 'var(--t-text-secondary)', background: 'var(--t-content-bg)' }}>Demanda anterior ao portal: o cliente <b>não recebe</b> nenhuma mensagem automática e ela não gera avisos.</div>}
       {gestao && !i.virada_fim_em && (
         <div style={{ ...cartao, padding: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -808,7 +808,7 @@ function AbaTreinamento({ d, recarregar }: { d: any; recarregar: () => void }) {
               <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Marcada para<br /><input type="date" defaultValue={paraInputData(f.marcada_em)} onBlur={e => e.target.value !== paraInputData(f.marcada_em) && salvar(f.id, { marcada_em: e.target.value || null })} className="ps-input" /></label>
               {f.realizada_em ? <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }}>✅ Realizada em {fmtData(f.realizada_em)}</span>
                 : <button onClick={() => confirm(`Marcar a fase ${f.ordem} como realizada hoje? O cliente recebe o resumo.`) && salvar(f.id, { realizada_em: new Date().toISOString() })} style={btn('#16a34a')}><CheckCircle size={12} /> Fase realizada</button>}
-              <button onClick={() => play(f)} style={btn('#2E6EAB', false)}><Play size={12} /> Play nesta fase</button>
+              <button onClick={() => play(f)} style={btn('#286397', false)}><Play size={12} /> Play nesta fase</button>
             </div>
             <div style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{its.map((c: any) => `${c.feito ? '✓' : '○'} ${c.titulo}`).join(' · ') || 'Sem itens nesta fase.'}</div>
             {f.realizada_em && (f.confirmado_em
@@ -859,7 +859,7 @@ function AbaCorrecoes({ d, recarregar }: { d: any; recarregar: () => void }) {
             <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Aberta por {o.aberta_por || '—'} em {fmtDataHora(o.aberta_em)}{o.resolvida_em ? ` · resolvida em ${fmtDataHora(o.resolvida_em)}` : ''}</div>
             {o.situacao !== 'RESOLVIDA' && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={() => play(o)} style={btn('#2E6EAB', false)}><Play size={12} /> Play na correção</button>
+                <button onClick={() => play(o)} style={btn('#286397', false)}><Play size={12} /> Play na correção</button>
                 {o.situacao !== 'EM_CORRECAO' && <button onClick={() => mudar(o, 'EM_CORRECAO')} style={btn('#d97706', false)}>Em correção</button>}
                 {o.situacao !== 'AGUARDANDO_PROGRAMACAO' && <button onClick={() => mudar(o, 'AGUARDANDO_PROGRAMACAO')} style={btn('#a16207', false)}>Aguardando programação</button>}
                 <button onClick={() => mudar(o, 'RESOLVIDA')} style={btn('#16a34a')}><CheckCircle size={12} /> Resolvida</button>
@@ -957,13 +957,13 @@ function FaixaProximoPasso({ d, gestao, aba, irPara, recarregar }: { d: any; ges
   const devolver = () => run(async () => { await apiClient.devolverDemanda(i.id, motivo.trim()); setDevolvendo(false); setMotivo(''); });
   const vezDeQuem = p.quem === 'GESTAO' ? (gestao ? 'Sua vez' : 'Com a supervisão') : souTecnico ? 'Sua vez' : `Com ${i.tecnico_nome ? i.tecnico_nome.split(' ')[0] : 'o técnico'}`;
   const minhaVez = vezDeQuem === 'Sua vez';
-  const acaoPrincipal: React.CSSProperties = { ...btn('#2E6EAB'), minHeight: 36 };
-  const acaoSecundaria: React.CSSProperties = { ...btn('#2E6EAB', false), minHeight: 36, border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' };
+  const acaoPrincipal: React.CSSProperties = { ...btn('#286397'), minHeight: 36 };
+  const acaoSecundaria: React.CSSProperties = { ...btn('#286397', false), minHeight: 36, border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)' };
   return (
-    <div style={{ borderRadius: 10, border: `1px solid ${minhaVez ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: minhaVez ? '#2E6EAB08' : 'transparent', padding: '12px 14px', display: 'grid', gap: 10 }}>
+    <div style={{ borderRadius: 6, border: `1px solid ${minhaVez ? '#28639755' : 'var(--t-card-border)'}`, background: minhaVez ? '#28639708' : 'transparent', padding: '12px 14px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 11, fontWeight: 500, color: minhaVez ? '#2E6EAB' : 'var(--t-text-muted)', letterSpacing: '.02em' }}>Próximo passo · {vezDeQuem}</div>
+          <div style={{ fontSize: 11, fontWeight: 500, color: minhaVez ? '#286397' : 'var(--t-text-muted)', letterSpacing: '.02em' }}>Próximo passo · {vezDeQuem}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)', marginTop: 2 }}>{p.titulo}</div>
           {p.detalhe && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{p.detalhe}</div>}
         </div>
@@ -1064,14 +1064,14 @@ export function BuscaGlobal({ onAbrir }: { onAbrir: (id: string) => void }) {
   return (
     <>
       <button onClick={() => setAberta(true)} title="Buscar cliente, CNPJ ou técnico (Ctrl+K)" aria-label="Buscar"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-muted)', fontSize: 13, cursor: 'pointer' }}>
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 32, padding: '0 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-muted)', fontSize: 13, cursor: 'pointer' }}>
         <Search size={14} /><span className="pt-topo-extra">Buscar</span>
         <kbd className="pt-topo-extra" style={{ fontSize: 11, fontFamily: 'inherit', border: '1px solid var(--t-card-border)', borderRadius: 4, padding: '0 5px', color: 'var(--t-text-muted)' }}>Ctrl K</kbd>
       </button>
       {aberta && (
         <div onClick={() => setAberta(false)} style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(13,34,56,.35)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '12vh 16px 16px' }}>
           <div role="dialog" aria-label="Buscar demanda" onClick={e => e.stopPropagation()}
-            style={{ width: 'min(560px, 100%)', background: 'var(--t-card-bg)', borderRadius: 12, boxShadow: '0 0 0 1px rgba(13,34,56,.08), 0 16px 40px rgba(13,34,56,.22)', overflow: 'hidden' }}>
+            style={{ width: 'min(560px, 100%)', background: 'var(--t-card-bg)', borderRadius: 6, boxShadow: '0 0 0 1px rgba(13,34,56,.08), 0 16px 40px rgba(13,34,56,.22)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', borderBottom: '1px solid var(--t-card-border)' }}>
               <Search size={16} color="var(--t-text-muted)" />
               <input autoFocus value={q} onChange={e => setQ(e.target.value)} onKeyDown={teclas} placeholder="Cliente, CNPJ, técnico ou vendedor"
@@ -1083,7 +1083,7 @@ export function BuscaGlobal({ onAbrir }: { onAbrir: (id: string) => void }) {
               {q.trim().length >= 2 && !buscando && res.length === 0 && <div style={{ padding: '14px 10px', fontSize: 13, color: 'var(--t-text-muted)' }}>Nada encontrado.</div>}
               {res.map((r, k) => (
                 <button key={r.id} onClick={() => escolher(r.id)} onMouseEnter={() => setSel(k)}
-                  style={{ display: 'flex', width: '100%', textAlign: 'left', gap: 12, alignItems: 'center', padding: '10px', minHeight: 44, borderRadius: 8, border: 'none', cursor: 'pointer', background: k === sel ? 'var(--t-content-bg)' : 'transparent' }}>
+                  style={{ display: 'flex', width: '100%', textAlign: 'left', gap: 12, alignItems: 'center', padding: '10px', minHeight: 44, borderRadius: 6, border: 'none', cursor: 'pointer', background: k === sel ? 'var(--t-content-bg)' : 'transparent' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.cliente}</div>
                     <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{[r.tipo, r.cnpj, r.tecnico || 'sem técnico'].filter(Boolean).join(' · ')}</div>
@@ -1139,7 +1139,7 @@ function AgendaVirada({ d, recarregar }: { d: any; recarregar: () => void }) {
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--t-text-primary)', textTransform: 'capitalize' }}>{quandoBR(i.virada_agendada_para)}</div>
             <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{i.virada_duracao_h ? `Previsão de ${i.virada_duracao_h}h · ` : ''}{i.virada_lembrete_em ? 'Lembrete enviado ao cliente' : 'O cliente recebe um lembrete no dia útil anterior'}</div>
           </div>
-          <button onClick={() => setEditando(true)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>Remarcar</button>
+          <button onClick={() => setEditando(true)} style={{ ...btn('#286397', false), minHeight: 36 }}>Remarcar</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
@@ -1159,7 +1159,7 @@ function AgendaVirada({ d, recarregar }: { d: any; recarregar: () => void }) {
           )}
           <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>O cliente recebe a data no WhatsApp com o que preparar, e um lembrete no dia útil anterior.</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button disabled={salvando} onClick={() => salvar()} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{salvando ? 'Salvando…' : remarcando ? 'Remarcar a virada' : 'Agendar a virada'}</button>
+            <button disabled={salvando} onClick={() => salvar()} style={{ ...btn('#286397'), minHeight: 36 }}>{salvando ? 'Salvando…' : remarcando ? 'Remarcar a virada' : 'Agendar a virada'}</button>
             {remarcando && <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 36 }}>Cancelar</button>}
           </div>
         </div>
@@ -1216,7 +1216,7 @@ function AbaAssistida({ d, recarregar }: { d: any; recarregar: () => void }) {
                     ))}
                   </div>
                   <input value={f(x.dia).observacao} onChange={e => setF(x.dia, 'observacao', e.target.value)} placeholder="Observação (obrigatória se algo não estiver ok)" className="ps-input w-full" style={{ minHeight: 40 }} />
-                  <div><button disabled={salvando === x.dia} onClick={() => registrar(x.dia)} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>{salvando === x.dia ? 'Registrando…' : 'Registrar checagem'}</button></div>
+                  <div><button disabled={salvando === x.dia} onClick={() => registrar(x.dia)} style={{ ...btn('#286397'), minHeight: 36 }}>{salvando === x.dia ? 'Registrando…' : 'Registrar checagem'}</button></div>
                 </div>
               )}
             </div>
@@ -1245,7 +1245,7 @@ function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => v
         </div>
       </div>
       {modelos.map((m, k) => (
-        <div key={k} style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}>
+        <div key={k} style={{ border: '1px solid var(--t-card-border)', borderRadius: 6, padding: 12, display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input value={m.segmento} onChange={e => setModelos(modelos.map((x, j) => j === k ? { ...x, segmento: e.target.value } : x))} placeholder="Segmento (ex.: Farmácia, Padaria)" className="ps-input" style={{ flex: 1, minHeight: 40 }} />
             <button onClick={() => confirm(`Remover o modelo "${m.segmento}"?`) && setModelos(modelos.filter((_, j) => j !== k))} style={{ ...btn('#dc2626', false), minHeight: 36 }}>Remover</button>
@@ -1259,7 +1259,7 @@ function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => v
           </div>
         </div>
       ))}
-      <div><button onClick={() => setModelos([...modelos, { segmento: '', grupos: { INSTALACAO: padrao('INSTALACAO'), CONVERSAO: padrao('CONVERSAO'), TREINAMENTO: padrao('TREINAMENTO') } }])} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Novo modelo (começa com o padrão)</button></div>
+      <div><button onClick={() => setModelos([...modelos, { segmento: '', grupos: { INSTALACAO: padrao('INSTALACAO'), CONVERSAO: padrao('CONVERSAO'), TREINAMENTO: padrao('TREINAMENTO') } }])} style={{ ...btn('#286397', false), minHeight: 36 }}>+ Novo modelo (começa com o padrão)</button></div>
 
       <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>
         <div>
@@ -1273,7 +1273,7 @@ function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => v
             <button onClick={() => setExtras(extras.filter((_, j) => j !== k))} aria-label="Remover" style={{ ...btn('#dc2626', false), minHeight: 36 }}><X size={12} /></button>
           </div>
         ))}
-        <div><button onClick={() => setExtras([...extras, { sistema: '', itens: [] }])} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Sistema de origem</button></div>
+        <div><button onClick={() => setExtras([...extras, { sistema: '', itens: [] }])} style={{ ...btn('#286397', false), minHeight: 36 }}>+ Sistema de origem</button></div>
       </div>
     </div>
   );
@@ -1304,7 +1304,7 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
     } catch (e) { alert(erroDe(e)); }
   };
   const devolver = (t: any) => { const m = prompt(`O que o cliente precisa corrigir em "${t.titulo}"? Ele recebe esta mensagem no WhatsApp.`); if (m && m.trim().length >= 3) run(() => apiClient.acaoTarefaCliente(t.id, 'DEVOLVER', m.trim())); };
-  const STATUS: Record<string, [string, string]> = { PENDENTE: ['Aguardando o cliente', '#b45309'], ENVIADA: ['Enviado, conferir', '#2E6EAB'], CONCLUIDA: ['Conferido', '#16a34a'] };
+  const STATUS: Record<string, [string, string]> = { PENDENTE: ['Aguardando o cliente', '#b45309'], ENVIADA: ['Enviado, conferir', '#286397'], CONCLUIDA: ['Conferido', '#16a34a'] };
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 820 }}>
       <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
@@ -1313,7 +1313,7 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
       {lista.length === 0 ? (
         <div style={{ ...cartao, padding: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ flex: 1, minWidth: 200, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum item pedido ao cliente ainda.</span>
-          {i.modulo === 'IMPLANTACAO' && <button disabled={ocupado} onClick={() => run(() => apiClient.criarTarefaCliente(i.id, { padrao: true }))} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>Pedir os itens padrão</button>}
+          {i.modulo === 'IMPLANTACAO' && <button disabled={ocupado} onClick={() => run(() => apiClient.criarTarefaCliente(i.id, { padrao: true }))} style={{ ...btn('#286397'), minHeight: 36 }}>Pedir os itens padrão</button>}
         </div>
       ) : (
         <div style={{ ...cartao }}>
@@ -1331,7 +1331,7 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
                 </div>
                 {t.resposta_texto && <div style={{ fontSize: 13, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{t.resposta_texto}</div>}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {t.tem_arquivo && <button onClick={() => baixar(t)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}><FileText size={12} /> {t.arquivo_nome || 'Baixar arquivo'}</button>}
+                  {t.tem_arquivo && <button onClick={() => baixar(t)} style={{ ...btn('#286397', false), minHeight: 32 }}><FileText size={12} /> {t.arquivo_nome || 'Baixar arquivo'}</button>}
                   {t.status === 'ENVIADA' && <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, 'CONCLUIR'))} style={{ ...btn('#16a34a'), minHeight: 32 }}><CheckCircle size={12} /> Conferido</button>}
                   {t.status === 'ENVIADA' && <button disabled={ocupado} onClick={() => devolver(t)} style={{ ...btn('#b45309', false), minHeight: 32 }}>Pedir para reenviar</button>}
                   {t.status === 'CONCLUIDA' && <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, 'REABRIR'))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Reabrir</button>}
@@ -1350,7 +1350,7 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
           <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Prazo <input type="date" value={nova.prazo} onChange={e => setNova(p => ({ ...p, prazo: e.target.value }))} className="ps-input" style={{ minHeight: 36 }} /></label>
           <label style={{ fontSize: 13, color: 'var(--t-text-secondary)', display: 'inline-flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={nova.exige_arquivo} onChange={e => setNova(p => ({ ...p, exige_arquivo: e.target.checked }))} /> Precisa de arquivo</label>
           <button disabled={ocupado || nova.titulo.trim().length < 3} onClick={() => run(async () => { await apiClient.criarTarefaCliente(i.id, { titulo: nova.titulo.trim(), descricao: nova.descricao.trim() || undefined, prazo: nova.prazo || undefined, exige_arquivo: nova.exige_arquivo }); setNova({ titulo: '', descricao: '', prazo: '', exige_arquivo: true }); })}
-            style={{ ...btn('#2E6EAB'), minHeight: 36, opacity: nova.titulo.trim().length < 3 ? 0.5 : 1 }}>Adicionar</button>
+            style={{ ...btn('#286397'), minHeight: 36, opacity: nova.titulo.trim().length < 3 ? 0.5 : 1 }}>Adicionar</button>
         </div>
       </div>
     </div>
@@ -1365,13 +1365,13 @@ export function ResumoImplantacaoTicket({ clienteId }: { clienteId?: string | nu
   if (!r) return null;
   const linhas: string[] = (r.resumo_suporte || '').split('\n');
   return (
-    <div style={{ border: '1px solid #2E6EAB40', background: '#2E6EAB08', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+    <div style={{ border: '1px solid #28639740', background: '#28639708', borderRadius: 6, padding: '12px 14px', display: 'grid', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#2E6EAB' }}>Resumo da {r.modulo === 'SERVICO' ? 'demanda' : 'implantação'}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#286397' }}>Resumo da {r.modulo === 'SERVICO' ? 'demanda' : 'implantação'}</span>
         <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>validada em {fmtData(r.validado_em)}{r.tecnico_nome ? ` · ${r.tecnico_nome.split(' ')[0]}` : ''}</span>
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap' }}>{(aberto ? linhas : linhas.slice(0, 4)).join('\n')}</div>
-      {linhas.length > 4 && <button onClick={() => setAberto(v => !v)} style={{ justifySelf: 'start', fontSize: 12, fontWeight: 600, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>{aberto ? 'Mostrar menos' : 'Ver o resumo completo'}</button>}
+      {linhas.length > 4 && <button onClick={() => setAberto(v => !v)} style={{ justifySelf: 'start', fontSize: 12, fontWeight: 600, color: '#286397', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>{aberto ? 'Mostrar menos' : 'Ver o resumo completo'}</button>}
     </div>
   );
 }
@@ -1425,7 +1425,7 @@ function ChipEvento({ e, abrir, mostrarTecnico }: { e: EventoAgenda; abrir: (id:
   return (
     <button onClick={() => abrir(e.id)} title={`${e.titulo} · ${e.cliente}${e.tecnico ? ` · ${e.tecnico}` : ''}`}
       style={{ display: 'block', width: '100%', textAlign: 'left', fontSize: 11, lineHeight: 1.3, padding: '3px 6px', borderRadius: 6, border: 'none', cursor: 'pointer', marginTop: 3,
-        background: e.tipo === 'VIRADA' ? '#2E6EAB1a' : '#0891b214', color: 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        background: e.tipo === 'VIRADA' ? '#2863971a' : '#0891b214', color: 'var(--t-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
       {e.tipo === 'VIRADA' ? '🚀' : '🎓'} {e.hora ? `${e.hora} ` : ''}{e.cliente}{mostrarTecnico && e.tecnico ? ` · ${e.tecnico.split(' ')[0]}` : ''}
     </button>
   );
@@ -1446,7 +1446,7 @@ function VistaCalendario({ cards, abrir, gestao }: { cards: any[]; abrir: (id: s
         <button onClick={() => mover(-1)} aria-label="Mês anterior" style={{ ...btn('#64748b', false), minHeight: 32 }}>‹</button>
         <b style={{ fontSize: 15, color: 'var(--t-text-primary)', textTransform: 'capitalize', minWidth: 160, textAlign: 'center' }}>{nomeMes}</b>
         <button onClick={() => mover(1)} aria-label="Próximo mês" style={{ ...btn('#64748b', false), minHeight: 32 }}>›</button>
-        <button onClick={() => setMes(hoje.slice(0, 7))} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Hoje</button>
+        <button onClick={() => setMes(hoje.slice(0, 7))} style={{ ...btn('#286397', false), minHeight: 32 }}>Hoje</button>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--t-text-muted)' }}>{doMes.length} compromisso(s) · 🚀 virada · 🎓 treinamento</span>
       </div>
       <div className="pt-cal-grade" style={{ ...cartao, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', overflow: 'hidden' }}>
@@ -1457,7 +1457,7 @@ function VistaCalendario({ cards, abrir, gestao }: { cards: any[]; abrir: (id: s
           const doDia = doMes.filter(e => e.dia === dia);
           return (
             <div key={dia} style={{ borderTop: '1px solid var(--t-card-border)', borderLeft: (vazio + k) % 7 ? '1px solid var(--t-card-border)' : 'none', minHeight: 84, padding: 4, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: dia === hoje ? 700 : 500, color: dia === hoje ? '#2E6EAB' : 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{k + 1}</div>
+              <div style={{ fontSize: 12, fontWeight: dia === hoje ? 700 : 500, color: dia === hoje ? '#286397' : 'var(--t-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{k + 1}</div>
               {doDia.slice(0, 3).map((e, j) => <ChipEvento key={j} e={e} abrir={abrir} mostrarTecnico={gestao} />)}
               {doDia.length > 3 && <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>+{doDia.length - 3}</div>}
             </div>
@@ -1481,7 +1481,7 @@ function VistaEquipe({ cards, abrir }: { cards: any[]; abrir: (id: string) => vo
         <div style={{ display: 'grid', gridTemplateColumns: `160px repeat(14, minmax(64px, 1fr))`, minWidth: 160 + 14 * 64 }}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--t-card-border)' }} />
           {dias.map(d => { const dt = new Date(`${d}T12:00:00-03:00`); const fds = [0, 6].includes(dt.getUTCDay()); return (
-            <div key={d} style={{ padding: '8px 4px', fontSize: 11, textAlign: 'center', fontWeight: d === dias[0] ? 700 : 500, color: d === dias[0] ? '#2E6EAB' : 'var(--t-text-muted)', borderBottom: '1px solid var(--t-card-border)', background: fds ? 'var(--t-content-bg)' : 'transparent', textTransform: 'capitalize' }}>
+            <div key={d} style={{ padding: '8px 4px', fontSize: 11, textAlign: 'center', fontWeight: d === dias[0] ? 700 : 500, color: d === dias[0] ? '#286397' : 'var(--t-text-muted)', borderBottom: '1px solid var(--t-card-border)', background: fds ? 'var(--t-content-bg)' : 'transparent', textTransform: 'capitalize' }}>
               {dt.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'America/Sao_Paulo' }).replace('.', '')}<br />{d.slice(8, 10)}/{d.slice(5, 7)}
             </div>); })}
           {nomes.map(nome => {
@@ -1572,7 +1572,7 @@ function AbaTestes({ d, recarregar }: { d: any; recarregar: () => void }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <input value={novo} onChange={e => setNovo(e.target.value)} placeholder="Novo teste (ex.: Convênios)" className="ps-input" style={{ flex: 1, minHeight: 40 }} />
-        <button disabled={novo.trim().length < 2} onClick={async () => { try { await apiClient.criarTesteConversao(i.id, novo.trim()); setNovo(''); recarregar(); } catch (e) { alert(erroDe(e)); } }} style={{ ...btn('#2E6EAB'), minHeight: 40, opacity: novo.trim().length < 2 ? 0.5 : 1 }}>Adicionar</button>
+        <button disabled={novo.trim().length < 2} onClick={async () => { try { await apiClient.criarTesteConversao(i.id, novo.trim()); setNovo(''); recarregar(); } catch (e) { alert(erroDe(e)); } }} style={{ ...btn('#286397'), minHeight: 40, opacity: novo.trim().length < 2 ? 0.5 : 1 }}>Adicionar</button>
       </div>
     </div>
   );
@@ -1598,20 +1598,20 @@ function AbaAnexos({ d, recarregar }: { d: any; recarregar: () => void }) {
         {lista.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum arquivo ou link ainda.</div>}
         {lista.map((a, k) => (
           <div key={a.id} style={{ padding: '10px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            {a.tipo === 'LINK' ? <Link2 size={15} color="#2E6EAB" /> : <FileText size={15} color="#2E6EAB" />}
+            {a.tipo === 'LINK' ? <Link2 size={15} color="#286397" /> : <FileText size={15} color="#286397" />}
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)', wordBreak: 'break-word' }}>{a.nome}{a.tela_suporte ? <span style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 500 }}> · tela do Suporte</span> : null}</div>
               <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{a.enviado_por ? `${String(a.enviado_por).split(' ')[0]} · ` : ''}{fmtDataHora(a.created_at)}{a.descricao ? ` · ${a.descricao}` : ''}</div>
             </div>
-            {a.tipo === 'LINK' ? <a href={a.url} target="_blank" rel="noreferrer" style={{ ...btn('#2E6EAB', false), minHeight: 32, textDecoration: 'none' }}>Abrir</a>
-              : <button onClick={() => baixar(a)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Baixar</button>}
+            {a.tipo === 'LINK' ? <a href={a.url} target="_blank" rel="noreferrer" style={{ ...btn('#286397', false), minHeight: 32, textDecoration: 'none' }}>Abrir</a>
+              : <button onClick={() => baixar(a)} style={{ ...btn('#286397', false), minHeight: 32 }}>Baixar</button>}
             {!a.tela_suporte && <button aria-label="Remover" onClick={() => confirm(`Remover "${a.nome}"?`) && apiClient.removerAnexoImplantacao(a.id).then(recarregar).catch(e => alert(erroDe(e)))} style={{ ...btn('#64748b', false), minHeight: 32 }}><X size={12} /></button>}
           </div>
         ))}
       </div>
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Adicionar</div>
-        <label style={{ ...btn('#2E6EAB'), minHeight: 40, justifySelf: 'start', cursor: enviando ? 'wait' : 'pointer', opacity: enviando ? 0.6 : 1 }}>
+        <label style={{ ...btn('#286397'), minHeight: 40, justifySelf: 'start', cursor: enviando ? 'wait' : 'pointer', opacity: enviando ? 0.6 : 1 }}>
           {enviando ? 'Enviando…' : 'Escolher arquivo (até 15 MB)'}
           <input type="file" disabled={enviando} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) enviarArquivo(f); }} style={{ display: 'none' }} />
         </label>
@@ -1619,7 +1619,7 @@ function AbaAnexos({ d, recarregar }: { d: any; recarregar: () => void }) {
           <input value={link.nome} onChange={e => setLink(p => ({ ...p, nome: e.target.value }))} placeholder="Nome do link" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
           <input value={link.url} onChange={e => setLink(p => ({ ...p, url: e.target.value }))} placeholder="https://…" className="ps-input" style={{ flex: '2 1 240px', minHeight: 40 }} />
           <button disabled={!link.nome.trim() || !/^https?:\/\//.test(link.url.trim())} onClick={async () => { try { await apiClient.anexarImplantacao(i.id, { nome: link.nome.trim(), link: link.url.trim() }); setLink({ nome: '', url: '' }); recarregar(); } catch (e) { alert(erroDe(e)); } }}
-            style={{ ...btn('#2E6EAB', false), minHeight: 40 }}>Adicionar link</button>
+            style={{ ...btn('#286397', false), minHeight: 40 }}>Adicionar link</button>
         </div>
       </div>
     </div>
@@ -1674,14 +1674,14 @@ function AbaInventario({ d }: { d: any }) {
         </table>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={() => setInv(p => p && ({ ...p, itens: [...p.itens, { tipo: 'Caixa (PDV)', descricao: '', acesso_remoto: '', observacao: '' }] }))} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>+ Equipamento</button>
-        {inv.itens.length === 0 && i.coleta && <button onClick={daColeta} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>Preencher pela ficha de coleta</button>}
+        <button onClick={() => setInv(p => p && ({ ...p, itens: [...p.itens, { tipo: 'Caixa (PDV)', descricao: '', acesso_remoto: '', observacao: '' }] }))} style={{ ...btn('#286397', false), minHeight: 36 }}>+ Equipamento</button>
+        {inv.itens.length === 0 && i.coleta && <button onClick={daColeta} style={{ ...btn('#286397', false), minHeight: 36 }}>Preencher pela ficha de coleta</button>}
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4, flex: '0 1 220px' }}>Versão do Prosystem instalada<input value={inv.versao_sistema} onChange={e => setInv(p => p && ({ ...p, versao_sistema: e.target.value }))} className="ps-input" style={{ minHeight: 40 }} /></label>
         <label style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'grid', gap: 4, flex: '1 1 300px' }}>Observações (rede, backup, particularidades)<input value={inv.observacoes} onChange={e => setInv(p => p && ({ ...p, observacoes: e.target.value }))} className="ps-input" style={{ minHeight: 40 }} /></label>
       </div>
-      <div><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), minHeight: 40 }}>{salvando ? 'Salvando…' : ok ? 'Salvo' : 'Salvar inventário'}</button></div>
+      <div><button disabled={salvando} onClick={salvar} style={{ ...btn('#286397'), minHeight: 40 }}>{salvando ? 'Salvando…' : ok ? 'Salvo' : 'Salvar inventário'}</button></div>
     </div>
   );
 }
@@ -1692,11 +1692,11 @@ export function InventarioTicket({ clienteId }: { clienteId?: string | null }) {
   useEffect(() => { setInv(null); if (clienteId) apiClient.getInventarioCliente(clienteId).then(r => setInv(r.data.data)).catch(() => {}); }, [clienteId]);
   if (!inv || !(inv.itens || []).length) return null;
   return (
-    <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+    <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '12px 14px', display: 'grid', gap: 6 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Inventário técnico{inv.versao_sistema ? ` · Prosystem ${inv.versao_sistema}` : ''}</div>
       {(inv.itens as any[]).map((x, k) => (
         <div key={k} style={{ fontSize: 13, color: 'var(--t-text-primary)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <b style={{ fontWeight: 600 }}>{x.tipo}</b>{x.descricao && <span style={{ color: 'var(--t-text-secondary)' }}>{x.descricao}</span>}{x.acesso_remoto && <span style={{ color: '#2E6EAB', fontVariantNumeric: 'tabular-nums' }}>acesso {x.acesso_remoto}</span>}{x.observacao && <span style={{ color: 'var(--t-text-muted)' }}>· {x.observacao}</span>}
+          <b style={{ fontWeight: 600 }}>{x.tipo}</b>{x.descricao && <span style={{ color: 'var(--t-text-secondary)' }}>{x.descricao}</span>}{x.acesso_remoto && <span style={{ color: '#286397', fontVariantNumeric: 'tabular-nums' }}>acesso {x.acesso_remoto}</span>}{x.observacao && <span style={{ color: 'var(--t-text-muted)' }}>· {x.observacao}</span>}
         </div>
       ))}
       {inv.observacoes && <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{inv.observacoes}</div>}
@@ -1767,20 +1767,20 @@ function PainelIndicadores() {
         <span style={{ flex: 1 }} />
         <button onClick={() => mover(-1)} aria-label="Mês anterior" style={{ ...btn('#64748b', false), minHeight: 32 }}>‹</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-secondary)', minWidth: 130, textAlign: 'center', textTransform: 'capitalize' }}>{nomeMes}</span>
-        <button onClick={() => exportarCsv(r)} style={{ ...btn('#2E6EAB', false), minHeight: 32 }}>Exportar planilha</button>
+        <button onClick={() => exportarCsv(r)} style={{ ...btn('#286397', false), minHeight: 32 }}>Exportar planilha</button>
         <button onClick={() => mover(1)} disabled={mes >= mesAtual} aria-label="Próximo mês" style={{ ...btn('#64748b', false), minHeight: 32, opacity: mes >= mesAtual ? 0.4 : 1 }}>›</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {KPIS.map(k => (
           <button key={k.k} onClick={() => setAberto(x => (x === k.k ? null : k.k))} disabled={!k.col}
-            style={{ textAlign: 'left', border: `1px solid ${aberto === k.k ? '#2E6EAB66' : 'var(--t-card-border)'}`, borderRadius: 10, padding: '12px 14px', background: 'transparent', cursor: k.col ? 'pointer' : 'default', display: 'grid', gap: 4 }}>
+            style={{ textAlign: 'left', border: `1px solid ${aberto === k.k ? '#28639766' : 'var(--t-card-border)'}`, borderRadius: 6, padding: '12px 14px', background: 'transparent', cursor: k.col ? 'pointer' : 'default', display: 'grid', gap: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>{k.l}</span>
-            <span style={{ fontSize: 26, fontWeight: 650, color: cor(k), fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{k.v == null ? '—' : `${String(k.v).replace('.', ',')}${k.un}`}</span>
+            <span style={{ fontSize: 22, fontWeight: 600, color: cor(k), fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{k.v == null ? '—' : `${String(k.v).replace('.', ',')}${k.un}`}</span>
             <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{k.meta != null ? `meta ${k.menor ? 'até' : 'pelo menos'} ${String(k.meta).replace('.', ',')}${k.un} · ` : ''}{k.sub}</span>
             {delta(k)}
           </button>
         ))}
-        <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', display: 'grid', gap: 6 }}>
+        <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '12px 14px', display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>Horas de espera por causa</span>
           {[['PROGRAMACAO', 'Programação', '#7c3aed'], ['CLIENTE', 'Cliente', '#b45309'], ['PROCESSAMENTO', 'Processamento', '#64748b']].map(([k, l, c]) => (
             <div key={k} style={{ display: 'grid', gap: 2 }}>
@@ -1859,10 +1859,10 @@ function LinhaMarcos({ d }: { d: any }) {
           <div key={nome} role="listitem" style={{ display: 'flex', alignItems: 'center', flex: k < marcos.length - 1 ? '1 1 0' : '0 0 auto', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <span style={{ width: 18, height: 18, borderRadius: 99, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700,
-                background: ok ? '#2E6EAB' : 'transparent', color: ok ? '#fff' : eAtual ? '#2E6EAB' : 'var(--t-text-muted)', border: ok ? 'none' : `1.5px solid ${eAtual ? '#2E6EAB' : 'var(--t-card-border)'}` }}>{ok ? '✓' : k + 1}</span>
+                background: ok ? '#286397' : 'transparent', color: ok ? '#fff' : eAtual ? '#286397' : 'var(--t-text-muted)', border: ok ? 'none' : `1.5px solid ${eAtual ? '#286397' : 'var(--t-card-border)'}` }}>{ok ? '✓' : k + 1}</span>
               <span style={{ fontSize: 12, fontWeight: eAtual ? 600 : 500, color: ok ? 'var(--t-text-secondary)' : eAtual ? 'var(--t-text-primary)' : 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>{nome}</span>
             </div>
-            {k < marcos.length - 1 && <span style={{ flex: 1, height: 1.5, minWidth: 12, margin: '0 8px', background: ok ? '#2E6EAB' : 'var(--t-card-border)' }} />}
+            {k < marcos.length - 1 && <span style={{ flex: 1, height: 1.5, minWidth: 12, margin: '0 8px', background: ok ? '#286397' : 'var(--t-card-border)' }} />}
           </div>
         );
       })}
@@ -1885,9 +1885,9 @@ function BarraCelularCard({ d }: { d: any }) {
   return (
     <div className="pt-barra-celular" style={{ borderTop: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <style>{`.pt-barra-celular{display:none}@media (max-width:640px){.pt-barra-celular{display:flex}}`}</style>
-      {n ? <a href={`tel:${n}`} style={item}><Phone size={18} color="#2E6EAB" />Ligar</a> : <span style={{ ...item, opacity: 0.4 }}><Phone size={18} />Sem telefone</span>}
+      {n ? <a href={`tel:${n}`} style={item}><Phone size={18} color="#286397" />Ligar</a> : <span style={{ ...item, opacity: 0.4 }}><Phone size={18} />Sem telefone</span>}
       {wa ? <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" style={item}><MessageSquare size={18} color="#16a34a" />WhatsApp</a> : <span style={{ ...item, opacity: 0.4 }}><MessageSquare size={18} />WhatsApp</span>}
-      <button onClick={play} style={{ ...item, color: rodando ? '#dc2626' : 'var(--t-text-secondary)' }}><Play size={18} color={rodando ? '#dc2626' : '#2E6EAB'} />{rodando ? 'Pausar' : 'Play'}</button>
+      <button onClick={play} style={{ ...item, color: rodando ? '#dc2626' : 'var(--t-text-secondary)' }}><Play size={18} color={rodando ? '#dc2626' : '#286397'} />{rodando ? 'Pausar' : 'Play'}</button>
       {pausa && <ModalPausa onClose={() => setPausa(false)} />}
     </div>
   );
@@ -1904,7 +1904,7 @@ function PreferenciaAvisos() {
       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Também no meu WhatsApp</span>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {[['URGENTES', 'Só urgentes'], ['TODOS', 'Tudo'], ['NENHUM', 'Nada']].map(([k, l]) => (
-          <button key={k} onClick={() => salvar(k)} style={{ fontSize: 12, fontWeight: v === k ? 600 : 500, padding: '5px 10px', minHeight: 30, borderRadius: 999, cursor: 'pointer', border: `1px solid ${v === k ? '#2E6EAB' : 'var(--t-card-border)'}`, background: v === k ? '#2E6EAB0f' : 'transparent', color: v === k ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{l}</button>
+          <button key={k} onClick={() => salvar(k)} style={{ fontSize: 12, fontWeight: v === k ? 600 : 500, padding: '5px 10px', minHeight: 30, borderRadius: 999, cursor: 'pointer', border: `1px solid ${v === k ? '#286397' : 'var(--t-card-border)'}`, background: v === k ? '#2863970f' : 'transparent', color: v === k ? '#286397' : 'var(--t-text-secondary)' }}>{l}</button>
         ))}
       </div>
     </div>
@@ -1915,7 +1915,7 @@ function PreferenciaAvisos() {
 function Iniciais({ nome }: { nome?: string | null }) {
   if (!nome) return <span title="Sem técnico" style={{ fontSize: 11, fontWeight: 600, color: '#dc2626' }}>sem técnico</span>;
   const ini = nome.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  return <span title={nome} style={{ width: 26, height: 26, borderRadius: 99, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#2E6EAB', background: '#2E6EAB14', flexShrink: 0 }}>{ini}</span>;
+  return <span title={nome} style={{ width: 26, height: 26, borderRadius: 99, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#286397', background: '#28639714', flexShrink: 0 }}>{ini}</span>;
 }
 
 // ─── Linguagem visual do card (ordem de serviço): bordas finas, cor só para ação ───
@@ -1924,7 +1924,7 @@ const os = {
   rotulo: { fontSize: 11, fontWeight: 500, color: 'var(--t-text-muted)', letterSpacing: '.02em' } as React.CSSProperties,
   secao: { fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', letterSpacing: '.01em' } as React.CSSProperties,
   valor: { fontSize: 14, fontWeight: 500, color: 'var(--t-text-primary)', lineHeight: 1.5 } as React.CSSProperties,
-  painel: { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10 } as React.CSSProperties,
+  painel: { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6 } as React.CSSProperties,
 };
 
 /** Botão de ícone redondo (44px de toque) para ligar / WhatsApp. */
@@ -1945,7 +1945,7 @@ function LinhaContato({ papel, nome, fone, acao }: { papel: string; nome: string
         <div style={os.rotulo}>{papel}</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)' }}>{nome || 'Sem nome'}</span>
-          {n ? <a href={`tel:${n}`} style={{ fontSize: 15, fontWeight: 600, color: '#2E6EAB', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(fone)}</a>
+          {n ? <a href={`tel:${n}`} style={{ fontSize: 15, fontWeight: 600, color: '#286397', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(fone)}</a>
             : <span style={{ fontSize: 13, color: '#b45309' }}>sem telefone</span>}
         </div>
       </div>
@@ -1970,10 +1970,10 @@ function PainelContatos({ d, gestao, recarregar }: { d: any; gestao: boolean; re
     try { await apiClient.salvarDecisorImplantacao(d.implantacao.id, nome.trim(), fone.trim()); setEditando(false); recarregar(); } catch (e) { alert(erroDe(e)); }
   };
   const editar = () => { setNome(col.decisor_nome || ''); setFone(col.decisor_telefone || ''); setEditando(true); };
-  const linkEditar = (txt: string) => <button onClick={editar} style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px' }}>{txt}</button>;
+  const linkEditar = (txt: string) => <button onClick={editar} style={{ fontSize: 12, fontWeight: 500, color: '#286397', background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 4px' }}>{txt}</button>;
   return (
     <div style={{ ...os.painel, overflow: 'hidden' }}>
-      <style>{`.pt-acao-contato{transition:background-color .15s,border-color .15s,transform .12s}.pt-acao-contato:hover{background:var(--t-content-bg);border-color:#2E6EAB55}.pt-acao-contato:active{transform:scale(.96)}.pt-acao-contato::after{content:'';position:absolute;inset:-4px}`}</style>
+      <style>{`.pt-acao-contato{transition:background-color .15s,border-color .15s,transform .12s}.pt-acao-contato:hover{background:var(--t-content-bg);border-color:#28639755}.pt-acao-contato:active{transform:scale(.96)}.pt-acao-contato::after{content:'';position:absolute;inset:-4px}`}</style>
       {editando ? (
         <div style={{ padding: 14, display: 'grid', gap: 10 }}>
           <div style={os.rotulo}>Responsável da empresa (decisor)</div>
@@ -1982,7 +1982,7 @@ function PainelContatos({ d, gestao, recarregar }: { d: any; gestao: boolean; re
             <input value={fone} onChange={e => setFone(e.target.value)} placeholder="Telefone" inputMode="tel" className="ps-input" style={{ flex: '1 1 160px', minHeight: 40 }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={salvar} style={{ ...btn('#2E6EAB'), minHeight: 36 }}>Salvar</button>
+            <button onClick={salvar} style={{ ...btn('#286397'), minHeight: 36 }}>Salvar</button>
             <button onClick={() => setEditando(false)} style={{ ...btn('#64748b', false), minHeight: 36, border: `1px solid ${os.linha}` }}>Cancelar</button>
           </div>
         </div>
@@ -2036,7 +2036,7 @@ function BlocoObservacoes({ titulo, dica, lista, privada, id, eu, recarregar }: 
         <textarea rows={2} value={texto} onChange={e => setTexto(e.target.value)} placeholder={privada ? 'Escreva algo só para você…' : 'Escreva uma observação para a equipe…'}
           style={{ width: '100%', border: 'none', outline: 'none', resize: 'vertical', background: 'transparent', padding: '8px 10px', fontSize: 14, color: 'var(--t-text-primary)', fontFamily: 'inherit' }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 6px 6px' }}>
-          <button onClick={salvar} disabled={salvando || !texto.trim()} style={{ ...btn('#2E6EAB'), minHeight: 32, opacity: texto.trim() ? 1 : 0.45 }}>{salvando ? 'Salvando…' : 'Adicionar'}</button>
+          <button onClick={salvar} disabled={salvando || !texto.trim()} style={{ ...btn('#286397'), minHeight: 32, opacity: texto.trim() ? 1 : 0.45 }}>{salvando ? 'Salvando…' : 'Adicionar'}</button>
         </div>
       </div>
       {lista.length === 0
@@ -2084,7 +2084,7 @@ function AbaFichaCliente({ d }: { d: any }) {
       </section>
     );
   };
-  const fone = (t?: string | null) => (t ? <a href={`tel:${soDigitos(t)}`} style={{ color: '#2E6EAB', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(t)}</a> : null);
+  const fone = (t?: string | null) => (t ? <a href={`tel:${soDigitos(t)}`} style={{ color: '#286397', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(t)}</a> : null);
   const end = c ? [c.endereco, c.numero_end, c.complemento].filter(Boolean).join(', ') : '';
   return (
     <div style={{ display: 'grid', gap: 24, maxWidth: 820 }}>
@@ -2094,7 +2094,7 @@ function AbaFichaCliente({ d }: { d: any }) {
       <section style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={os.secao}>Demanda</span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: '#2E6EAB', border: '1px solid #2E6EAB40', borderRadius: 999, padding: '2px 10px' }}>{d.tipo_demanda}</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: '#286397', border: '1px solid #28639740', borderRadius: 999, padding: '2px 10px' }}>{d.tipo_demanda}</span>
         </div>
         {vendido && <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: 'var(--t-text-primary)', textWrap: 'pretty' as any, whiteSpace: 'pre-wrap' }}>{vendido}</p>}
         <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 28, rowGap: 10 }}>
@@ -2161,12 +2161,12 @@ function AbaCliente({ d, recarregar }: { d: any; recarregar: () => void }) {
         <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>O cliente vê o passo a passo padrão, o percentual e o tempo dedicado. Não vê esperas nem descrições internas.</div>
         {d.link_cliente ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <code style={{ fontSize: 12, background: 'var(--t-content-bg)', padding: '6px 10px', borderRadius: 8, wordBreak: 'break-all' }}>{d.link_cliente}</code>
-            <button onClick={copiar} style={btn('#2E6EAB', false)}><Copy size={12} /> {copiado ? 'Copiado' : 'Copiar'}</button>
-            <a href={d.link_cliente} target="_blank" rel="noreferrer" style={btn('#2E6EAB')}><Link2 size={12} /> Abrir</a>
+            <code style={{ fontSize: 12, background: 'var(--t-content-bg)', padding: '6px 10px', borderRadius: 6, wordBreak: 'break-all' }}>{d.link_cliente}</code>
+            <button onClick={copiar} style={btn('#286397', false)}><Copy size={12} /> {copiado ? 'Copiado' : 'Copiar'}</button>
+            <a href={d.link_cliente} target="_blank" rel="noreferrer" style={btn('#286397')}><Link2 size={12} /> Abrir</a>
           </div>
         ) : (
-          <div><button onClick={gerar} style={btn('#2E6EAB')}><Link2 size={12} /> Criar página do cliente</button><div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 6 }}>Demanda antiga: ao criar, o cliente só recebe os próximos avisos (nada atrasado).</div></div>
+          <div><button onClick={gerar} style={btn('#286397')}><Link2 size={12} /> Criar página do cliente</button><div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 6 }}>Demanda antiga: ao criar, o cliente só recebe os próximos avisos (nada atrasado).</div></div>
         )}
         <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Avisos vão para: WhatsApp {d.implantacao.contato_whatsapp || (d.implantacao.coleta?.contato_telefone) || <b style={{ color: '#dc2626' }}>sem número</b>} · e-mail {d.implantacao.contato_email || <b style={{ color: '#dc2626' }}>sem e-mail</b>} (ajuste na Ficha de coleta).</div>
       </div>
@@ -2210,7 +2210,7 @@ function EnviarAviso({ implantacaoId, tecnicoId }: { implantacaoId?: string | nu
         <select value={prioridade} onChange={e => setPrioridade(e.target.value)} className="ps-input" style={{ width: 'auto' }}><option value="NORMAL">Normal</option><option value="URGENTE">Urgente (também no WhatsApp)</option></select>
       </div>
       <textarea rows={2} value={texto} onChange={e => setTexto(e.target.value)} className="ps-input w-full" placeholder="Ex.: prioridade hoje é a virada da Drogaria X" />
-      <div><button onClick={enviar} style={btn(prioridade === 'URGENTE' ? '#dc2626' : '#2E6EAB')}><Send size={12} /> {ok ? 'Enviado' : 'Enviar aviso'}</button></div>
+      <div><button onClick={enviar} style={btn(prioridade === 'URGENTE' ? '#dc2626' : '#286397')}><Send size={12} /> {ok ? 'Enviado' : 'Enviar aviso'}</button></div>
     </div>
   );
 }
@@ -2254,22 +2254,22 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
   const icone = (a: any) => a.tipo === 'TAREFA' ? '📋' : a.prioridade === 'URGENTE' ? '🚨' : /implanta/i.test(a.texto) && /nova/i.test(a.texto) ? '🚀' : /servi[cç]o/i.test(a.texto) && /novo/i.test(a.texto) ? '🧰' : /prazo/i.test(a.texto) ? '⏰' : '📌';
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={abrir} title="Novidades" aria-expanded={aberto} style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, border: '1px solid var(--t-card-border)', background: aberto ? 'var(--t-content-bg)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-secondary)' }}>
+      <button onClick={abrir} title="Novidades" aria-expanded={aberto} style={{ position: 'relative', width: 32, height: 32, borderRadius: 6, border: '1px solid var(--t-card-border)', background: aberto ? 'var(--t-content-bg)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-secondary)' }}>
         <Bell size={15} />
         {n > 0 && <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 99, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{n}</span>}
       </button>
       {aberto && (
         <>
           <div onClick={() => setAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 70 }} />
-          <div role="dialog" aria-label="Novidades" style={{ position: 'absolute', right: 0, top: 40, zIndex: 71, width: 'min(380px, calc(100vw - 24px))', maxHeight: '70vh', overflowY: 'auto', background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, boxShadow: '0 16px 40px rgba(13,34,56,.18)' }}>
+          <div role="dialog" aria-label="Novidades" style={{ position: 'absolute', right: 0, top: 40, zIndex: 71, width: 'min(380px, calc(100vw - 24px))', maxHeight: '70vh', overflowY: 'auto', background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, boxShadow: '0 16px 40px rgba(13,34,56,.18)' }}>
             <div style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--t-card-border)' }}>
               <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Novidades</b>
-              <button onClick={() => { setAberto(false); onAbrir(); }} style={{ fontSize: 12, fontWeight: 700, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer' }}>Ver todas</button>
+              <button onClick={() => { setAberto(false); onAbrir(); }} style={{ fontSize: 12, fontWeight: 700, color: '#286397', background: 'transparent', border: 'none', cursor: 'pointer' }}>Ver todas</button>
             </div>
             {itens.length === 0 && <div style={{ padding: 16, fontSize: 13, color: 'var(--t-text-muted)' }}>Nada novo por aqui.</div>}
             {agrupados.map(g => g.lista.length > 1 && !g.chave.startsWith('avulso') ? (
               <button key={g.chave} onClick={() => { setAberto(false); if (onAbrirDemanda) onAbrirDemanda(g.chave); else onAbrir(); }}
-                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: g.lista.some((x: any) => !x.lido_em) ? '#2E6EAB0d' : 'transparent', cursor: 'pointer' }}>
+                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: g.lista.some((x: any) => !x.lido_em) ? '#2863970d' : 'transparent', cursor: 'pointer' }}>
                 <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(g.lista[0])}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{g.lista[0].implantacao?.cliente_razao_social}: {g.lista.length} novidades</span>
@@ -2279,7 +2279,7 @@ export function SinoAvisos({ onAbrir, onAbrirDemanda }: { onAbrir: () => void; o
               </button>
             ) : g.lista.map((a: any) => (
               <button key={a.id} onClick={() => { setAberto(false); if (!a.lido_em) setLendo(a); else if (a.implantacao?.id && onAbrirDemanda) onAbrirDemanda(a.implantacao.id); else onAbrir(); }}
-                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: a.lido_em ? 'transparent' : '#2E6EAB0d', cursor: 'pointer' }}>
+                style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--t-card-border)', background: a.lido_em ? 'transparent' : '#2863970d', cursor: 'pointer' }}>
                 <span style={{ fontSize: 16, lineHeight: '20px' }}>{icone(a)}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13, color: 'var(--t-text-primary)', fontWeight: a.lido_em ? 400 : 700 }}>{a.texto}</span>
@@ -2308,13 +2308,13 @@ export function PainelAvisos({ gestao }: { gestao: boolean }) {
   useEffect(() => { carregar(); }, [carregar]);
   const [lendo, setLendo] = useState<any | null>(null);
   const item = (a: any, meu: boolean) => (
-    <div key={a.id} style={{ display: 'flex', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', alignItems: 'flex-start', background: meu && !a.lido_em ? '#2E6EAB0a' : 'transparent' }}>
-      {a.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" /> : <Bell size={15} color="#2E6EAB" />}
+    <div key={a.id} style={{ display: 'flex', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', alignItems: 'flex-start', background: meu && !a.lido_em ? '#2863970a' : 'transparent' }}>
+      {a.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" /> : <Bell size={15} color="#286397" />}
       <div style={{ flex: 1, fontSize: 13 }}>
         <div style={{ color: 'var(--t-text-primary)', fontWeight: meu && !a.lido_em ? 700 : 400 }}>{a.texto}</div>
         <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{meu ? `de ${a.de_nome || 'Gestão'}` : `para ${a.para_nome}`}{a.implantacao ? ` · ${a.implantacao.cliente_razao_social}` : ''} · {fmtDataHora(a.created_at)}{!meu ? (a.lido_em ? ` · ✅ lido ${fmtDataHora(a.lido_em)}` : ' · ainda não lido') : ''}</div>
       </div>
-      {meu && <button onClick={() => setLendo(a)} style={{ ...btn('#2E6EAB', false), minHeight: 36 }}>{a.lido_em ? 'Ver' : 'Ler'}</button>}
+      {meu && <button onClick={() => setLendo(a)} style={{ ...btn('#286397', false), minHeight: 36 }}>{a.lido_em ? 'Ver' : 'Ler'}</button>}
     </div>
   );
   return (
@@ -2383,7 +2383,7 @@ export function PainelGestaoImplantacao() {
             <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 46 }}>
               {t.dias.map((d: any) => (
                 <div key={d.dia} title={`${d.dia.split('-').reverse().join('/')}: ${fmtDur(d.trabalhado_ms)} (${pct(d.aproveitamento)})`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
-                  <div style={{ height: `${Math.min(100, (d.trabalhado_ms / (10 * 3600000)) * 100)}%`, background: d.extra_ms ? 'linear-gradient(#7c3aed, #2E6EAB)' : '#2E6EAB', borderRadius: 3, minHeight: d.trabalhado_ms ? 2 : 0 }} />
+                  <div style={{ height: `${Math.min(100, (d.trabalhado_ms / (10 * 3600000)) * 100)}%`, background: d.extra_ms ? 'linear-gradient(#7c3aed, #286397)' : '#286397', borderRadius: 3, minHeight: d.trabalhado_ms ? 2 : 0 }} />
                 </div>
               ))}
             </div>
@@ -2482,12 +2482,12 @@ export function ConfigPortalImplantacao() {
             <button onClick={() => setC((p: any) => ({ ...p, catalogo: p.catalogo.filter((_: any, j: number) => j !== k) }))} style={btn('#dc2626', false)}><X size={12} /></button>
           </div>
         ))}
-        <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#2E6EAB', false)}>+ Produto ou pacote</button></div>
+        <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#286397', false)}>+ Produto ou pacote</button></div>
       </div>
       <div style={{ gridColumn: '1 / -1' }}><ModelosChecklist c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><TarefasClientePadrao c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><MetasIndicadores c={c} setC={setC} /></div>
-      <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#2E6EAB'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
+      <div style={{ gridColumn: '1 / -1' }}><button disabled={salvando} onClick={salvar} style={{ ...btn('#286397'), padding: '10px 18px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />} {ok ? 'Salvo' : 'Salvar configurações'}</button></div>
     </div>
   );
 }

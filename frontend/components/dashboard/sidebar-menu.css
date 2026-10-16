@@ -35,3 +35,7 @@
 .ps-menu-group-header .ps-menu-heading { flex: 1; min-width: 0; }
 .ps-menu-group:first-child .ps-menu-heading { min-height: 32px; }
 .ps-menu-group-header .ps-menu-toolbar { padding: 2px 0; }
+/* Contador ao lado do item (Portal Técnico: tickets abertos). Botão de aba com a mesma cara do link. */
+.ps-menu-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--t-error-strong, #dc2626); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; }
+button.ps-menu-link { width: 100%; background: transparent; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; }
+button.ps-menu-link.active { background-color: var(--t-sidebar-active); }

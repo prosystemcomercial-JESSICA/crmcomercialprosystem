@@ -10,10 +10,10 @@ import { ImagePlus, Clipboard, Pencil, Trash2, X, Loader2, Play, Pause, Hourglas
 // com um campo de observação que também aceita print. Editar e excluir vão para a auditoria.
 
 const erroDe = (e: any) => e?.response?.data?.message || 'Não foi possível agora. Tente de novo.';
-const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12 };
+const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6 };
 const rotulo: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 };
 const btn = (cor: string, cheio = true): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, borderRadius: 8, padding: '8px 12px', minHeight: 40, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, borderRadius: 6, padding: '8px 12px', minHeight: 40, cursor: 'pointer',
   border: cheio ? 'none' : `1px solid ${cor}40`, background: cheio ? cor : 'transparent', color: cheio ? '#fff' : cor,
 });
 const fmtHora = (s: string) => new Date(s).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
@@ -21,7 +21,7 @@ const fmtDataHora = (s: string) => new Date(s).toLocaleString('pt-BR', { timeZon
 const fmtDia = (s: string) => new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: 'long' });
 
 export const CATEGORIAS: { k: string; l: string; cor: string }[] = [
-  { k: 'SUPORTE', l: 'Print do suporte', cor: '#2E6EAB' },
+  { k: 'SUPORTE', l: 'Print do suporte', cor: '#286397' },
   { k: 'CONVERSA', l: 'Conversa', cor: '#16a34a' },
   { k: 'AVISO', l: 'Aviso', cor: '#d97706' },
   { k: 'OUTRO', l: 'Outro', cor: '#64748b' },
@@ -78,10 +78,10 @@ function ImagemRegistro({ rid, altura = 120, onAbrir }: { rid: string; altura?: 
     apiClient.imagemRegistroImplantacao(rid).then(r => { u = URL.createObjectURL(r.data); if (vivo) setUrl(u); }).catch(() => vivo && setFalhou(true));
     return () => { vivo = false; if (u) URL.revokeObjectURL(u); };
   }, [rid]);
-  if (falhou) return <div style={{ height: altura, display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--t-text-muted)', background: 'var(--t-bg-subtle, #f1f5f9)', borderRadius: 8 }}>Imagem indisponível</div>;
-  if (!url) return <div style={{ height: altura, display: 'grid', placeItems: 'center', background: 'var(--t-bg-subtle, #f1f5f9)', borderRadius: 8 }}><Loader2 size={16} className="animate-spin" /></div>;
+  if (falhou) return <div style={{ height: altura, display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--t-text-muted)', background: 'var(--t-bg-subtle, #f1f5f9)', borderRadius: 6 }}>Imagem indisponível</div>;
+  if (!url) return <div style={{ height: altura, display: 'grid', placeItems: 'center', background: 'var(--t-bg-subtle, #f1f5f9)', borderRadius: 6 }}><Loader2 size={16} className="animate-spin" /></div>;
   return (
-    <button onClick={() => onAbrir(url)} aria-label="Ver print em tela cheia" style={{ padding: 0, border: '1px solid var(--t-card-border)', borderRadius: 8, overflow: 'hidden', cursor: 'zoom-in', background: '#fff', display: 'block', width: '100%' }}>
+    <button onClick={() => onAbrir(url)} aria-label="Ver print em tela cheia" style={{ padding: 0, border: '1px solid var(--t-card-border)', borderRadius: 6, overflow: 'hidden', cursor: 'zoom-in', background: '#fff', display: 'block', width: '100%' }}>
       <img src={url} alt="" style={{ width: '100%', height: altura, objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
     </button>
   );
@@ -92,7 +92,7 @@ function TelaCheia({ url, onClose }: { url: string | null; onClose: () => void }
   if (!url) return null;
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(8,15,30,.88)', display: 'grid', placeItems: 'center', padding: 16, cursor: 'zoom-out' }}>
-      <img src={url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,.4)' }} />
+      <img src={url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 6, boxShadow: '0 20px 60px rgba(0,0,0,.4)' }} />
       <button onClick={onClose} aria-label="Fechar" style={{ position: 'fixed', top: 14, right: 14, width: 44, height: 44, borderRadius: 999, border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><X size={20} /></button>
     </div>
   );
@@ -108,7 +108,7 @@ function AcoesRegistro({ r, recarregar, editando, setEditando }: { r: { id: stri
   if (editando) return null;
   return (
     <span style={{ display: 'inline-flex', gap: 4 }}>
-      <button onClick={() => setEditando(true)} aria-label="Editar comentário" title="Editar comentário" style={{ ...btn('#2E6EAB', false), minHeight: 32, padding: '4px 8px', border: 'none' }}><Pencil size={13} /></button>
+      <button onClick={() => setEditando(true)} aria-label="Editar comentário" title="Editar comentário" style={{ ...btn('#286397', false), minHeight: 32, padding: '4px 8px', border: 'none' }}><Pencil size={13} /></button>
       <button onClick={excluir} aria-label="Excluir" title="Excluir (fica na auditoria)" style={{ ...btn('#dc2626', false), minHeight: 32, padding: '4px 8px', border: 'none' }}><Trash2 size={13} /></button>
     </span>
   );
@@ -122,7 +122,7 @@ function EditarTexto({ r, onFim }: { r: { id: string; texto?: string | null }; o
     <div style={{ display: 'grid', gap: 6 }}>
       <textarea value={t} onChange={e => setT(e.target.value)} rows={3} autoFocus className="ps-input" style={{ width: '100%', resize: 'vertical' }} placeholder="Observação" />
       <div style={{ display: 'flex', gap: 6 }}>
-        <button disabled={salvando} onClick={salvar} style={btn('#2E6EAB')}><Check size={14} /> {salvando ? 'Salvando…' : 'Salvar'}</button>
+        <button disabled={salvando} onClick={salvar} style={btn('#286397')}><Check size={14} /> {salvando ? 'Salvando…' : 'Salvar'}</button>
         <button onClick={() => onFim(false)} style={btn('#64748b', false)}>Cancelar</button>
       </div>
       <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>O texto anterior fica guardado na auditoria.</span>
@@ -188,14 +188,14 @@ export function AbaPrints({ id, gestao }: { id: string; gestao: boolean }) {
           ))}
         </div>
         <div onClick={() => arquivo.current?.click()} role="button" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && arquivo.current?.click()}
-          style={{ border: '1.5px dashed #2E6EAB66', borderRadius: 12, padding: '22px 16px', textAlign: 'center', cursor: 'pointer', background: '#2E6EAB06', display: 'grid', gap: 6, justifyItems: 'center' }}>
-          <ImagePlus size={26} color="#2E6EAB" />
+          style={{ border: '1.5px dashed #28639766', borderRadius: 6, padding: '22px 16px', textAlign: 'center', cursor: 'pointer', background: '#28639706', display: 'grid', gap: 6, justifyItems: 'center' }}>
+          <ImagePlus size={26} color="#286397" />
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)' }}>Cole o print aqui com <kbd style={{ fontFamily: 'inherit', fontSize: 12, padding: '1px 6px', border: '1px solid var(--t-card-border)', borderRadius: 4 }}>Ctrl</kbd> + <kbd style={{ fontFamily: 'inherit', fontSize: 12, padding: '1px 6px', border: '1px solid var(--t-card-border)', borderRadius: 4 }}>V</kbd></div>
           <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Ou toque para escolher imagens do computador ou do celular. Vai como <b style={{ color: CATEGORIAS.find(c => c.k === categoria)?.cor }}>{NOME_CAT[categoria]}</b>.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={async () => { try { await adicionar(await lerAreaDeTransferencia()); } catch (e: any) { alert(e?.message || 'Não foi possível colar.'); } }} style={btn('#2E6EAB', false)}><Clipboard size={15} /> Colar print</button>
-          <button onClick={() => arquivo.current?.click()} style={btn('#2E6EAB', false)}><ImagePlus size={15} /> Escolher imagens</button>
+          <button onClick={async () => { try { await adicionar(await lerAreaDeTransferencia()); } catch (e: any) { alert(e?.message || 'Não foi possível colar.'); } }} style={btn('#286397', false)}><Clipboard size={15} /> Colar print</button>
+          <button onClick={() => arquivo.current?.click()} style={btn('#286397', false)}><ImagePlus size={15} /> Escolher imagens</button>
           <input ref={arquivo} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { const fs = Array.from(e.target.files || []); e.target.value = ''; if (fs.length) adicionar(fs); }} />
         </div>
 
@@ -204,7 +204,7 @@ export function AbaPrints({ id, gestao }: { id: string; gestao: boolean }) {
             <div style={rotulo}>Antes de salvar: escreva a observação de cada print</div>
             {rascunhos.map(r => (
               <div key={r.chave} style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 160px) 1fr', gap: 12, alignItems: 'start' }}>
-                <img src={r.dataUrl} alt="" onClick={() => setAberta(r.dataUrl)} style={{ width: '100%', height: 110, objectFit: 'cover', objectPosition: 'top', borderRadius: 8, border: '1px solid var(--t-card-border)', cursor: 'zoom-in' }} />
+                <img src={r.dataUrl} alt="" onClick={() => setAberta(r.dataUrl)} style={{ width: '100%', height: 110, objectFit: 'cover', objectPosition: 'top', borderRadius: 6, border: '1px solid var(--t-card-border)', cursor: 'zoom-in' }} />
                 <div style={{ display: 'grid', gap: 6 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <select value={r.categoria} onChange={e => setRascunhos(x => x.map(y => y.chave === r.chave ? { ...y, categoria: e.target.value } : y))} className="ps-input" style={{ width: 'auto', minHeight: 36 }}>
@@ -217,7 +217,7 @@ export function AbaPrints({ id, gestao }: { id: string; gestao: boolean }) {
               </div>
             ))}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button disabled={salvando} onClick={salvarTodos} style={btn('#2E6EAB')}>{salvando ? 'Salvando…' : rascunhos.length > 1 ? `Salvar ${rascunhos.length} prints` : 'Salvar print'}</button>
+              <button disabled={salvando} onClick={salvarTodos} style={btn('#286397')}>{salvando ? 'Salvando…' : rascunhos.length > 1 ? `Salvar ${rascunhos.length} prints` : 'Salvar print'}</button>
               <button disabled={salvando} onClick={() => setRascunhos([])} style={btn('#64748b', false)}>Descartar</button>
             </div>
           </div>
@@ -226,7 +226,7 @@ export function AbaPrints({ id, gestao }: { id: string; gestao: boolean }) {
 
       {/* Galeria */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={() => setFiltro('')} style={{ fontSize: 12, fontWeight: !filtro ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${!filtro ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: !filtro ? '#2E6EAB0f' : 'transparent', color: !filtro ? '#2E6EAB' : 'var(--t-text-secondary)' }}>Todos ({(lista || []).length})</button>
+        <button onClick={() => setFiltro('')} style={{ fontSize: 12, fontWeight: !filtro ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${!filtro ? '#28639755' : 'var(--t-card-border)'}`, background: !filtro ? '#2863970f' : 'transparent', color: !filtro ? '#286397' : 'var(--t-text-secondary)' }}>Todos ({(lista || []).length})</button>
         {CATEGORIAS.map(c => (
           <button key={c.k} onClick={() => setFiltro(c.k)} style={{ fontSize: 12, fontWeight: filtro === c.k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${filtro === c.k ? `${c.cor}66` : 'var(--t-card-border)'}`, background: filtro === c.k ? `${c.cor}10` : 'transparent', color: filtro === c.k ? c.cor : 'var(--t-text-secondary)' }}>{c.l} ({contagem[c.k] || 0})</button>
         ))}
@@ -248,7 +248,7 @@ export function AbaPrints({ id, gestao }: { id: string; gestao: boolean }) {
                 </div>
                 {editando === r.id ? <EditarTexto r={r} onFim={s => { setEditando(null); if (s) carregar(); }} />
                   : r.texto ? <div style={{ fontSize: 13, color: 'var(--t-text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.texto}</div>
-                  : r.pode_mexer ? <button onClick={() => setEditando(r.id)} style={{ fontSize: 12, color: '#2E6EAB', background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}>+ Escrever observação</button> : null}
+                  : r.pode_mexer ? <button onClick={() => setEditando(r.id)} style={{ fontSize: 12, color: '#286397', background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}>+ Escrever observação</button> : null}
                 <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{(r.autor_nome || '').split(' ')[0]} · {fmtDataHora(r.created_at)}{r.editado_em ? ' · editado' : ''}</div>
               </div>
             );
@@ -283,7 +283,7 @@ const GRUPOS: Record<string, { l: string; cor: string; Icon: any }> = {
   EXECUCAO: { l: 'Execução', cor: '#16a34a', Icon: Play },
   PAUSA: { l: 'Pausa', cor: '#dc2626', Icon: Pause },
   ESPERA: { l: 'Espera', cor: '#d97706', Icon: Hourglass },
-  PRINT: { l: 'Print', cor: '#2E6EAB', Icon: ImageIcon },
+  PRINT: { l: 'Print', cor: '#286397', Icon: ImageIcon },
   OBS: { l: 'Observação', cor: '#7c3aed', Icon: MessageSquare },
   RECADO: { l: 'Recado', cor: '#0891b2', Icon: Bell },
   SISTEMA: { l: 'Sistema', cor: '#64748b', Icon: Settings },
@@ -333,21 +333,21 @@ export function AbaHistoricoCard({ id }: { id: string }) {
           placeholder="Escreva o que aconteceu. Para juntar um print, cole com Ctrl+V aqui ou use o botão." />
         {imagem && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <img src={imagem} alt="" onClick={() => setAberta(imagem)} style={{ width: 160, height: 100, objectFit: 'cover', objectPosition: 'top', borderRadius: 8, border: '1px solid var(--t-card-border)', cursor: 'zoom-in' }} />
+            <img src={imagem} alt="" onClick={() => setAberta(imagem)} style={{ width: 160, height: 100, objectFit: 'cover', objectPosition: 'top', borderRadius: 6, border: '1px solid var(--t-card-border)', cursor: 'zoom-in' }} />
             <button onClick={() => setImagem(null)} aria-label="Tirar print" style={{ ...btn('#64748b', false), border: 'none' }}><X size={15} /> Tirar</button>
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button disabled={enviando || (!texto.trim() && !imagem)} onClick={registrar} style={{ ...btn('#2E6EAB'), opacity: enviando || (!texto.trim() && !imagem) ? 0.5 : 1 }}>{enviando ? 'Registrando…' : 'Registrar no histórico'}</button>
-          {!imagem && <button onClick={async () => { try { await pegar(await lerAreaDeTransferencia()); } catch (e: any) { alert(e?.message); } }} style={btn('#2E6EAB', false)}><Clipboard size={15} /> Colar print</button>}
-          {!imagem && <button onClick={() => arquivo.current?.click()} style={btn('#2E6EAB', false)}><ImagePlus size={15} /> Imagem</button>}
+          <button disabled={enviando || (!texto.trim() && !imagem)} onClick={registrar} style={{ ...btn('#286397'), opacity: enviando || (!texto.trim() && !imagem) ? 0.5 : 1 }}>{enviando ? 'Registrando…' : 'Registrar no histórico'}</button>
+          {!imagem && <button onClick={async () => { try { await pegar(await lerAreaDeTransferencia()); } catch (e: any) { alert(e?.message); } }} style={btn('#286397', false)}><Clipboard size={15} /> Colar print</button>}
+          {!imagem && <button onClick={() => arquivo.current?.click()} style={btn('#286397', false)}><ImagePlus size={15} /> Imagem</button>}
           <input ref={arquivo} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const fs = Array.from(e.target.files || []); e.target.value = ''; pegar(fs); }} />
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {FILTROS.map(x => (
-          <button key={x.k} onClick={() => setFiltro(x.k)} style={{ fontSize: 12, fontWeight: filtro === x.k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${filtro === x.k ? '#2E6EAB55' : 'var(--t-card-border)'}`, background: filtro === x.k ? '#2E6EAB0f' : 'transparent', color: filtro === x.k ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{x.l}</button>
+          <button key={x.k} onClick={() => setFiltro(x.k)} style={{ fontSize: 12, fontWeight: filtro === x.k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${filtro === x.k ? '#28639755' : 'var(--t-card-border)'}`, background: filtro === x.k ? '#2863970f' : 'transparent', color: filtro === x.k ? '#286397' : 'var(--t-text-secondary)' }}>{x.l}</button>
         ))}
       </div>
 
