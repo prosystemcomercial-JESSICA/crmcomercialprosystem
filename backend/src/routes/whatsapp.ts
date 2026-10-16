@@ -579,8 +579,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const filtroEscopo = whereListaConversas(escopo, getUser(request));
     // Finalizadas só aparecem quando pedidas (?finalizadas=1); nas demais listas ficam de fora.
     const finalizadas = (request.query as any).finalizadas === '1';
+    // Link direto (?id=): só aquela conversa, com a regra de leitura de quem pede (16/10/2026: o link das
+    // notificações não abria conversa antiga, de outro número ou fora da aba e a tela ficava trocando de aba).
+    const idDireto = typeof (request.query as any).id === 'string' ? String((request.query as any).id) : '';
     const conversas = await prisma.whatsappConversa.findMany({
-      where: {
+      where: idDireto ? { id: idDireto, ...whereLeituraConversa(getUser(request)) } : {
         ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}),
         finalizada_em: finalizadas ? { not: null } : null,
         ...(tipo_contato && (TIPOS_CONTATO as readonly string[]).includes(tipo_contato) ? { tipo_contato } : {}),

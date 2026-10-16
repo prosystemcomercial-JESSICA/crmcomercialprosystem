@@ -8,6 +8,7 @@ import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
 import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe, linhaDadosProposta } from '@/lib/assistente/sdr';
 import { lerDataUrl } from '@/lib/assistente/ia-texto';
+import { regraRepeticao, tentativasDeSocorro, SOCORRO_MAX } from '@/lib/assistente/sdr';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -992,6 +993,31 @@ async function aplicarAcao(prisma: PrismaClient, token: string, sdr: any, acaoIa
  * Gera a próxima fala da Caroline e envia (ou deixa para aprovação).
  * Nunca lança; na dúvida não envia.
  */
+/**
+ * O agente não conseguiu responder quem acabou de escrever (16/10/2026: conversas abandonadas são gravíssimas).
+ * A conversa continua "conversando" (a rodada tenta de novo em 10 min), a dúvida vai para o Rafael e os colegas
+ * no mural e, na 2ª tentativa sem sucesso para a mesma mensagem, a gestão recebe o aviso com o link.
+ */
+async function pedirSocorro(prisma: PrismaClient, sdr: any, motivo: string) {
+  try {
+    const atual = await prisma.sdrLead.findUnique({ where: { id: sdr.id }, select: { dados: true, ultima_lead_em: true, conversaId: true } });
+    const d: any = atual?.dados || {};
+    const n = tentativasDeSocorro(d.socorro, atual?.ultima_lead_em) + 1;
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'CONVERSANDO', dados: { ...d, socorro: { n, em: new Date().toISOString(), motivo, ultima_lead_em: atual?.ultima_lead_em ? new Date(atual.ultima_lead_em).toISOString() : null } } } });
+    const ult = sdr.conversaId ? await prisma.whatsappMensagem.findFirst({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } }) : null;
+    const fala = ((ult?.transcricao || ult?.conteudo) || '').replace(/\s+/g, ' ').slice(0, 200);
+    if (n === 1) {
+      const { anotar } = await import('./equipe.service');
+      await anotar(prisma, { de: agenteDe(sdr), para: 'rafael', tipo: 'DUVIDA', assunto: `Socorro: ${sdr.nome || sdr.numero}`, texto: `O cliente escreveu "${fala}" e eu ${motivo}. Como continuo a conversa sem repetir e sem deixar ele sem resposta?`, ref: sdr.conversaId }).catch(() => {});
+    }
+    registrarAcaoAgente(agenteDe(sdr), `pediu socorro ao Rafael na conversa de ${sdr.nome || 'um lead'} (${n}ª tentativa): ${motivo}`);
+    if (n === 2) {
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `🆘 *${nomeDe(sdr)} travou na conversa de ${sdr.nome || sdr.numero}*\nO cliente escreveu: "${fala}"\nO agente ${motivo} e já pediu ajuda ao Rafael. Ele tenta de novo a cada 10 min; se puder, responda você: https://comercial.prosystemnet.com/whatsapp?conversa=${sdr.conversaId}`).catch(() => {});
+    }
+  } catch (e: any) { console.warn('[AGENTES] socorro:', e?.message); }
+}
+
 async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: FaseCaroline, dicaExtra = ''): Promise<'enviado' | 'aprovacao' | 'nada' | 'falha'> {
   const sdr = await prisma.sdrLead.findUnique({ where: { id: sdrId } });
   if (!sdr || !sdr.conversaId || !ATIVOS.includes(sdr.status)) return 'nada';
@@ -1090,9 +1116,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     const nova = await gerarResposta(prisma, sdr, fase, 'Quem respondeu é atendente ou balconista, não quem decide. NÃO encerre e NÃO use "sem_interesse": agradeça com gentileza e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). acao "continuar", dados.interlocutor "atendente".');
     if (nova && nova.acao !== 'sem_interesse') { r = nova; registrarAcaoAgente(agenteDe(sdr), `não desistiu de ${sdr.nome || 'um lead'}: quem recusou foi o atendente, pediu o contato de quem decide`); }
   }
-  if (!r) { console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável'); return 'falha'; }
-  // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai.
-  const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.some(u => semelhanca(m, u.conteudo || '') >= 0.6));
+  if (!r) {
+    console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável');
+    if (fase === 'resposta') await pedirSocorro(prisma, sdr, 'não consegui montar uma resposta');
+    return 'falha';
+  }
+  // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai (na resposta, só quase-cópia).
+  const rep = regraRepeticao(fase);
+  const parecida = (x: RespostaCaroline) => x.mensagens.some(m => ultimasDoAgente.slice(0, rep.falas).some(u => semelhanca(m, u.conteudo || '') >= rep.limiar));
   if (parecida(r) && r.acao === 'continuar') {
     // 1) Nova tentativa, com outra abordagem.
     const nova = await gerarResposta(prisma, sdr, fase, 'Sua resposta anterior repetia o que você já tinha dito. Responda ao que o cliente acabou de escrever, de forma natural e curta (ex.: se ele só cumprimentou, cumprimente de volta e retome com leveza, sem repetir a pergunta anterior palavra por palavra). Nunca repita frases suas.');
@@ -1104,6 +1135,8 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       if (o?.mensagem) {
         const guiada = await gerarResposta(prisma, sdr, fase, `Orientação do Rafael (especialista): ${o.orientacao}\nMensagem sugerida por ele (adapte ao seu jeito, sem repetir frases suas): "${o.mensagem}"`);
         if (guiada && !parecida(guiada)) r = guiada;
+        // 3) A própria mensagem do Rafael, quando ela não repete o que já foi dito (nunca deixar o cliente sem resposta).
+        else if (fase === 'resposta' && !parecida({ ...r, mensagens: [o.mensagem] })) { r = { ...r, mensagens: [o.mensagem] }; registrarAcaoAgente(agenteDe(sdr), `respondeu ${sdr.nome || 'um lead'} com a mensagem que o Rafael orientou`); }
       }
     }
   }
@@ -1111,6 +1144,9 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (repetida && r.acao === 'continuar') {
     console.warn(`[CAROLINE] mensagem repetida bloqueada para ${sdr.numero}`);
     registrarAcaoAgente(agenteDe(sdr), `ia repetir a mesma mensagem para ${sdr.nome || 'um lead'}: bloqueada`);
+    // O cliente escreveu e esperaria até amanhã: a conversa NUNCA fica sem continuidade (Jessica, 16/10/2026).
+    // Pede socorro ao Rafael e aos colegas (mural) e tenta de novo em 10 min; na 2ª vez a gestão é avisada com o link.
+    if (fase === 'resposta') { await pedirSocorro(prisma, sdr, 'só conseguia repetir o que já tinha dito'); return 'falha'; }
     const d: any = sdr.dados || {};
     const amanha = new Date(`${new Date(Date.now() + 864e5).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' })}T09:30:00-03:00`);
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), dados: { ...d, retomar_em: d.retomar_em && new Date(d.retomar_em) > amanha ? d.retomar_em : amanha.toISOString() } } });
@@ -1778,6 +1814,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       if (s.ultima_caroline_em && s.ultima_lead_em! <= s.ultima_caroline_em) continue;
       if (Date.now() - s.ultima_lead_em!.getTime() < 2 * 60_000) continue; // o webhook está cuidando
       if ((falhouEm.get(s.id) || 0) > Date.now() - 10 * 60_000) continue; // falhou há pouco: tenta de novo em 10 min
+      if (tentativasDeSocorro((s.dados as any)?.socorro, s.ultima_lead_em) >= SOCORRO_MAX) continue; // já pediu socorro: a equipe foi avisada
       const r = await falar(prisma, token, s.id, 'resposta').catch(() => 'falha' as const);
       if (r === 'falha') falhouEm.set(s.id, Date.now()); else falhouEm.delete(s.id);
     }

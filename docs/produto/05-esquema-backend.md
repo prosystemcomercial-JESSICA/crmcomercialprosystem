@@ -1720,3 +1720,33 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
   - Etiquetas mais leves (fundo 5%, cantos 4 px).
   - Prazo (SLA) sem moldura, com texto colorido sobre fundo leve.
 - **Sem mudança de função:** filtros, arrastar e soltar, vistas e a ficha da demanda continuam iguais.
+
+### Correção 16/10/2026: conversas abandonadas, playbook de objeções, Rafael ensinando e link das notificações
+
+- **Pedido da Jessica:** "conversas estão sendo abandonadas, todas precisam ter começo, meio e fim". Na falta de resposta, o agente procura os colegas e o Rafael. "É extremamente grave, jogamos leads fora assim." Também: "todos que atendem precisam estudar quebra de objeções, atendimento B2B e técnicas persuasivas".
+- **Causa (caso Didio, 16/10):** a pessoa escreveu "não sou o responsável pelo setor". A resposta natural ("quem cuida do sistema?") parecia com a abertura e caiu na trava de repetição (4 últimas falas, 60%). Depois da nova tentativa e da orientação do Rafael, o agente **parava e marcava retomada para o dia seguinte**. O log tinha **248** bloqueios assim.
+- **Correções no motor (`caroline.service.ts`, `lib/assistente/sdr.ts`):**
+  - `regraRepeticao(fase)`: na **resposta**, a trava olha só as 2 últimas falas e só barra quase-cópia (75%). Primeiro contato e retomada continuam em 4 falas a 60%.
+  - Na cadeia de repetição, se a mensagem guiada ainda repetir, o agente usa **a própria mensagem do Rafael** quando ela não repete o que já foi dito.
+  - **Nunca abandonar:** na resposta, se ainda não houver o que mandar (repetição ou IA sem resposta utilizável), `pedirSocorro`:
+    - mantém a conversa em CONVERSANDO, e a rodada tenta de novo a cada 10 min;
+    - registra a dúvida para o Rafael no mural (DUVIDA, `ref` = conversa) na 1ª vez;
+    - na 2ª vez, avisa a gestão com o link da conversa ("🆘 … travou na conversa de …");
+    - para depois de `SOCORRO_MAX` (4) tentativas na mesma mensagem, contadas em `dados.socorro`. Uma mensagem nova da pessoa zera a contagem.
+  - **Robôs de loja que passavam:** "Logo um de nossos atendentes dará continuidade", "Estoque disponível… entre no nosso site" e a pesquisa "Para aperfeiçoar nosso atendimento, nos diga como foi sua experiência" (esta conta como encerramento).
+- **Playbook (`PLAYBOOK_CONVERSA` em `lib/assistente/sdr.ts`):** entra no prompt de Caroline, Julio e Luiz Felipe e no do Rafael.
+  - **Conversa com começo, meio e fim:** toda fala de uma pessoa tem resposta. Começo: quem é, por quê e uma pergunta fácil. Meio: entender antes de oferecer. Fim: próximo passo combinado ou encerramento cordial. Não sabe? Diz que confirma com a equipe.
+  - **Quebra de objeções** (acolher → entender → responder com valor → confirmar → próximo passo): "não sou o responsável", "não é mais da farmácia", "já tenho sistema", "está caro", "agora não", "manda por e-mail", "vou pensar / ver com o sócio", "trocar dá trabalho", "não tenho interesse".
+  - **Técnicas de persuasão éticas:** reciprocidade, prova social verdadeira, pequenos sins, escolha entre opções, rotular e perguntas abertas, urgência só verdadeira. Nunca mentir nem falar mal do concorrente.
+- **Rafael ensinando e retomando (`especialista.service.ts`):**
+  - Na revisão (12h e 17h, e sob demanda), "deixou a pessoa sem resposta" é sempre gravidade alta, com a mensagem exata, e "não tratou a objeção pelo playbook" vira critério.
+  - A IA devolve `licoes` ("quando o cliente disser X, responda Y") e `mensagem` por alerta.
+  - `ensinarERetomar`:
+    - as lições vão para o mural do time (ORIENTACAO para `equipe`, 7 dias);
+    - cada alerta vira orientação para o agente daquela conversa (`ref` = conversa; o agente lê antes de escrever);
+    - conversa de agente (AGUARDANDO, CONVERSANDO ou DEMO) em que a pessoa ficou sem resposta (sem robô e sem só "ok") volta para CONVERSANDO e é respondida em minutos.
+  - Conversa assumida por uma pessoa da equipe só gera o aviso, como antes.
+- **Link das notificações:**
+  - O push dos avisos abria só `/whatsapp`. Agora `enviarAvisoGestao` usa o link da conversa quando o texto traz um (ou `opts.url`).
+  - Na tela do WhatsApp, `?conversa=` busca a própria conversa (`GET /whatsapp/conversas?id=`, com a regra de leitura de quem pede) e abre, mesmo antiga, de outro número ou fora da aba. Antes ela procurava na lista carregada e ficava trocando de aba sem abrir.
+- **Testes:** `tests/sdr-nunca-abandonar.test.ts`.

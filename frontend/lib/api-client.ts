@@ -1309,6 +1309,10 @@ class ApiClient {
     if (tipoContato) params.tipo_contato = tipoContato;
     return this.client.get('/whatsapp/conversas', { params });
   }
+  // Uma conversa pelo id (link de notificação), com a mesma regra de acesso da lista.
+  async getWhatsappConversaPorId(id: string) {
+    return this.client.get('/whatsapp/conversas', { params: { id } });
+  }
   // Finalizar / reabrir atendimento (sai e volta para as listas).
   async finalizarConversaWhatsapp(id: string) {
     return this.client.post(`/whatsapp/conversas/${id}/finalizar`);

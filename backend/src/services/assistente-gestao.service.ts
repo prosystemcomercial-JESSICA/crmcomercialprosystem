@@ -151,7 +151,7 @@ export async function gestoraAprovadora(prisma: PrismaClient, gestao?: Awaited<R
 }
 
 /** somenteAprovadora: pedidos de aprovação vão só para a gestora (ignora as preferências de aviso). */
-export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, texto: string, opts: { somenteAprovadora?: boolean } = {}): Promise<void> {
+export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, texto: string, opts: { somenteAprovadora?: boolean; url?: string } = {}): Promise<void> {
   try {
     const inst = await obterInstanciaEmpresa(prisma);
     if (!inst?.instance_token) return;
@@ -169,7 +169,9 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
       // Mesmo aviso como notificação no celular (app instalado), abrindo a tela certa.
       const { enviarPush } = await import('./push.service');
       const linhas = texto.replace(/\*/g, '').split('\n').filter(Boolean);
-      await enviarPush(prisma, [g.id], { titulo: linhas[0]?.slice(0, 80) || NOME_AVISO[tipo], corpo: linhas.slice(1).join(' ').slice(0, 180) || NOME_AVISO[tipo], url: /aprova|autoriza/i.test(texto) ? '/aprovar' : '/whatsapp', tag: tipo });
+      // Toque na notificação abre a conversa do aviso quando o texto traz o link dela (antes abria só /whatsapp, 16/10/2026).
+      const daConversa = texto.match(/\/whatsapp\?conversa=([\w-]+)/)?.[1];
+      await enviarPush(prisma, [g.id], { titulo: linhas[0]?.slice(0, 80) || NOME_AVISO[tipo], corpo: linhas.slice(1).join(' ').slice(0, 180) || NOME_AVISO[tipo], url: opts.url || (daConversa ? `/whatsapp?conversa=${daConversa}` : /aprova|autoriza/i.test(texto) ? '/aprovar' : '/whatsapp'), tag: tipo });
       registrarAcaoAgente('marta', `avisou ${g.nome.split(' ')[0]}: ${NOME_AVISO[tipo].toLowerCase()}`);
     }
   } catch (e: any) {

@@ -205,6 +205,25 @@ function lerDataSP(v: unknown, horaPadrao = '09:30'): Date | null {
   return Number.isFinite(d.getTime()) && d.getTime() > agora && d.getTime() < agora + 90 * 864e5 ? d : null;
 }
 
+/**
+ * Trava contra repetição (16/10/2026). Na RESPOSTA (o cliente acabou de escrever) só olha as 2 últimas falas do
+ * agente e só barra quase-cópia (75%): antes ela olhava 4 falas a 60% e barrava respostas naturais, como perguntar
+ * "quem cuida do sistema?" depois de "não sou o responsável" — e a conversa morria até o dia seguinte (248 vezes).
+ * Em primeiro contato e retomada continua rígida, para proteger o número.
+ */
+export function regraRepeticao(fase: string): { falas: number; limiar: number } {
+  return fase === 'resposta' ? { falas: 2, limiar: 0.75 } : { falas: 4, limiar: 0.6 };
+}
+
+/** Pedidos de socorro do agente para a MESMA mensagem do cliente (nova mensagem dele zera a contagem). */
+export function tentativasDeSocorro(socorro: any, ultimaLeadEm: Date | string | null | undefined): number {
+  const ref = ultimaLeadEm ? new Date(ultimaLeadEm).toISOString() : null;
+  return socorro && ref && socorro.ultima_lead_em === ref ? Number(socorro.n || 0) : 0;
+}
+
+/** Máximo de tentativas automáticas (uma a cada 10 min) antes de parar e deixar só o aviso para a equipe. */
+export const SOCORRO_MAX = 4;
+
 /** O cliente adiou a conversa (viagem, "quando voltar eu chamo", "agora não posso", "semana que vem"...). */
 export function ehAdiamento(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -257,6 +276,8 @@ export function compromissoDeHorario(texto: string, agora = new Date()): Date | 
 /** Mensagem automática da loja ("em breve iremos lhe atender"): não é resposta de uma pessoa. */
 export function ehRespostaAutomatica(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // 16/10/2026: robôs que passavam ("Logo um de nossos atendentes dará continuidade", aviso de estoque com link do site).
+  if (/(logo (um|uma) de nossos atendentes|(dara|daremos|daremos) continuidade ao (seu )?atendimento|aguarde (um momento|que (ja )?(iremos|vamos))|estoque disponivel|entre no nosso (site|catalogo|instagram))/.test(t.replace(/[*_~]/g, ''))) return true;
   return ehEncerramentoAutomatico(texto) || /(em breve (iremos|vamos|retornaremos|lhe|te|responderemos)|mensagem automatica|resposta automatica|nosso catalogo|agradece (o |seu )?contato|nao estamos disponiveis|responderemos (assim que|em breve|o mais breve)|responderei (sua mensagem|assim que)|retornaremos (assim que|em breve|o contato)|estamos felizes em (te |lhe )?atender|nosso whatsapp funciona|horario de atendimento|seja bem[- ]vind[oa]|obrigad[oa] por entrar em contato|no momento (nao|estamos)|nosso horario de atendimento|fora do horario|assim que possivel (retornaremos|responderemos)|aguarde|em instantes|sera atendid|sera respondid|em breve|obrigad[oa] pel[ao] (sua )?(mensagem|contato)|recebemos sua mensagem|horario de funcionamento|envie (sua|seu|a lista|o pedido)|lista de itens|atendente (ja )?(vai|ira))/.test(t);
 }
 
@@ -266,7 +287,7 @@ export function ehRespostaAutomatica(texto: string | null | undefined): boolean 
  */
 export function ehEncerramentoAutomatico(texto: string | null | undefined): boolean {
   const t = (texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[*_~]/g, '');
-  return /(atendimento (foi )?(finalizado|encerrado|concluido)|encerrar (seu|o) atendimento|nao precisa responder|correspondente a sua nota|digite o numero|avalie (o |nosso )?(nosso )?atendimento|pesquisa de satisfacao|de 1 a 5|obrigad[oa] pela (sua )?(procura|preferencia)|fica a disposicao sempre que precisar)/.test(t);
+  return /(atendimento (foi )?(finalizado|encerrado|concluido)|encerrar (seu|o) atendimento|nao precisa responder|correspondente a sua nota|digite o numero|avalie (o |nosso )?(nosso )?atendimento|pesquisa de satisfacao|de 1 a 5|obrigad[oa] pela (sua )?(procura|preferencia)|fica a disposicao sempre que precisar|aperfeicoar (o |nosso )?atendimento|como foi (a )?sua experiencia)/.test(t);
 }
 
 /**
@@ -349,6 +370,30 @@ export function janelaCampanhaAtiva(d: Date): boolean {
 
 // Mesmas chaves do motivo da perda no funil (MOTIVOS_PERDA do frontend / relatório comercial).
 // Faixa de mensalidade que os agentes podem informar quando o cliente pergunta o valor (orientação da Jessica).
+/**
+ * Playbook de condução e quebra de objeções (pedido da Jessica, 16/10/2026: "todos que atendem precisam estudar
+ * quebra de objeções em vendas, conversas de atendimento B2B e técnicas persuasivas"; "toda conversa precisa ter
+ * começo, meio e fim"). Entra no prompt de Caroline, Julio e Luiz Felipe e é a régua da revisão do Rafael.
+ */
+export const PLAYBOOK_CONVERSA = [
+  'CONVERSA COM COMEÇO, MEIO E FIM (regra mais importante da casa): toda mensagem de uma PESSOA tem resposta; nunca deixe a última fala dela sem resposta (exceções: robô da loja e despedida). Abandonar a conversa é jogar o lead fora.',
+  '- Começo: quem você é, por que está falando com ela (a inscrição, a indicação ou a loja) e UMA pergunta fácil.',
+  '- Meio: entenda antes de oferecer, uma pergunta por vez (situação → problema → impacto → o que ganharia). Use as palavras dela, resuma o que entendeu e confirme.',
+  '- Fim: todo trecho termina com um próximo passo combinado (demonstração com dia e período, proposta com os dados, retorno com data, ou o contato de quem decide) ou com um encerramento cordial que deixa a porta aberta.',
+  '- Não sabe responder? Nunca fique calado: diga que vai confirmar com a equipe e já volta (acao "duvida_fora_material"). O Rafael e os colegas respondem pelo mural.',
+  'QUEBRA DE OBJEÇÕES (método: acolher → entender o porquê → responder com valor → confirmar → propor o próximo passo; nunca discuta, nunca pressione, uma objeção por vez):',
+  '- "Não sou o responsável" / "não cuido disso": agradeça, pergunte com leveza quem cuida (proprietário, farmacêutico responsável ou gerente), o nome e o melhor WhatsApp ou horário para falar com ele. Se não puder passar, peça para levar o recado e deixe uma frase curta do benefício. Registre interlocutor "atendente".',
+  '- "Não é mais da farmácia" / "número errado": peça desculpas pelo incômodo, pergunte se sabe o contato atual da loja ou de quem cuida dela e agradeça. Se não souber, encerre com gentileza.',
+  '- "Já tenho sistema": valorize ("que bom que já estão organizados"), pergunte o que funciona bem e o que poderia ser melhor (estoque, caixa, fiscal, relatórios, suporte). Ofereça comparar numa demonstração curta, sem compromisso.',
+  '- "Está caro" / "quanto custa?": a faixa oficial e o que está incluso, trazendo para o dia a dia (perda de estoque, fila no caixa, risco fiscal, horas de suporte). Peça os dados para a proposta. Desconto e condição só com a consultora.',
+  '- "Agora não" / "sem tempo": respeite e proponha um momento concreto ("prefere amanhã de manhã ou à tarde?"). Registre o retorno combinado.',
+  '- "Me manda por e-mail" / "manda o material": envie a apresentação do segmento e combine um retorno com data para tirar as dúvidas.',
+  '- "Vou pensar" / "vou ver com meu sócio": pergunte o que precisa ficar claro para decidir e ofereça incluir o sócio na demonstração.',
+  '- "Trocar de sistema dá trabalho": a Prosystem faz a conversão dos dados, o treinamento e acompanha o começo; mostre que o risco é baixo.',
+  '- "Não tenho interesse": pergunte o motivo com leveza, uma vez só. Se for atendente, peça o contato de quem decide. Se for o dono, agradeça e deixe a porta aberta.',
+  'TÉCNICAS DE PERSUASÃO (sempre éticas, só com fatos do material): reciprocidade (entregue algo útil antes de pedir: uma dica do segmento, a apresentação); prova social (16 anos com farmácias, clientes da região, só o que é verdade); pequenos sins antes do pedido maior (confirmar a dor antes de convidar para a demonstração); escolha entre opções em vez de sim/não ("manhã ou tarde?"); rotular o que a pessoa sente ("parece que fechar o caixa toma tempo…") e perguntas abertas ("como vocês controlam o estoque hoje?"); urgência só quando é verdade (campanha com data real). Nunca minta, nunca invente números, nunca fale mal do concorrente.',
+].join('\n');
+
 // Dados que a Jessica pede para montar a proposta (áudio de 15/10/2026): CNPJ, e-mail (a proposta vai também por
 // e-mail) e quantos computadores a loja vai ter ("de 1 a 5" ou "de 5 a 10" já serve).
 export const DADOS_PROPOSTA_TEXTO = 'o CNPJ da loja (só o número), um e-mail para receber a proposta e quantos computadores a loja vai ter (contando caixa e balcão; pode ser uma faixa, ex.: de 1 a 5)';
@@ -600,6 +645,7 @@ export function promptCaroline(p: {
     'PEDIU DEMONSTRAÇÃO: se em QUALQUER momento da conversa (inclusive na triagem) o cliente pediu demonstração, apresentação ou "quero conhecer o sistema", NÃO faça pergunta genérica de dor antes: responda que vai marcar com a consultora e use acao "oferecer_demo" (o sistema manda os horários). Interesse declarado nunca fica sem próximo passo.',
     'CLIENTE ADIOU COM MOTIVO (esperando CNPJ, abrindo a loja, pesquisando sistemas, "assim que sair eu te chamo"): ele demonstrou interesse, não abandone. Responda curto, ofereça ajuda útil para a fase dele (ex.: tirar dúvidas, comparar sistemas, o que olhar na escolha) e MARQUE O RETORNO com "adiar_dias" (3 a 5 dias úteis) ou "retomar_em" se ele disse uma data. Nunca deixe sem data de retorno.',
     'BOTÕES: se o cliente tocou "Quero saber mais", agradeça curto e siga investigando a dor; "Me chama depois", pergunte o melhor dia e horário (acao "continuar"); "Agora não", despeça-se com gentileza e porta aberta (acao "sem_interesse").',
+    PLAYBOOK_CONVERSA,
     'CNPJ: nunca peça no começo. Só quando a conversa já estiver avançada (dor identificada, ao oferecer/marcar a demonstração, ou quando o cliente pedir o valor ou a proposta), de forma natural, ex.: "pra eu já deixar tudo pronto pra sua demonstração, me passa o CNPJ da farmácia?". Se ele já mandou, não peça de novo.',
     'FATOS: nunca atribua ao cliente algo que ele não disse ou fez no histórico (ex.: não diga "você pediu uma demonstração" se ele só tocou em "Quero conhecer"). Na dúvida, pergunte.',
     `PREÇO: se o cliente perguntar o valor/mensalidade, responda com a faixa: ${FAIXA_MENSALIDADE}. Não fale nenhum outro valor. Logo depois, em OUTRA mensagem, apresente o plano completo com uma introdução curta e natural, começando com "Para você entender, hoje nosso plano completo oferece" e citando: ${RECURSOS_PLANO_COMPLETO}. Em seguida, peça os DADOS PARA A PROPOSTA (regra abaixo). NUNCA fale de desconto, condições, parcelamento ou contrato por conta própria: isso é com a consultora.`,

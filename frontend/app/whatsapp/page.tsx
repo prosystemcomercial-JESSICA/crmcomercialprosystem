@@ -368,18 +368,23 @@ export default function WhatsappPage() {
     return () => clearInterval(t);
   }, [isAuthenticated]);
 
-  // Link direto (?conversa=id), ex.: vindo de Retornos agendados: abre a conversa assim que ela aparecer.
+  // Link direto (?conversa=id: notificação, placar, Retornos agendados): busca a PRÓPRIA conversa e abre, mesmo
+  // antiga, de outro número ou fora da aba atual. Antes procurava na lista carregada e, quando não achava, ficava
+  // trocando de aba sem abrir nada (16/10/2026).
   const conversaDoLink = useRef<string | null>(null);
-  useEffect(() => { conversaDoLink.current = new URLSearchParams(window.location.search).get('conversa'); }, []);
   useEffect(() => {
-    const id = conversaDoLink.current;
-    if (!id || !conversas.length) return;
-    const c = conversas.find(x => x.id === id);
-    if (c) { conversaDoLink.current = null; abrir(c); }
-    else if (aba !== 'atencao' && aba !== 'pool') setAba('pool');
-    else if (aba === 'pool') setAba('todas');
+    if (!isAuthenticated) return;
+    const id = new URLSearchParams(window.location.search).get('conversa');
+    if (!id || conversaDoLink.current === id) return;
+    conversaDoLink.current = id;
+    apiClient.getWhatsappConversaPorId(id).then(r => {
+      const c = ((r.data?.data || []) as Conversa[])[0];
+      if (!c) return;
+      setConversas(prev => (prev.some(x => x.id === c.id) ? prev : [c, ...prev]));
+      abrir(c);
+    }).catch(e => console.error('Falha ao abrir a conversa do link', e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas]);
+  }, [isAuthenticated]);
 
   const carregarConversas = useCallback(async () => {
     try {

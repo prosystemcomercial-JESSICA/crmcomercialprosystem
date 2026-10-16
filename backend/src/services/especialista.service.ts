@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { pesquisarComGemini, chamarGemini } from './ia-gemini.service';
 import { lerJsonIa } from '@/lib/assistente/ia-texto';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
+import { PLAYBOOK_CONVERSA } from '@/lib/assistente/sdr';
 
 // Rafael, especialista em vendas de software: os olhos e ouvidos da gestão no escritório.
 // 1) ESTUDA (internet): as melhores práticas de venda de software e de vendas no geral, com
@@ -17,6 +18,8 @@ const QUEM = [
   'Você é os olhos e ouvidos da gestora (Jessica): organiza processos, cria POPs e exemplos práticos, aponta o que não está bom e dá dicas objetivas.',
   'Escreva em português do Brasil, simples e direto, pronto para usar no dia a dia. Nunca invente números da Prosystem nem prometa preço.',
   'REGRA FIXA: você NUNCA fala com lead ou cliente. Você fala só com a Jessica (gestora) e com os agentes: orienta, dá feedback e treina. Quem conversa com o cliente é sempre o agente.',
+  // 16/10/2026: o playbook de condução e objeções é a régua da revisão e do que você ensina aos agentes.
+  'O que você ensina e cobra dos agentes (playbook da casa):\n' + PLAYBOOK_CONVERSA,
 ].join('\n');
 
 type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA' | 'TREINAMENTO'; titulo: string; conteudo: string; agente_alvo?: string | null };
@@ -123,7 +126,8 @@ export async function revisarConversas(prisma: PrismaClient) {
       paraAvaliar.push({ nome, texto: linhas.join('\n'), id: c.id });
     }
   }
-  type Alerta = { conversa: string; id?: string; gravidade?: string; problema: string; como_melhorar: string };
+  type Alerta = { conversa: string; id?: string; gravidade?: string; problema: string; como_melhorar: string; mensagem?: string };
+  const licoes: string[] = [];
   let avaliacao: { resumo: string; alertas: Alerta[]; dicas: string[] } | null = null;
   const { perguntarAJessica } = await import('./equipe.service');
   const perguntas: string[] = [];
@@ -141,17 +145,21 @@ export async function revisarConversas(prisma: PrismaClient) {
         'ATENÇÃO À PARCERIA: se a conversa é sobre PARCERIA, REVENDA, REPRESENTAÇÃO comercial ou indicação de clientes (a pessoa quer vender/representar a Prosystem, não comprar o sistema para a loja dela), NÃO trate como lead nem como demonstração de venda. Nesse caso o alerta é: identificar o contato como Parceiro no Inbox (para os agentes e lembretes de demonstração pararem), cadastrar em Representantes/Candidatos e a Jessica conduzir a conversa pessoalmente. Reunião com parceiro não é demonstração.',
         '- o cliente pediu demonstração/proposta/preço e o agente fez pergunta genérica em vez de avançar;',
         '- cliente com interesse ficou sem próximo passo ou sem data de retorno; adiou e não foi marcado retorno;',
+        '- DEIXOU A PESSOA SEM RESPOSTA (abandono: a última fala é de uma pessoa, não de robô nem despedida, e o agente não respondeu; ou sumiu no meio sem próximo passo): SEMPRE gravidade "alta", com a mensagem exata que o agente deve mandar agora;',
+        '- não tratou a objeção do cliente pelo método do playbook (diga qual objeção era e qual a resposta certa);',
         '- repetiu mensagem ou pergunta; insistiu no mesmo dia; respondeu a robô de atendimento;',
         '- informação errada, valor inventado, nome errado, tom robótico.',
         'Para cada conversa com problema: gravidade ("alta" se pode perder venda ou irritar cliente, senão "media"), o problema em 1 frase e o que fazer AGORA em 1-2 frases (com a mensagem sugerida quando ajudar). Não liste conversas boas.',
         'Se o cliente perguntou algo que SÓ A JESSICA (gestora) pode confirmar (recurso do produto, preço, prazo, condição, regra da casa) e o agente não soube, ponha em "perguntas_para_jessica" (no máximo 2, objetivas, com o número da conversa).',
-        'Responda APENAS com JSON: {"resumo": string, "alertas": [{"n": número da conversa, "gravidade": "alta"|"media", "problema": string, "como_melhorar": string}], "dicas": [string], "perguntas_para_jessica": [{"n": número da conversa, "pergunta": string}]}',
+        'Em "licoes" (até 4), ensine o time inteiro com o que estas conversas mostraram, no formato "Quando o cliente disser/fizer X, responda Y" (frases prontas, curtas, no tom da casa). Em cada alerta, "mensagem" = a mensagem exata que o agente deve mandar agora (vazia se não couber).',
+        'Responda APENAS com JSON: {"resumo": string, "alertas": [{"n": número da conversa, "gravidade": "alta"|"media", "problema": string, "como_melhorar": string, "mensagem": string}], "licoes": [string], "dicas": [string], "perguntas_para_jessica": [{"n": número da conversa, "pergunta": string}]}',
         '', ...lote.map((c, k) => `### Conversa ${k + 1}: ${c.nome}\n${c.texto}`),
       ].join('\n');
-      const r = lerJsonIa<{ resumo: string; alertas: { n: number; gravidade: string; problema: string; como_melhorar: string }[]; dicas: string[]; perguntas_para_jessica?: { n: number; pergunta: string }[] }>(
+      const r = lerJsonIa<{ resumo: string; alertas: { n: number; gravidade: string; problema: string; como_melhorar: string; mensagem?: string }[]; licoes?: string[]; dicas: string[]; perguntas_para_jessica?: { n: number; pergunta: string }[] }>(
         await chamarGemini(prisma, { sistema, partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }).catch(() => '{}'));
       if (r?.resumo) resumos.push(r.resumo);
-      for (const a of r?.alertas || []) { const c = lote[(Number(a.n) || 0) - 1]; if (c) alertas.push({ conversa: c.nome, id: c.id, gravidade: a.gravidade, problema: a.problema, como_melhorar: a.como_melhorar }); }
+      for (const a of r?.alertas || []) { const c = lote[(Number(a.n) || 0) - 1]; if (c) alertas.push({ conversa: c.nome, id: c.id, gravidade: a.gravidade, problema: a.problema, como_melhorar: a.como_melhorar, mensagem: a.mensagem || '' }); }
+      licoes.push(...(r?.licoes || []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 400)));
       dicas.push(...(r?.dicas || []));
       for (const q of (r?.perguntas_para_jessica || []).slice(0, 2)) {
         const c = lote[(Number(q?.n) || 0) - 1];
@@ -177,7 +185,8 @@ export async function revisarConversas(prisma: PrismaClient) {
       ...rec.falas.slice(0, 6).map(f => `- **${f.nome}**: ${f.texto}`)] : []),
   ].join('\n');
   const doc = await gravarDoc(prisma, { tipo: 'ALERTA', titulo: `Revisão das conversas · ${dia}`, conteudo: md }, 'revisao');
-  registrarAcaoAgente('rafael', `revisou as conversas: ${deLado.length} de lado, ${avaliacao?.alertas?.length || 0} a melhorar`);
+  const retomadas = await ensinarERetomar(prisma, avaliacao?.alertas || [], licoes, deLado.map(d => d.id), dia).catch((e: any) => { console.warn('[RAFAEL] ensinar:', e?.message); return 0; });
+  registrarAcaoAgente('rafael', `revisou as conversas: ${deLado.length} de lado, ${avaliacao?.alertas?.length || 0} a melhorar, ${licoes.length} lição(ões) para o time, ${retomadas} conversa(s) retomada(s)`);
   if (deLado.length || avaliacao?.alertas?.length) {
     const al = avaliacao?.alertas || [];
     await avisar(prisma, [
@@ -190,6 +199,42 @@ export async function revisarConversas(prisma: PrismaClient) {
   }
   await avisarPerguntas(prisma, perguntas);
   return doc;
+}
+
+/**
+ * A revisão vira ensino e ação (pedido da Jessica, 16/10/2026: "o Rafael avalia as conversas e passa toda a correção
+ * e orientação, ensinando as respostas para que o abandono nunca ocorra").
+ * - Cada alerta vira orientação do Rafael para o agente daquela conversa (o agente lê antes de escrever nela).
+ * - As lições valem para o time inteiro (mural, 7 dias).
+ * - Conversa em que a pessoa ficou sem resposta e que é de um agente volta para "conversando": a rodada responde
+ *   em minutos, já com a orientação. Conversa assumida por uma pessoa da equipe só gera o aviso (como antes).
+ */
+async function ensinarERetomar(prisma: PrismaClient, alertas: { id?: string; gravidade?: string; problema: string; como_melhorar: string; mensagem?: string }[], licoes: string[], deLadoIds: string[], dia: string): Promise<number> {
+  const { anotar, EQUIPE } = await import('./equipe.service');
+  for (const l of licoes.slice(0, 4)) await anotar(prisma, { de: 'rafael', para: EQUIPE, tipo: 'ORIENTACAO', assunto: `Lição da revisão de ${dia}`, texto: l }).catch(() => {});
+  const ATIVOS_AGENTE = ['AGUARDANDO', 'CONVERSANDO', 'DEMO'];
+  let retomadas = 0;
+  const ids = [...new Set([...alertas.map(a => a.id).filter(Boolean) as string[], ...deLadoIds])];
+  for (const conversaId of ids) {
+    const s = await prisma.sdrLead.findFirst({ where: { conversaId, status: { in: ATIVOS_AGENTE } }, orderBy: { updated_at: 'desc' } });
+    if (!s) continue;
+    const a = alertas.find(x => x.id === conversaId);
+    if (a) await anotar(prisma, { de: 'rafael', para: s.agente, tipo: 'ORIENTACAO', assunto: `Correção na conversa de ${s.nome || s.numero}`, texto: `${a.problema} O que fazer: ${a.como_melhorar}${a.mensagem ? ` Mensagem sugerida: "${a.mensagem}"` : ''}`.slice(0, 900), ref: conversaId }).catch(() => {});
+    // A pessoa está esperando (última mensagem dela, não de robô) e a conversa é do agente: retoma agora.
+    const [ultE, ultS] = await Promise.all([
+      prisma.whatsappMensagem.findFirst({ where: { conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { created_at: true, conteudo: true, transcricao: true, tipo: true } }),
+      prisma.whatsappMensagem.findFirst({ where: { conversaId, direcao: 'SAIDA' }, orderBy: { created_at: 'desc' }, select: { created_at: true } }),
+    ]);
+    if (!ultE || (ultS && ultS.created_at > ultE.created_at)) continue;
+    const { ehRespostaAutomatica, ehSoConfirmacao } = await import('@/lib/assistente/sdr');
+    const txt = (ultE.tipo === 'AUDIO' ? ultE.transcricao : ultE.conteudo) || '';
+    if (ultE.tipo !== 'AUDIO' && (ehRespostaAutomatica(txt) || ehSoConfirmacao(txt))) continue;
+    const d: any = s.dados || {};
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'CONVERSANDO', ultima_lead_em: ultE.created_at, dados: { ...d, retomar_em: null, socorro: null, retomada_rafael_em: new Date().toISOString() } } });
+    registrarAcaoAgente('rafael', `mandou ${s.agente} retomar a conversa de ${s.nome || s.numero}: a pessoa estava sem resposta`);
+    retomadas++;
+  }
+  return retomadas;
 }
 
 // ── 3) Abordagem inicial ────────────────────────────────────────────────────────
