@@ -1271,3 +1271,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 ### Correção 15/10/2026: transcrição dos áudios gravados no CRM
 
 - Os áudios que você grava pelo CRM, que davam "Transcrição indisponível (HTTP 400)", agora transcrevem pelo botão "Transcrever áudio".
+
+### Novidade 16/10/2026: Portal Técnico com a cara do CRM
+
+- O Portal Técnico agora tem a mesma barra do topo e o mesmo menu lateral do CRM, com as mesmas cores, inclusive no modo escuro. A tela ficou mais sóbria, como a do WhatsApp.
+- Tudo continua no mesmo lugar: Início, Quadro, Meu dia, Avisos, Tickets & SLA, Templates e Base de Conhecimento.
+- No celular, toque em ☰ para abrir o menu.

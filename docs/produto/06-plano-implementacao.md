@@ -1667,3 +1667,29 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - **Sintoma:** em áudios gravados no CRM, o botão "Transcrever áudio" mostrava "Transcrição indisponível (HTTP 400)". Áudios em mp3 transcreviam normalmente.
 - **Causa:** o navegador grava em WebM (`data:audio/webm;codecs=opus`). A transcrição da OpenAI recebia o arquivo com o nome `audio.ogg`, porque WebM não estava na lista de extensões. A OpenAI confere a extensão com o conteúdo e recusava.
 - **Correção:** `extensaoAudio(mime)` em `lib/assistente/ia-texto.ts` manda WebM como `.webm` e cobre ogg/opus, mp3, m4a/aac, wav e flac. É usada em `transcreverOpenAI` (`ia-gemini.service.ts`). Testes em `tests/data-url.test.ts`.
+
+### Refatoração 16/10/2026: Portal Técnico com tela sóbria, no padrão do CRM (etapa 1)
+
+- **Pedido da Jessica:** "quero a tela sóbria como a do WhatsApp, seguindo o CRM".
+- **Barra do topo:** a mesma do CRM (`ps-topbar`, altura 56, logo Prosystem com link para o painel e "Portal Técnico" ao lado), mantendo as ferramentas do portal: busca (Ctrl K), cronômetro, "Outra atividade", horas de hoje, sino e fechar.
+  - No celular, o botão ☰ abre o menu, e o texto "Cronômetro parado" e as horas de hoje somem (classe `pt-sem-celular`). Continuam em Meu dia.
+- **Menu lateral:** o mesmo componente do CRM (`SidebarMenu`), com as mesmas cores e temas (claro, escuro e os outros), recolher, grupos e gaveta no celular.
+  - Grupos Implantação, Suporte, Gestão e Conhecimento, sem cor própria por grupo.
+  - No portal os grupos começam abertos (`iniciarAberto`, porque são poucos itens).
+  - O contador de tickets abertos aparece no item.
+  - `SidebarMenu` ganhou `onSelect` (navega por abas: `href` é a chave da aba), `badge`, `rodape` e `iniciarAberto`. No CRM nada muda.
+- **Conteúdo:** título da página no topo do conteúdo, como "WhatsApp", sem cartão em volta. Espaçamento de 12 px, como o CRM.
+- **Cartões e cores:** passada única nos arquivos do portal (`app/portal-tecnico/page.tsx` e `components/implantacao/`: Portal, Início, Cronômetro, Prints/Histórico, Confirmar leitura):
+  - cantos de 8 px (cartões) e 6 px (botões e caixas), no lugar de 10 a 16 px;
+  - títulos com peso 700/600, no lugar de 800/650;
+  - números grandes de 22 px, no lugar de 26 a 30 px;
+  - espaço entre blocos de 12 px;
+  - o azul do portal (`#2E6EAB`) virou o azul do CRM (`#286397`, o `--t-primary`). Ficou em hexadecimal para não quebrar as cores com transparência (`${cor}14`).
+  - Nos cartões do Início, o título fica com linha divisória, como os painéis do WhatsApp.
+  - Sombras só nas janelas e gavetas.
+- **Sem mudança de função:** as mesmas abas, ações e dados.
+- **Próximas etapas:**
+  - Quadro: filtros em abas sublinhadas, como "Conversas | Fila de Chamados" do WhatsApp, e cartões do kanban mais discretos.
+  - Meu dia.
+  - Tickets & SLA.
+  - Ficha da demanda (gaveta).
