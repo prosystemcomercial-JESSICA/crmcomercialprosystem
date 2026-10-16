@@ -1775,3 +1775,13 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
   - Boas-vindas do robô em **imagem com legenda** ("Seja bem-vindo(a)… Em breve iremos lhe atender") agora contam como robô em `soRoboDaLoja`. Antes viravam "pessoa", a IA não achava o que responder e o agente pedia socorro à toa.
   - "Agradecemos pela preferência" entra como encerramento do robô.
   - Resultado da revisão completa do Rafael em 16/10: 11 conversas com problema (6 graves), 4 lições para o time, 6 conversas retomadas. 5 foram respondidas em minutos, incluindo Didio ("Sem problema, Didio. Você sabe quem cuida da escolha do sistema na Pharmic…?"). A sexta era o robô em imagem.
+
+### Correção 16/10/2026: sequência de e-mail para padarias conferida (link de descadastro)
+
+- **Pedido da Jessica:** colocar a "SEQUENCIA CAPTAÇÃO PADARIAS" (pasta Downloads) na sequência de e-mail das padarias.
+- **Conferência:** os 12 e-mails da pasta são **idênticos** aos templates já em `backend/src/email-templates/padarias-sequencia/email-01..12.html`; só muda o fim de linha.
+  - Em produção, a sequência `seq-padarias-2026` ("Padarias 2026", segmento Padaria) está ativa, com as 12 etapas (D+0 a D+45), os mesmos assuntos e os templates no servidor. O Resend está configurado.
+  - Nenhum lead entrou ainda.
+- **Bug corrigido antes do primeiro envio:** o link de descadastro saía como `https://comercial.prosystemnet.com/sequencias-email/descadastro/<id>`, sem `/api`. Isso caía na página "não encontrada" do site, e a pessoa não conseguia se descadastrar (obrigatório em e-mail marketing e na LGPD). Agora `urlDescadastro` (`backend/src/lib/url-descadastro.ts`) usa `/api`. Testes em `tests/url-descadastro.test.ts`.
+- **Guardados no repositório:** o mapa de percepção de valor (`docs/comercial/sequencia-padarias/mapa-de-valor-prosystem-padarias.md`, base para a abordagem de padarias) e o LEIA-ME da versão 2 (cadência, cuidados comerciais e uso recomendado).
+- **Pendente (Jessica):** criar no Resend o webhook de clique (`https://comercial.prosystemnet.com/api/webhooks/resend`, evento `email.clicked`) e passar o Signing Secret. Ele vai para `RESEND_WEBHOOK_SECRET` no servidor. Sem isso, o clique no botão não pausa a sequência sozinho.

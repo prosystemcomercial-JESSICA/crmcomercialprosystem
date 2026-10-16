@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { getResend, EMAIL_FROM } from '@/lib/resend-client';
+import { urlDescadastro } from '@/lib/url-descadastro';
 
 /**
  * Insere um lead numa sequência de e-mail (ex.: Padarias 2026). Idempotente:
@@ -82,7 +83,7 @@ export async function dispararProximoEmail(prisma: PrismaClient, leadSequenciaId
     return null;
   }
 
-  const unsubscribeUrl = `${process.env.BACKEND_URL || 'https://crmcomercialprosystem-production-945e.up.railway.app'}/sequencias-email/descadastro/${ls.id}`;
+  const unsubscribeUrl = urlDescadastro(process.env.BACKEND_URL, ls.id);
   const html = carregarTemplate(etapa.template_path, unsubscribeUrl);
 
   let resultado: { status: 'ENVIADO' | 'ERRO'; messageId?: string; erro?: string };
