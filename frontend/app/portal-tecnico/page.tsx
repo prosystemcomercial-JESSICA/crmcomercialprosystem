@@ -9,6 +9,9 @@ import { PainelInicio } from '@/components/implantacao/Inicio';
 import { OnboardingTecnico } from '@/components/implantacao/Portal';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket, InventarioTicket } from '@/components/implantacao/Portal';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import SidebarMenu from '@/components/dashboard/SidebarMenu';
+import { Menu as IconeMenu } from 'lucide-react';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
   CheckCircle, X, Loader2, FileText, Briefcase, Coins, BookOpen,
@@ -307,9 +310,9 @@ function PrazoBadge({ prazos }: { prazos?: { virada?: any; finalizacao?: any } }
 
 function TrilhaCard({ label, dias, cor }: { label: string; dias: number | null; cor: string }) {
   return (
-    <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${cor}33`, background: `${cor}0d` }}>
+    <div style={{ padding: 14, borderRadius: 6, border: `1px solid ${cor}33`, background: `${cor}0d` }}>
       <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: cor }}>{dias == null ? '—' : `${dias}`}<span style={{ fontSize: 12, fontWeight: 600, marginLeft: 4 }}>{dias == null ? '' : 'dia(s)'}</span></div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: cor }}>{dias == null ? '—' : `${dias}`}<span style={{ fontSize: 12, fontWeight: 600, marginLeft: 4 }}>{dias == null ? '' : 'dia(s)'}</span></div>
     </div>
   );
 }
@@ -319,7 +322,7 @@ function Kpi({ label, value, color, icon: Icon }: any) {
     <div className="ps-card p-3 rounded-xl flex items-center gap-3" style={{ border: '1px solid var(--t-card-border)' }}>
       <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}><Icon size={16} style={{ color }} /></div>
       <div>
-        <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
         <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>{label}</div>
       </div>
     </div>
@@ -356,6 +359,8 @@ export default function PortalTecnicoPage() {
   // Sem sessão (navegador sem login ou sessão vencida): vai para o login, como as outras telas. Antes o portal
   // mostrava o menu e ficava em "Carregando…" para sempre (15/10/2026).
   const roteador = useRouter();
+  // Menu lateral no celular (o mesmo do CRM, que no celular abre por cima da tela).
+  const [menuAberto, setMenuAberto] = useState(false);
   useEffect(() => { if (!loading && !isAuthenticated) roteador.replace('/'); }, [loading, isAuthenticated, roteador]);
   const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
@@ -827,10 +832,11 @@ export default function PortalTecnicoPage() {
     );
   }
 
+  // Tela sóbria (16/10/2026): o mesmo menu, a mesma barra do topo e as mesmas cores do CRM, como a tela do WhatsApp.
   const SIDEBAR_GROUPS = [
     {
-      group: 'IMPLANTAÇÃO',
-      color: '#2E6EAB',
+      group: 'Implantação',
+      color: '#286397',
       items: [
         // 'Demandas (SLA)' escondida: lia SolicitacaoServico, que nunca existiu em produção (substituída por Quadro/Serviços).
         { key: 'inicio'      as Tab, label: 'Início',       icon: Star,         badge: null },
@@ -843,7 +849,7 @@ export default function PortalTecnicoPage() {
       ],
     },
     {
-      group: 'SUPORTE',
+      group: 'Suporte',
       color: '#7c3aed',
       items: [
         { key: 'suporte'    as Tab, label: 'Tickets & SLA', icon: Headphones,    badge: tickets.filter(t => t.status === 'ABERTO').length || null },
@@ -853,7 +859,7 @@ export default function PortalTecnicoPage() {
       ],
     },
     ...(gestaoTecnica ? [{
-      group: 'GESTÃO',
+      group: 'Gestão',
       color: '#7c3aed',
       items: [
         { key: 'painel' as Tab, label: 'Painel da implantação', icon: BarChart2, badge: null },
@@ -861,7 +867,7 @@ export default function PortalTecnicoPage() {
       ],
     }] : []),
     {
-      group: 'CONHECIMENTO',
+      group: 'Conhecimento',
       color: '#0891b2',
       items: [
         { key: 'kb' as Tab, label: 'Base de Conhecimento', icon: BookMarked, badge: null },
@@ -886,85 +892,58 @@ export default function PortalTecnicoPage() {
     csat:         'Satisfação (CSAT)',
   };
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 14, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid var(--t-card-border)', borderRadius: 6, fontSize: 14, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' };
   const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--t-text-secondary)' };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Top bar: logo + título + fechar ── */}
-      <div style={{ background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, zIndex: 50, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,#4B8EC8,#2E6EAB)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Wrench size={15} color="white" />
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)', lineHeight: 1.1 }}>Portal Técnico</div>
-            <div style={{ fontSize: 10, color: 'var(--t-text-muted)', lineHeight: 1 }}>ProSystem</div>
-          </div>
-        </div>
-        <div className="pt-topo-extra" style={{ width: 1, height: 28, background: 'var(--t-card-border)', margin: '0 4px' }} />
-        <div className="pt-topo-extra" style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{TAB_TITLE[tab]}</div>
+      {/* ── Barra do topo: a mesma do CRM (logo Prosystem) com as ferramentas do portal ── */}
+      <header className="ps-topbar flex-shrink-0 flex items-center gap-3 px-4 h-14" style={{ position: 'sticky', top: 0, zIndex: 50 }}>
+        <button onClick={() => setMenuAberto(true)} className="md:hidden flex-shrink-0 p-1.5 rounded-lg" style={{ color: 'var(--t-text-muted)' }} aria-label="Abrir menu">
+          <IconeMenu size={20} />
+        </button>
+        <a href="/dashboard" className="flex items-center select-none flex-shrink-0" aria-label="Prosystem">
+          <Image src="/logo-prosystem.png" alt="Prosystem" width={200} height={54} className="object-contain" style={{ width: 'auto', height: 26 }} priority />
+        </a>
+        <span className="pt-topo-extra" style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', paddingLeft: 10, borderLeft: '1px solid var(--t-card-border)' }}>Portal Técnico</span>
         <div style={{ flex: 1 }} />
         <BuscaGlobal onAbrir={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         <CronometroBarra />
         <SinoAvisos onAbrir={() => setTab('avisos')} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
-        <button onClick={() => window.close()} title="Fechar portal"
-          style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
-          <X size={13} />
+        <button onClick={() => window.close()} title="Fechar portal" aria-label="Fechar portal"
+          style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
+          <X size={14} />
         </button>
-      </div>
+      </header>
 
-      {/* ── Body: sidebar + content ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* ── SIDEBAR ── */}
+      {/* ── Corpo: menu do CRM + conteúdo ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <style>{`
           @media (max-width: 900px) {
-            .pt-aside { width: 58px !important; }
-            .pt-aside .pt-rotulo, .pt-aside .pt-grupo, .pt-aside .pt-versao { display: none; }
             .pt-topo-extra { display: none !important; }
-            .pt-conteudo { padding: 14px !important; }
+            .pt-conteudo { padding: 10px !important; }
           }
         `}</style>
-        <aside className="pt-aside" style={{ width: 210, flexShrink: 0, background: 'var(--t-card-bg)', borderRight: '1px solid var(--t-card-border)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '12px 0' }}>
-          {SIDEBAR_GROUPS.map(grp => (
-            <div key={grp.group} style={{ marginBottom: 8 }}>
-              <div className="pt-grupo" style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, color: grp.color, padding: '6px 16px 4px', textTransform: 'uppercase' }}>{grp.group}</div>
-              {grp.items.map(item => {
-                const active = tab === item.key;
-                const Icon = item.icon;
-                return (
-                  <button key={item.key} onClick={() => setTab(item.key)} title={item.label}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', border: 'none', background: active ? `${grp.color}14` : 'transparent', cursor: 'pointer', transition: 'background 0.15s', position: 'relative',
-                      borderLeft: active ? `3px solid ${grp.color}` : '3px solid transparent' }}>
-                    <Icon size={15} color={active ? grp.color : 'var(--t-text-muted)'} />
-                    <span className="pt-rotulo" style={{ fontSize: 13, fontWeight: active ? 700 : 400, color: active ? grp.color : 'var(--t-text-secondary)', flex: 1, textAlign: 'left' }}>{item.label}</span>
-                    {item.badge ? (
-                      <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 99, background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{item.badge}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-
-          {/* Divider + versão */}
-          <div style={{ flex: 1 }} />
-          <div className="pt-versao" style={{ padding: '12px 16px', borderTop: '1px solid var(--t-card-border)', marginTop: 8 }}>
-            <div style={{ fontSize: 10, color: 'var(--t-text-muted)' }}>CRM Técnico — ProSystem</div>
-          </div>
-        </aside>
+        {menuAberto && <div onClick={() => setMenuAberto(false)} className="md:hidden fixed inset-0 bg-black/50" style={{ zIndex: 60 }} />}
+        <SidebarMenu
+          groups={SIDEBAR_GROUPS.map(g => ({ label: g.group, items: g.items.map(i => ({ href: i.key, icon: i.icon, label: i.label, badge: i.badge })) }))}
+          pathname={tab} open={menuAberto} onClose={() => setMenuAberto(false)}
+          onSelect={item => setTab(item.href as Tab)} rodape="Portal Técnico · Prosystem" />
 
         {/* ── CONTENT ── */}
-        <div className="pt-conteudo" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 'clamp(14px, 2vw, 28px)' }}>
+        <div className="pt-conteudo ps-content" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 12 }}>
+        {/* Cabeçalho da página, como no WhatsApp: título à esquerda, sem cartão em volta. */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '2px 2px 10px' }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t-text-primary)', margin: 0 }}>{TAB_TITLE[tab]}</h1>
+        </div>
 
         {/* ── TAB: DEMANDAS ── */}
         {tab === 'demandas' && (
           <div>
             {/* Alertas SLA estourado */}
             {demandasCriticas.length > 0 && (
-              <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 6, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <AlertTriangle size={16} color="#dc2626" />
                 <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
                   {demandasCriticas.length} demanda{demandasCriticas.length > 1 ? 's' : ''} com SLA estourado
@@ -981,7 +960,7 @@ export default function PortalTecnicoPage() {
                 const cfg = getTipoConfig(s.tipo_servico);
                 const Icon = cfg.icon;
                 return (
-                  <div key={s.tipo_servico} style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, minWidth: 130, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
+                  <div key={s.tipo_servico} style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, borderRadius: 6, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, minWidth: 130, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
                     onClick={() => setDemandasFiltroTipo(demandasFiltroTipo === s.tipo_servico ? '' : s.tipo_servico)}>
                     <Icon size={16} color={cfg.color} />
                     <div>
@@ -993,17 +972,17 @@ export default function PortalTecnicoPage() {
               })}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <select value={demandasFiltroStatus} onChange={e => setDemandasFiltroStatus(e.target.value)}
-                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}>
                   <option value="">Todos os status</option>
                   {Object.entries(STATUS_DEMANDA).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
                 <button onClick={() => setDemandasView(demandasView === 'kanban' ? 'lista' : 'kanban')}
-                  style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <LayoutGrid size={14} />
                   {demandasView === 'kanban' ? 'Lista' : 'Kanban'}
                 </button>
                 <button onClick={() => loadDemandas()}
-                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-muted)', cursor: 'pointer' }}>
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-muted)', cursor: 'pointer' }}>
                   <RefreshCw size={14} />
                 </button>
               </div>
@@ -1020,7 +999,7 @@ export default function PortalTecnicoPage() {
                     (!demandasFiltroStatus || d.status === demandasFiltroStatus || col.status === 'AGUARDANDO_CLIENTE')
                   );
                   return (
-                    <div key={col.status} style={{ background: 'var(--t-content-bg)', borderRadius: 12, border: '1px solid var(--t-card-border)', overflow: 'hidden' }}>
+                    <div key={col.status} style={{ background: 'var(--t-content-bg)', borderRadius: 6, border: '1px solid var(--t-card-border)', overflow: 'hidden' }}>
                       <div style={{ padding: '10px 14px', background: 'var(--t-card-bg)', borderBottom: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>{col.label}</span>
                         <span style={{ fontSize: 11, color: 'var(--t-text-muted)', background: 'var(--t-content-bg)', borderRadius: 99, padding: '1px 8px' }}>{cards.length}</span>
@@ -1037,7 +1016,7 @@ export default function PortalTecnicoPage() {
                           const Icon = cfg.icon;
                           return (
                             <div key={d.id} onClick={() => { setDemandaDetalhe(d); setDemandaForm({ status: d.status, usuario_responsavel: d.usuario_responsavel || '', observacoes: d.observacoes || '' }); }}
-                              style={{ background: 'var(--t-card-bg)', border: `1px solid ${sla && !sla.concluido && sla.pct >= 100 ? '#dc2626' : 'var(--t-card-border)'}`, borderRadius: 10, padding: 12, cursor: 'pointer', transition: 'box-shadow 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                              style={{ background: 'var(--t-card-bg)', border: `1px solid ${sla && !sla.concluido && sla.pct >= 100 ? '#dc2626' : 'var(--t-card-border)'}`, borderRadius: 6, padding: 12, cursor: 'pointer', transition: 'box-shadow 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                               {/* Tipo + prioridade */}
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -1165,7 +1144,7 @@ export default function PortalTecnicoPage() {
                     <div>
                       {(() => { const cfg = getTipoConfig(demandaDetalhe.tipo_servico); const Icon = cfg.icon; return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 6, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Icon size={16} color={cfg.color} />
                           </div>
                           <div>
@@ -1179,26 +1158,26 @@ export default function PortalTecnicoPage() {
                       <X size={18} />
                     </button>
                   </div>
-                  <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {/* Info grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '10px 12px' }}>
                         <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Cliente</div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{demandaDetalhe.cliente_nome || demandaDetalhe.cliente_empresa || '—'}</div>
                       </div>
-                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '10px 12px' }}>
                         <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Prioridade</div>
                         {(() => { const p = PRIO_DEMANDA[demandaDetalhe.prioridade] || PRIO_DEMANDA['BAIXA']; return (
                           <span style={{ fontSize: 12, fontWeight: 700, color: p.color }}>{demandaDetalhe.prioridade}</span>
                         ); })()}
                       </div>
-                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '10px 12px' }}>
                         <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>Aberta em</div>
                         <div style={{ fontSize: 12, color: 'var(--t-text-primary)' }}>
                           {demandaDetalhe.data_solicitacao ? new Date(demandaDetalhe.data_solicitacao).toLocaleDateString('pt-BR') : '—'}
                         </div>
                       </div>
-                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '10px 12px' }}>
                         <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 2 }}>CNPJ</div>
                         <div style={{ fontSize: 12, color: 'var(--t-text-primary)' }}>{demandaDetalhe.cliente_cnpj || '—'}</div>
                       </div>
@@ -1206,7 +1185,7 @@ export default function PortalTecnicoPage() {
 
                     {/* SLA */}
                     {(() => { const sla = demandaSlaStatus(demandaDetalhe); const cfg = getTipoConfig(demandaDetalhe.tipo_servico); return sla ? (
-                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-primary)' }}>SLA — {cfg.marco}</div>
                           <div style={{ fontSize: 11, color: sla.color, fontWeight: 700 }}>{sla.label}</div>
@@ -1222,7 +1201,7 @@ export default function PortalTecnicoPage() {
                     {demandaDetalhe.descricao && (
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>DESCRIÇÃO</div>
-                        <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: 'var(--t-content-bg)', borderRadius: 8, padding: '10px 12px' }}>{demandaDetalhe.descricao}</div>
+                        <div style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6, background: 'var(--t-content-bg)', borderRadius: 6, padding: '10px 12px' }}>{demandaDetalhe.descricao}</div>
                       </div>
                     )}
 
@@ -1230,7 +1209,7 @@ export default function PortalTecnicoPage() {
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>RESPONSÁVEL</div>
                       <select value={demandaForm.usuario_responsavel || ''} onChange={e => setDemandaForm((f: any) => ({ ...f, usuario_responsavel: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
                         <option value="">Sem responsável</option>
                         {tecnicos.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
                       </select>
@@ -1254,12 +1233,12 @@ export default function PortalTecnicoPage() {
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 6 }}>OBSERVAÇÕES</div>
                       <textarea value={demandaForm.observacoes || ''} onChange={e => setDemandaForm((f: any) => ({ ...f, observacoes: e.target.value }))} rows={3}
                         placeholder="Anotações sobre o andamento…"
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
                     </div>
 
                     {/* Salvar */}
                     <button disabled={demandaSaving} onClick={() => updateDemanda(demandaDetalhe.id, demandaDetalhe.cliente_id, demandaForm)}
-                      style={{ padding: '10px 0', borderRadius: 10, background: 'var(--t-primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: demandaSaving ? 'not-allowed' : 'pointer', opacity: demandaSaving ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      style={{ padding: '10px 0', borderRadius: 6, background: 'var(--t-primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: demandaSaving ? 'not-allowed' : 'pointer', opacity: demandaSaving ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                       {demandaSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                       Salvar alterações
                     </button>
@@ -1323,10 +1302,10 @@ export default function PortalTecnicoPage() {
                           <td style={{ padding: '10px 12px' }}><PrazoBadge prazos={(i as any).prazos} /></td>
                           <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_instalacao)}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--t-text-muted)' }}>{fmtData(i.data_primeiro_vencimento)}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 700, color: i.mes_pagamento_comissao ? '#2E6EAB' : 'var(--t-text-muted)' }}>{fmtMes(i.mes_pagamento_comissao)}</td>
+                          <td style={{ padding: '10px 12px', fontWeight: 700, color: i.mes_pagamento_comissao ? '#286397' : 'var(--t-text-muted)' }}>{fmtMes(i.mes_pagamento_comissao)}</td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            <button onClick={() => abrirImpl(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>Datas</button>
-                            <button onClick={() => abrirExec(i)} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#2E6EAB', border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer' }}>Executar</button>
+                            <button onClick={() => abrirImpl(i)} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)', background: 'transparent', border: '1px solid #c7d8ec', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', marginRight: 6 }}>Datas</button>
+                            <button onClick={() => abrirExec(i)} style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#286397', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>Executar</button>
                             <div style={{ marginTop: 6 }}><BotoesDemanda implantacao={i as any} /></div>
                           </td>
                         </tr>
@@ -1340,9 +1319,9 @@ export default function PortalTecnicoPage() {
             {/* Modal datas */}
             {implSel && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setImplSel(null)}>
-                <div style={{ background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+                <div style={{ background: 'var(--t-card-bg)', borderRadius: 6, width: '100%', maxWidth: 480 }} onClick={e => e.stopPropagation()}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 800, color: 'var(--t-text-primary)' }}>{implSel.cliente_razao_social}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--t-text-primary)' }}>{implSel.cliente_razao_social}</div>
                     <button onClick={() => setImplSel(null)}><X size={16} style={{ color: 'var(--t-text-muted)' }} /></button>
                   </div>
                   <div style={{ padding: 20 }} className="space-y-3">
@@ -1353,7 +1332,7 @@ export default function PortalTecnicoPage() {
                       <input type="date" value={implForm.data_primeiro_vencimento} onChange={e => setImplForm((p: any) => ({ ...p, data_primeiro_vencimento: e.target.value }))} className="ps-input w-full" />
                     </Campo>
                     {previewMesPag && (
-                      <div style={{ background: 'var(--t-primary-light)', border: '1px solid #c7d8ec', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--t-link)' }}>
+                      <div style={{ background: 'var(--t-primary-light)', border: '1px solid #c7d8ec', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: 'var(--t-link)' }}>
                         Comissão será paga em <strong>{fmtMes(previewMesPag)}</strong>
                       </div>
                     )}
@@ -1366,8 +1345,8 @@ export default function PortalTecnicoPage() {
                       <textarea value={implForm.observacoes} onChange={e => setImplForm((p: any) => ({ ...p, observacoes: e.target.value }))} className="ps-input w-full" rows={2} />
                     </Campo>
                     <div className="flex justify-end gap-2 pt-1">
-                      <button onClick={() => setImplSel(null)} style={{ padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent', cursor: 'pointer' }}>Cancelar</button>
-                      <button onClick={salvarImpl} disabled={implSaving} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer', opacity: implSaving ? .7 : 1 }}>
+                      <button onClick={() => setImplSel(null)} style={{ padding: '8px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent', cursor: 'pointer' }}>Cancelar</button>
+                      <button onClick={salvarImpl} disabled={implSaving} style={{ padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#286397', color: '#fff', border: 'none', cursor: 'pointer', opacity: implSaving ? .7 : 1 }}>
                         {implSaving ? 'Salvando…' : 'Salvar'}
                       </button>
                     </div>
@@ -1383,7 +1362,7 @@ export default function PortalTecnicoPage() {
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)', position: 'sticky', top: 0, background: 'var(--t-card-bg)', zIndex: 1 }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div style={{ fontWeight: 800, color: 'var(--t-text-primary)', fontSize: 16 }}>{exec.cliente_razao_social}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--t-text-primary)', fontSize: 16 }}>{exec.cliente_razao_social}</div>
                         <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{exec.plano || '—'} · Setup {fmtBRL(exec.valor_setup)}</div>
                         <div className="mt-1 flex items-center gap-2 flex-wrap">
                           {exec.tipo_base && (
@@ -1418,7 +1397,7 @@ export default function PortalTecnicoPage() {
                       {['EM_ANALISE', 'EM_CONVERSAO', 'EM_CONFIGURACAO', 'FINALIZADO'].map(et => (
                         <button key={et} onClick={() => moverEtapa(et)} disabled={!exec.tecnico_id}
                           style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, cursor: exec.tecnico_id ? 'pointer' : 'not-allowed',
-                            border: '1px solid var(--t-card-border)', background: exec.etapa_execucao === et ? '#2E6EAB' : 'transparent', color: exec.etapa_execucao === et ? '#fff' : 'var(--t-text-muted)' }}>
+                            border: '1px solid var(--t-card-border)', background: exec.etapa_execucao === et ? '#286397' : 'transparent', color: exec.etapa_execucao === et ? '#fff' : 'var(--t-text-muted)' }}>
                           {et.replace('EM_', '').replace('_', ' ')}
                         </button>
                       ))}
@@ -1432,7 +1411,7 @@ export default function PortalTecnicoPage() {
                     <div className="flex gap-1 mt-3" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                       {([['trilha', 'Trilha'], ['atividades', 'Atividades'], ['testes', 'Testes'], ['arquivos', 'Arquivos'], ['checklist', 'Checklist']] as const).map(([k, label]) => (
                         <button key={k} onClick={() => setExecTab(k)} style={{ fontSize: 12, fontWeight: 600, padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer',
-                          borderBottom: execTab === k ? '2px solid #2E6EAB' : '2px solid transparent', color: execTab === k ? '#2E6EAB' : 'var(--t-text-muted)' }}>{label}</button>
+                          borderBottom: execTab === k ? '2px solid #286397' : '2px solid transparent', color: execTab === k ? '#286397' : 'var(--t-text-muted)' }}>{label}</button>
                       ))}
                     </div>
                   </div>
@@ -1450,11 +1429,11 @@ export default function PortalTecnicoPage() {
                       <div>
                         <div className="flex gap-2 mb-3">
                           <input value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Registrar atividade/nota…" className="ps-input flex-1" />
-                          <button onClick={addNota} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer' }}>Registrar</button>
+                          <button onClick={addNota} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#286397', color: '#fff', border: 'none', cursor: 'pointer' }}>Registrar</button>
                         </div>
                         <div className="space-y-2">
                           {(exec.atividades || []).map((a: any) => (
-                            <div key={a.id} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+                            <div key={a.id} style={{ padding: 10, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                               <div style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{a.descricao}</div>
                               <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 2 }}>{a.autor_nome || '—'} · {new Date(a.created_at).toLocaleString('pt-BR')}</div>
                             </div>
@@ -1466,7 +1445,7 @@ export default function PortalTecnicoPage() {
                     {execTab === 'testes' && (
                       <div className="space-y-2">
                         {(exec.testes || []).map((t: any) => (
-                          <div key={t.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--t-card-border)' }}>
+                          <div key={t.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 6, border: '1px solid var(--t-card-border)' }}>
                             <span style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{t.item}</span>
                             <div className="flex gap-1">
                               {[['OK', '#16a34a'], ['DIVERGENTE', '#dc2626'], ['NAO_APLICA', '#9ca3af'], ['PENDENTE', '#d97706']].map(([r, c]) => (
@@ -1489,11 +1468,11 @@ export default function PortalTecnicoPage() {
                             <option value="LINK">Link</option><option value="ANEXO">Anexo (URL)</option>
                           </select>
                           <input value={novoArq.url} onChange={e => setNovoArq(p => ({ ...p, url: e.target.value }))} placeholder="URL" className="ps-input col-span-4" />
-                          <button onClick={addArquivo} style={{ borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer' }} className="col-span-1">+</button>
+                          <button onClick={addArquivo} style={{ borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#286397', color: '#fff', border: 'none', cursor: 'pointer' }} className="col-span-1">+</button>
                         </div>
                         <div className="space-y-2">
                           {(exec.arquivos || []).map((a: any) => (
-                            <div key={a.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--t-card-border)' }}>
+                            <div key={a.id} className="flex items-center justify-between" style={{ padding: 8, borderRadius: 6, border: '1px solid var(--t-card-border)' }}>
                               <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--t-link)', fontWeight: 600 }}>📎 {a.nome} ↗</a>
                               <button onClick={() => delArquivo(a.id)} style={{ fontSize: 11, color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer' }}>remover</button>
                             </div>
@@ -1507,11 +1486,11 @@ export default function PortalTecnicoPage() {
                         {(exec.grupos || []).map((g: any) => (
                           <div key={g.grupo}>
                             <div className="flex items-center justify-between mb-1">
-                              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--t-text-primary)' }}>{GRUPO_LABEL[g.grupo] || g.grupo}</span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: g.progresso === 100 ? '#16a34a' : '#2E6EAB' }}>{g.progresso}% · {g.feitos}/{g.total}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{GRUPO_LABEL[g.grupo] || g.grupo}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: g.progresso === 100 ? '#16a34a' : '#286397' }}>{g.progresso}% · {g.feitos}/{g.total}</span>
                             </div>
                             <div style={{ height: 6, borderRadius: 999, background: 'var(--t-card-border)', marginBottom: 8, overflow: 'hidden' }}>
-                              <div style={{ width: `${g.progresso}%`, height: '100%', background: g.progresso === 100 ? '#16a34a' : '#2E6EAB' }} />
+                              <div style={{ width: `${g.progresso}%`, height: '100%', background: g.progresso === 100 ? '#16a34a' : '#286397' }} />
                             </div>
                             <div className="space-y-1">
                               {g.itens.map((c: any) => (
@@ -1523,7 +1502,7 @@ export default function PortalTecnicoPage() {
                               <div className="flex gap-2 mt-1.5">
                                 <input value={novoChkGrupo === g.grupo ? novoChk : ''} onFocus={() => setNovoChkGrupo(g.grupo)} onChange={e => { setNovoChkGrupo(g.grupo); setNovoChk(e.target.value); }}
                                   placeholder="Adicionar item…" className="ps-input flex-1" style={{ fontSize: 12 }} />
-                                <button onClick={() => addChk(g.grupo)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#2E6EAB', color: '#fff', border: 'none', cursor: 'pointer' }}>+</button>
+                                <button onClick={() => addChk(g.grupo)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#286397', color: '#fff', border: 'none', cursor: 'pointer' }}>+</button>
                               </div>
                             </div>
                           </div>
@@ -1552,7 +1531,7 @@ export default function PortalTecnicoPage() {
               ].map(c => (
                 <div key={c.label} className="ps-card rounded-xl p-4" style={{ border: '1px solid var(--t-card-border)' }}>
                   <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{c.label}</p>
-                  <p style={{ fontSize: 28, fontWeight: 800, color: c.color, marginTop: 2 }}>{c.value}</p>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: c.color, marginTop: 2 }}>{c.value}</p>
                 </div>
               ))}
             </div>
@@ -1560,9 +1539,9 @@ export default function PortalTecnicoPage() {
             <div className="flex gap-2 flex-wrap">
               {['', 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO', 'PAUSADO'].map(s => (
                 <button key={s} onClick={() => setObFilter(s)}
-                  style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                     border: obFilter === s ? 'none' : '1px solid var(--t-card-border)',
-                    background: obFilter === s ? '#2E6EAB' : 'var(--t-card-bg)',
+                    background: obFilter === s ? '#286397' : 'var(--t-card-bg)',
                     color: obFilter === s ? '#fff' : 'var(--t-text-muted)' }}>
                   {s === '' ? 'Todos' : s.replace('_', ' ')}
                 </button>
@@ -1595,9 +1574,9 @@ export default function PortalTecnicoPage() {
                         </div>
                         <div className="flex items-center gap-4 flex-shrink-0">
                           <div style={{ textAlign: 'right' }}>
-                            <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)' }}>{ob.progresso}%</p>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>{ob.progresso}%</p>
                             <div style={{ width: 96, background: 'var(--t-card-border)', borderRadius: 999, height: 6, marginTop: 4, overflow: 'hidden' }}>
-                              <div style={{ width: `${ob.progresso}%`, height: '100%', background: ob.progresso === 100 ? '#16a34a' : '#2E6EAB' }} />
+                              <div style={{ width: `${ob.progresso}%`, height: '100%', background: ob.progresso === 100 ? '#16a34a' : '#286397' }} />
                             </div>
                           </div>
                           <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, ...styleMap }}>{ob.status.replace('_', ' ')}</span>
@@ -1609,7 +1588,7 @@ export default function PortalTecnicoPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {ob.etapas.map((etapa, idx) => (
                               <button key={idx} onClick={() => toggleEtapa(ob, idx)} disabled={obSaving}
-                                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 8, cursor: 'pointer',
+                                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 6, cursor: 'pointer',
                                   border: `1px solid ${etapa.concluido ? '#bbf7d0' : 'var(--t-card-border)'}`,
                                   background: etapa.concluido ? '#f0fdf4' : 'var(--t-card-bg)', textAlign: 'left' }}>
                                 <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -1654,7 +1633,7 @@ export default function PortalTecnicoPage() {
             <div className="flex gap-2 flex-wrap mb-5">
               {CATS_ATEND.map(c => (
                 <button key={c.id} onClick={() => setCatFilter(c.id)}
-                  style={{ padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                     border: catFilter === c.id ? 'none' : '1px solid var(--t-card-border)',
                     background: catFilter === c.id ? c.cor : 'var(--t-card-bg)',
                     color: catFilter === c.id ? '#fff' : 'var(--t-text-muted)' }}>
@@ -1687,7 +1666,7 @@ export default function PortalTecnicoPage() {
                           <button key={c} onClick={() => setCanalAtivo(p => ({ ...p, [t.id]: c }))}
                             style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
                               border: canal === c ? 'none' : '1px solid var(--t-card-border)',
-                              background: canal === c ? '#2E6EAB' : 'var(--t-card-bg)',
+                              background: canal === c ? '#286397' : 'var(--t-card-bg)',
                               color: canal === c ? '#fff' : 'var(--t-text-muted)' }}>
                             {c === 'whatsapp' ? 'WhatsApp' : c === 'email' ? 'E-mail' : 'Telefone'}
                           </button>
@@ -1700,8 +1679,8 @@ export default function PortalTecnicoPage() {
                       </pre>
                       <div className="flex justify-end mt-3">
                         <button onClick={() => copiar(`${t.id}-${canal}`, (t.canais as any)[canal])}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
-                            border: 'none', background: copiado ? '#dcfce7' : '#2E6EAB', color: copiado ? '#15803d' : '#fff' }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
+                            border: 'none', background: copiado ? '#dcfce7' : '#286397', color: copiado ? '#15803d' : '#fff' }}>
                           {copiado ? <><Check size={13} />Copiado!</> : <><Copy size={13} />Copiar</>}
                         </button>
                       </div>
@@ -1719,10 +1698,10 @@ export default function PortalTecnicoPage() {
 
             {/* Sub-nav: Tickets | SLA | Templates */}
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex gap-1" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 3 }}>
+              <div className="flex gap-1" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: 3 }}>
                 {([['tickets', 'Tickets', Headphones], ['sla', 'Painel SLA', BarChart2], ['templates', 'Templates', MessageSquare]] as const).map(([v, l, Icon]) => (
                   <button key={v} onClick={() => setSuporteView(v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
                       background: suporteView === v ? 'var(--t-primary)' : 'transparent',
                       color: suporteView === v ? '#fff' : 'var(--t-text-muted)' }}>
                     <Icon size={13} />{l}
@@ -1741,7 +1720,7 @@ export default function PortalTecnicoPage() {
                     { header: 'Aberto em',    value: (t: Ticket) => t.created_at ? new Date(t.created_at).toLocaleString('pt-BR') : '' },
                     { header: 'Resolvido em', value: (t: Ticket) => t.resolucao_at ? new Date(t.resolucao_at).toLocaleString('pt-BR') : '' },
                   ]} />
-                <button onClick={openTicket} style={{ padding: '7px 14px', background: 'var(--t-primary)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+                <button onClick={openTicket} style={{ padding: '7px 14px', background: 'var(--t-primary)', color: '#fff', borderRadius: 6, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
                   + Abrir Ticket
                 </button>
               </div>
@@ -1757,15 +1736,15 @@ export default function PortalTecnicoPage() {
                 { label: 'Fechados',           status: 'FECHADO' },
               ].map(c => (
                 <div key={c.status} onClick={() => { setSuporteView('tickets'); setTicketStatusFilter(ticketStatusFilter === c.status ? '' : c.status); }}
-                  style={{ ...TICKET_STATS_STYLE[c.status].card, borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                  style={{ ...TICKET_STATS_STYLE[c.status].card, borderRadius: 6, padding: '10px 12px', cursor: 'pointer',
                     border: ticketStatusFilter === c.status ? `2px solid ${Object.values(TICKET_STATS_STYLE[c.status].value)[0]}` : '1px solid transparent' }}>
                   <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: 0 }}>{c.label}</p>
-                  <p style={{ ...TICKET_STATS_STYLE[c.status].value, fontSize: '1.4rem', fontWeight: 800, marginTop: 2 }}>{statsCount(c.status)}</p>
+                  <p style={{ ...TICKET_STATS_STYLE[c.status].value, fontSize: '1.4rem', fontWeight: 700, marginTop: 2 }}>{statsCount(c.status)}</p>
                 </div>
               ))}
-              <div style={{ background: ticketsCriticos.length > 0 ? 'rgba(220,38,38,0.08)' : 'rgba(148,163,184,0.08)', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ background: ticketsCriticos.length > 0 ? 'rgba(220,38,38,0.08)' : 'rgba(148,163,184,0.08)', borderRadius: 6, padding: '10px 12px' }}>
                 <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: 0 }}>Críticos</p>
-                <p style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: 2, color: ticketsCriticos.length > 0 ? '#dc2626' : 'var(--t-text-muted)' }}>{ticketsCriticos.length}</p>
+                <p style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 2, color: ticketsCriticos.length > 0 ? '#dc2626' : 'var(--t-text-muted)' }}>{ticketsCriticos.length}</p>
               </div>
             </div>
 
@@ -1799,7 +1778,7 @@ export default function PortalTecnicoPage() {
                 </div>
 
                 {/* Tabela */}
-                <div className="ps-card" style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--t-card-border)' }}>
+                <div className="ps-card" style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--t-card-border)' }}>
                   {ticketLoading ? (
                     <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-text-muted)' }}>Carregando…</div>
                   ) : tickets.length === 0 ? (
@@ -1884,33 +1863,33 @@ export default function PortalTecnicoPage() {
               <div className="space-y-4">
                 {/* KPIs SLA */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div style={{ background: 'rgba(220,38,38,0.08)', borderRadius: 12, padding: 16 }}>
+                  <div style={{ background: 'rgba(220,38,38,0.08)', borderRadius: 6, padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <ShieldAlert size={16} color="#dc2626" />
                       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>SLA Estourado</span>
                     </div>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>{ticketsEmAtraso.length}</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 700, color: '#dc2626', margin: 0 }}>{ticketsEmAtraso.length}</p>
                   </div>
-                  <div style={{ background: 'rgba(220,38,38,0.06)', borderRadius: 12, padding: 16 }}>
+                  <div style={{ background: 'rgba(220,38,38,0.06)', borderRadius: 6, padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <Zap size={16} color="#dc2626" />
                       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Críticos abertos</span>
                     </div>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#dc2626', margin: 0 }}>{ticketsCriticos.length}</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 700, color: '#dc2626', margin: 0 }}>{ticketsCriticos.length}</p>
                   </div>
-                  <div style={{ background: 'rgba(22,163,74,0.08)', borderRadius: 12, padding: 16 }}>
+                  <div style={{ background: 'rgba(22,163,74,0.08)', borderRadius: 6, padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <Timer size={16} color="#16a34a" />
                       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Tempo médio resolução</span>
                     </div>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#16a34a', margin: 0 }}>{tempoMedioResol || '—'}</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 700, color: '#16a34a', margin: 0 }}>{tempoMedioResol || '—'}</p>
                   </div>
-                  <div style={{ background: 'rgba(75,142,200,0.08)', borderRadius: 12, padding: 16 }}>
+                  <div style={{ background: 'rgba(75,142,200,0.08)', borderRadius: 6, padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <BarChart2 size={16} color="var(--t-primary)" />
                       <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Total abertos</span>
                     </div>
-                    <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--t-link)', margin: 0 }}>{statsCount('ABERTO') + statsCount('EM_ATENDIMENTO')}</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--t-link)', margin: 0 }}>{statsCount('ABERTO') + statsCount('EM_ATENDIMENTO')}</p>
                   </div>
                 </div>
 
@@ -1923,7 +1902,7 @@ export default function PortalTecnicoPage() {
                     </div>
                     <div className="space-y-2">
                       {ticketsEmAtraso.map(t => (
-                        <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(220,38,38,0.3)', background: 'rgba(220,38,38,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 6, border: '1px solid rgba(220,38,38,0.3)', background: 'rgba(220,38,38,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                           <div>
                             <p style={{ fontWeight: 600, color: 'var(--t-text-primary)', margin: 0, fontSize: 13 }}>{t.titulo}</p>
                             <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{t.cliente.nome} · {tempoAberto(t.created_at)} aberto</p>
@@ -1949,7 +1928,7 @@ export default function PortalTecnicoPage() {
                       {ticketsCriticos.map(t => {
                         const sla = slaStatus(t);
                         return (
-                          <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div key={t.id} onClick={() => abrirDetalhe(t)} style={{ padding: '12px 16px', borderRadius: 6, border: '1px solid rgba(234,88,12,0.25)', background: 'rgba(234,88,12,0.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontWeight: 600, color: 'var(--t-text-primary)', margin: 0, fontSize: 13 }}>{t.titulo}</p>
                               <p style={{ fontSize: 11, color: 'var(--t-text-muted)', margin: '2px 0 0' }}>{t.cliente.nome} · {tempoAberto(t.created_at)} aberto</p>
@@ -1966,7 +1945,7 @@ export default function PortalTecnicoPage() {
                 )}
 
                 {ticketsEmAtraso.length === 0 && ticketsCriticos.length === 0 && (
-                  <div style={{ padding: 48, textAlign: 'center', borderRadius: 12, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
+                  <div style={{ padding: 48, textAlign: 'center', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
                     <CheckCircle size={40} style={{ color: '#16a34a', margin: '0 auto 12px' }} />
                     <p style={{ fontWeight: 700, color: '#16a34a', fontSize: 15, margin: 0 }}>Tudo em dia!</p>
                     <p style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 4 }}>Nenhum ticket crítico ou com SLA estourado.</p>
@@ -1978,7 +1957,7 @@ export default function PortalTecnicoPage() {
             {/* ── VIEW: TEMPLATES ── */}
             {suporteView === 'templates' && (
               <div>
-                <div style={{ padding: '12px 16px', background: 'var(--t-card-bg)', borderRadius: 10, border: '1px solid var(--t-card-border)', marginBottom: 16 }}>
+                <div style={{ padding: '12px 16px', background: 'var(--t-card-bg)', borderRadius: 6, border: '1px solid var(--t-card-border)', marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>VARIÁVEIS</div>
                   <div className="flex flex-wrap gap-1.5">
                     {VARIAVEIS.map(v => (
@@ -1993,7 +1972,7 @@ export default function PortalTecnicoPage() {
                 <div className="flex gap-2 flex-wrap mb-4">
                   {CATS_ATEND.map(c => (
                     <button key={c.id} onClick={() => setSuporteCatFilter(c.id)}
-                      style={{ padding: '5px 11px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      style={{ padding: '5px 11px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         border: suporteCatFilter === c.id ? 'none' : '1px solid var(--t-card-border)',
                         background: suporteCatFilter === c.id ? c.cor : 'var(--t-card-bg)',
                         color: suporteCatFilter === c.id ? '#fff' : 'var(--t-text-muted)' }}>
@@ -2023,7 +2002,7 @@ export default function PortalTecnicoPage() {
                               <button key={c} onClick={() => setSuporteCanalAtivo(p => ({ ...p, [t.id]: c }))}
                                 style={{ fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
                                   border: canal === c ? 'none' : '1px solid var(--t-card-border)',
-                                  background: canal === c ? '#2E6EAB' : 'var(--t-card-bg)',
+                                  background: canal === c ? '#286397' : 'var(--t-card-bg)',
                                   color: canal === c ? '#fff' : 'var(--t-text-muted)' }}>
                                 {c === 'whatsapp' ? 'WA' : c === 'email' ? 'Email' : 'Tel'}
                               </button>
@@ -2037,7 +2016,7 @@ export default function PortalTecnicoPage() {
                           <div className="flex justify-end mt-2">
                             <button onClick={() => suporteCopiar(`${t.id}-${canal}`, (t.canais as any)[canal])}
                               style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 7, cursor: 'pointer',
-                                border: 'none', background: copiado ? '#dcfce7' : '#2E6EAB', color: copiado ? '#15803d' : '#fff' }}>
+                                border: 'none', background: copiado ? '#dcfce7' : '#286397', color: copiado ? '#15803d' : '#fff' }}>
                               {copiado ? <><Check size={11} />Copiado!</> : <><Copy size={11} />Copiar</>}
                             </button>
                           </div>
@@ -2059,7 +2038,7 @@ export default function PortalTecnicoPage() {
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--t-card-border)', position: 'sticky', top: 0, background: 'var(--t-card-bg)', zIndex: 1 }}>
                 <div className="flex items-start justify-between gap-3">
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text-primary)', wordBreak: 'break-word' }}>{ticketDetalhe.titulo}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t-text-primary)', wordBreak: 'break-word' }}>{ticketDetalhe.titulo}</div>
                     <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 3 }}>
                       {ticketDetalhe.cliente.nome}{ticketDetalhe.cliente.empresa ? ` · ${ticketDetalhe.cliente.empresa}` : ''}
                     </div>
@@ -2081,21 +2060,21 @@ export default function PortalTecnicoPage() {
                 <InventarioTicket clienteId={ticketDetalhe.cliente?.id} />
                 {/* Info grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>ABERTO EM</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{new Date(ticketDetalhe.created_at).toLocaleString('pt-BR')}</div>
                   </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>TEMPO ABERTO</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{tempoAberto(ticketDetalhe.created_at)}</div>
                   </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>CATEGORIA</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>
                       <CategoriaIcon categoria={ticketDetalhe.categoria} size={13} />{ticketDetalhe.categoria}
                     </div>
                   </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 4 }}>SLA</div>
                     {(() => { const s = slaStatus(ticketDetalhe); return s
                       ? <div><span style={{ fontSize: 11, fontWeight: 700, color: s.color, background: s.bg, padding: '2px 7px', borderRadius: 6 }}>{s.label}</span>
@@ -2111,7 +2090,7 @@ export default function PortalTecnicoPage() {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>RESPONSÁVEL</div>
                   <select value={ticketDetalhe.responsavel_id || ''} onChange={e => updateTicketResponsavel(ticketDetalhe.id, e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, cursor: 'pointer' }}>
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, cursor: 'pointer' }}>
                     <option value="">Não designado</option>
                     {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.cargo})</option>)}
                   </select>
@@ -2123,7 +2102,7 @@ export default function PortalTecnicoPage() {
                   <div className="flex gap-2 flex-wrap">
                     {['ABERTO', 'EM_ATENDIMENTO', 'AGUARDANDO_CLIENTE', 'RESOLVIDO', 'FECHADO'].map(s => (
                       <button key={s} onClick={() => updateTicketStatus(ticketDetalhe.id, s)}
-                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
                           border: 'none', ...(ticketDetalhe.status === s ? TICKET_STATUS_COLOR[s] : { background: 'var(--t-content-bg)', color: 'var(--t-text-muted)' }) }}>
                         {s.replace(/_/g, ' ')}
                       </button>
@@ -2135,7 +2114,7 @@ export default function PortalTecnicoPage() {
                 {ticketDetalhe.descricao && (
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 8 }}>DESCRIÇÃO</div>
-                    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6 }}>
+                    <div style={{ padding: '12px 14px', borderRadius: 6, background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)', fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.6 }}>
                       {ticketDetalhe.descricao}
                     </div>
                   </div>
@@ -2143,7 +2122,7 @@ export default function PortalTecnicoPage() {
 
                 {/* Resolução */}
                 {ticketDetalhe.resolucao_at && (
-                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)' }}>
+                  <div style={{ padding: '10px 14px', borderRadius: 6, background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 3 }}>RESOLVIDO EM</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>{new Date(ticketDetalhe.resolucao_at).toLocaleString('pt-BR')}</div>
                   </div>
@@ -2156,7 +2135,7 @@ export default function PortalTecnicoPage() {
                     ? <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Nenhum comentário ainda.</p>
                     : <div className="space-y-2">
                         {ticketComentarios.map((c, i) => (
-                          <div key={i} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
+                          <div key={i} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)' }}>
                             <div style={{ fontSize: 12, color: 'var(--t-text-primary)', lineHeight: 1.5 }}>{c.texto}</div>
                             <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginTop: 4 }}>{c.autor} · {new Date(c.data).toLocaleString('pt-BR')}</div>
                           </div>
@@ -2167,9 +2146,9 @@ export default function PortalTecnicoPage() {
                     <input value={ticketComentario} onChange={e => setTicketComentario(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && adicionarComentario()}
                       placeholder="Adicionar comentário…"
-                      style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 13, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' }} />
+                      style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--t-card-border)', borderRadius: 6, fontSize: 13, background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', outline: 'none' }} />
                     <button onClick={adicionarComentario} disabled={!ticketComentario.trim()}
-                      style={{ padding: '7px 14px', borderRadius: 8, background: '#2E6EAB', color: '#fff', border: 'none', cursor: ticketComentario.trim() ? 'pointer' : 'not-allowed', opacity: ticketComentario.trim() ? 1 : 0.5 }}>
+                      style={{ padding: '7px 14px', borderRadius: 6, background: '#286397', color: '#fff', border: 'none', cursor: ticketComentario.trim() ? 'pointer' : 'not-allowed', opacity: ticketComentario.trim() ? 1 : 0.5 }}>
                       <Send size={14} />
                     </button>
                   </div>
@@ -2196,13 +2175,13 @@ export default function PortalTecnicoPage() {
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>TÍTULO</label>
                     <input value={kbForm.titulo} onChange={e => setKbForm((f: any) => ({ ...f, titulo: e.target.value }))} placeholder="Título do artigo"
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 15, fontWeight: 600 }} />
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 15, fontWeight: 600 }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>CATEGORIA</label>
                       <select value={kbForm.categoria_id} onChange={e => setKbForm((f: any) => ({ ...f, categoria_id: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
                         <option value="">Sem categoria</option>
                         {kbCategorias.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                       </select>
@@ -2210,7 +2189,7 @@ export default function PortalTecnicoPage() {
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>STATUS</label>
                       <select value={kbForm.status} onChange={e => setKbForm((f: any) => ({ ...f, status: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
                         <option value="RASCUNHO">Rascunho</option>
                         <option value="PUBLICADO">Publicado</option>
                         <option value="ARQUIVADO">Arquivado</option>
@@ -2219,7 +2198,7 @@ export default function PortalTecnicoPage() {
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>VISIBILIDADE</label>
                       <select value={kbForm.visibilidade} onChange={e => setKbForm((f: any) => ({ ...f, visibilidade: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
                         <option value="INTERNO">Interno (equipe)</option>
                         <option value="PUBLICO">Público (portal cliente)</option>
                       </select>
@@ -2228,17 +2207,17 @@ export default function PortalTecnicoPage() {
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>RESUMO</label>
                     <textarea value={kbForm.resumo || ''} onChange={e => setKbForm((f: any) => ({ ...f, resumo: e.target.value }))} rows={2} placeholder="Resumo curto do artigo (aparece na listagem)"
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>CONTEÚDO</label>
                     <textarea value={kbForm.conteudo || ''} onChange={e => setKbForm((f: any) => ({ ...f, conteudo: e.target.value }))} rows={16} placeholder="Conteúdo do artigo (suporta Markdown)"
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'monospace', lineHeight: 1.6 }} />
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13, resize: 'vertical', fontFamily: 'monospace', lineHeight: 1.6 }} />
                   </div>
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                    <button onClick={() => setKbModo('lista')} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={() => setKbModo('lista')} style={{ padding: '9px 18px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', color: 'var(--t-text-secondary)', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                     <button onClick={salvarArtigoKb} disabled={kbSaving || !kbForm.titulo}
-                      style={{ padding: '9px 20px', borderRadius: 8, background: '#0891b2', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: kbSaving || !kbForm.titulo ? 'not-allowed' : 'pointer', opacity: kbSaving || !kbForm.titulo ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      style={{ padding: '9px 20px', borderRadius: 6, background: '#0891b2', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: kbSaving || !kbForm.titulo ? 'not-allowed' : 'pointer', opacity: kbSaving || !kbForm.titulo ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                       {kbSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                       Salvar Artigo
                     </button>
@@ -2255,8 +2234,8 @@ export default function PortalTecnicoPage() {
                   {kbArtigoAberto.categoria && <span style={{ fontSize: 11, color: '#0891b2', background: 'rgba(8,145,178,0.08)', borderRadius: 6, padding: '2px 8px' }}>{kbArtigoAberto.categoria.nome}</span>}
                   <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--t-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}><Eye size={11} />{kbArtigoAberto.views} visualizações</span>
                 </div>
-                <div style={{ background: 'var(--t-card-bg)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: '28px 32px' }}>
-                  <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', marginBottom: 8 }}>{kbArtigoAberto.titulo}</h1>
+                <div style={{ background: 'var(--t-card-bg)', borderRadius: 6, border: '1px solid var(--t-card-border)', padding: '28px 32px' }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-text-primary)', marginBottom: 8 }}>{kbArtigoAberto.titulo}</h1>
                   {kbArtigoAberto.resumo && <p style={{ fontSize: 14, color: 'var(--t-text-secondary)', marginBottom: 20, lineHeight: 1.6 }}>{kbArtigoAberto.resumo}</p>}
                   <div style={{ fontSize: 10, color: 'var(--t-text-muted)', marginBottom: 24, display: 'flex', gap: 16 }}>
                     {kbArtigoAberto.autor_nome && <span>Por {kbArtigoAberto.autor_nome}</span>}
@@ -2301,12 +2280,12 @@ export default function PortalTecnicoPage() {
               <div>
                 {/* Controles */}
                 <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input value={kbBusca} onChange={e => setKbBusca(e.target.value)} placeholder="Buscar artigos..." style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }} />
-                  <select value={kbCatFiltro} onChange={e => setKbCatFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
+                  <input value={kbBusca} onChange={e => setKbBusca(e.target.value)} placeholder="Buscar artigos..." style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }} />
+                  <select value={kbCatFiltro} onChange={e => setKbCatFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', fontSize: 13 }}>
                     <option value="">Todas as categorias</option>
                     {kbCategorias.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                   </select>
-                  <button onClick={() => setKbModo('editor')} style={{ padding: '8px 16px', background: '#0891b2', color: '#fff', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button onClick={() => setKbModo('editor')} style={{ padding: '8px 16px', background: '#0891b2', color: '#fff', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Plus size={14} /> Novo Artigo
                   </button>
                 </div>
@@ -2320,11 +2299,11 @@ export default function PortalTecnicoPage() {
                       <div style={{ textAlign: 'center', padding: 48, color: 'var(--t-text-muted)' }}>
                         <BookMarked size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
                         <p style={{ fontSize: 14 }}>Nenhum artigo encontrado.</p>
-                        <button onClick={() => setKbModo('editor')} style={{ marginTop: 12, padding: '8px 20px', background: '#0891b2', color: '#fff', borderRadius: 8, border: 'none', fontSize: 13, cursor: 'pointer' }}>Criar primeiro artigo</button>
+                        <button onClick={() => setKbModo('editor')} style={{ marginTop: 12, padding: '8px 20px', background: '#0891b2', color: '#fff', borderRadius: 6, border: 'none', fontSize: 13, cursor: 'pointer' }}>Criar primeiro artigo</button>
                       </div>
                     )}
                     {kbArtigos.map((a: any) => (
-                      <div key={a.id} onClick={() => abrirArtigoKb(a)} style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div key={a.id} onClick={() => abrirArtigoKb(a)} style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '14px 16px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                         <BookMarked size={16} color="#0891b2" style={{ marginTop: 2, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -2355,9 +2334,9 @@ export default function PortalTecnicoPage() {
         {tab === 'csat' && gestaoTecnica && (
           <div>
             {/* Sub-nav */}
-            <div style={{ display: 'flex', gap: 1, marginBottom: 20, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: 3, width: 'fit-content' }}>
+            <div style={{ display: 'flex', gap: 1, marginBottom: 20, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: 3, width: 'fit-content' }}>
               {([['dashboard', 'Dashboard', BarChart2], ['lista', 'Respostas', FileText]] as const).map(([v, l, Icon]) => (
-                <button key={v} onClick={() => setCsatView(v)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: csatView === v ? '#7c3aed' : 'transparent', color: csatView === v ? '#fff' : 'var(--t-text-muted)' }}>
+                <button key={v} onClick={() => setCsatView(v)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: csatView === v ? '#7c3aed' : 'transparent', color: csatView === v ? '#fff' : 'var(--t-text-muted)' }}>
                   <Icon size={13} />{l}
                 </button>
               ))}
@@ -2383,7 +2362,7 @@ export default function PortalTecnicoPage() {
                       <Kpi label="Nota média"        value={csatMetricas.media ? `${csatMetricas.media.toFixed(1)} ★` : '—'} color="#f59e0b" icon={Star} />
                     </div>
                     {/* Distribuição de notas */}
-                    <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, padding: '20px 24px', marginBottom: 16 }}>
+                    <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '20px 24px', marginBottom: 16 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 14 }}>DISTRIBUIÇÃO DE NOTAS</div>
                       {csatMetricas.distribuicao?.map((d: any) => (
                         <div key={d.nota} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -2399,7 +2378,7 @@ export default function PortalTecnicoPage() {
                     </div>
                     {/* Últimas respostas com comentário */}
                     {csatMetricas.respostas?.filter((r: any) => r.comentario).length > 0 && (
-                      <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, padding: '20px 24px' }}>
+                      <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '20px 24px' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', marginBottom: 14 }}>COMENTÁRIOS RECENTES</div>
                         {csatMetricas.respostas.filter((r: any) => r.comentario).slice(0, 5).map((r: any, i: number) => (
                           <div key={i} style={{ padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--t-card-border)' : 'none' }}>
@@ -2417,7 +2396,7 @@ export default function PortalTecnicoPage() {
               </div>
             ) : (
               /* ── LISTA DE SURVEYS ── */
-              <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, overflow: 'hidden' }}>
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: 'var(--t-content-bg)' }}>
@@ -2453,7 +2432,7 @@ export default function PortalTecnicoPage() {
       {/* Modal — Abrir Ticket */}
       {showTicketModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
-          <div style={{ background: 'var(--t-card-bg)', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', width: '100%', maxWidth: 448, padding: 24 }}>
+          <div style={{ background: 'var(--t-card-bg)', borderRadius: 6, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', width: '100%', maxWidth: 448, padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--t-text-primary)', margin: 0 }}>Abrir Ticket</h2>
               <button onClick={() => setShowTicketModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
@@ -2497,11 +2476,11 @@ export default function PortalTecnicoPage() {
             </div>
             <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
               <button onClick={() => setShowTicketModal(false)}
-                style={{ flex: 1, padding: '9px 16px', border: '1px solid var(--t-card-border)', borderRadius: 8, fontSize: 14, color: 'var(--t-text-secondary)', background: 'var(--t-card-bg)', cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '9px 16px', border: '1px solid var(--t-card-border)', borderRadius: 6, fontSize: 14, color: 'var(--t-text-secondary)', background: 'var(--t-card-bg)', cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button onClick={saveTicket} disabled={!ticketForm.cliente_id || !ticketForm.titulo || ticketSaving}
-                style={{ flex: 1, padding: '9px 16px', background: 'var(--t-primary)', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 500, border: 'none',
+                style={{ flex: 1, padding: '9px 16px', background: 'var(--t-primary)', color: '#fff', borderRadius: 6, fontSize: 14, fontWeight: 500, border: 'none',
                   cursor: ticketSaving || !ticketForm.cliente_id || !ticketForm.titulo ? 'not-allowed' : 'pointer',
                   opacity: ticketSaving || !ticketForm.cliente_id || !ticketForm.titulo ? 0.5 : 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

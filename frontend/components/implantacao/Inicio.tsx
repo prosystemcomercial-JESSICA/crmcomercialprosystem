@@ -11,8 +11,8 @@ import { ConfirmarLeitura, RadarLeitura } from './ConfirmarLeitura';
 
 const erroDe = (e: any) => e?.response?.data?.message || 'Não foi possível agora. Tente de novo.';
 const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '');
-const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, display: 'flex', flexDirection: 'column', minWidth: 0 };
-const titulo: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--t-text-primary)', padding: '14px 16px 10px' };
+const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, display: 'flex', flexDirection: 'column', minWidth: 0 };
+const titulo: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', padding: '10px 14px 8px', borderBottom: '1px solid var(--t-card-border)', marginBottom: 8 };
 const ICONE_ATENCAO: Record<string, { Icon: any; cor: string }> = {
   ESTOURADO: { Icon: AlertTriangle, cor: '#dc2626' }, RISCO: { Icon: Clock, cor: '#d97706' }, ESPERA: { Icon: Hourglass, cor: '#a16207' },
   VIRADA: { Icon: Rocket, cor: '#7c3aed' }, TREINO: { Icon: GraduationCap, cor: '#0891b2' }, SEM_TECNICO: { Icon: UserX, cor: '#dc2626' },
@@ -40,7 +40,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
       <span>{erro}</span>
       {erro.startsWith('Sua sessão')
         ? <a href="/" style={{ fontWeight: 700, color: 'var(--t-link)' }}>Entrar</a>
-        : <button onClick={carregar} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer' }}>Tentar de novo</button>}
+        : <button onClick={carregar} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)', cursor: 'pointer' }}>Tentar de novo</button>}
     </div>
   );
   if (!d) return <div style={{ padding: 30, color: 'var(--t-text-muted)' }}><Loader2 size={16} className="animate-spin" /> Carregando…</div>;
@@ -52,7 +52,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
   const concluir = async (t: any, reabrir = false) => { try { await apiClient.concluirTarefa(t.id, reabrir); window.dispatchEvent(new Event('avisos:mudou')); carregar(); } catch (e) { alert(erroDe(e)); } };
 
   return (
-    <div style={{ display: 'grid', gap: 18, width: '100%' }}>
+    <div style={{ display: 'grid', gap: 12, width: '100%' }}>
       {/* Saudação e frase do dia */}
       <style>{`
         .pt-inicio-grade { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -63,11 +63,11 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>{d.saudacao}</div>
-            <div style={{ fontSize: 20, fontWeight: 650, color: 'var(--t-text-primary)', letterSpacing: '-0.01em' }}>{gestao ? 'O que pede a sua ação' : 'Seu dia hoje'}</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--t-text-primary)', letterSpacing: '-0.01em' }}>{gestao ? 'O que pede a sua ação' : 'Seu dia hoje'}</div>
           </div>
           {!gestao && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 30, fontWeight: 650, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
                 {fmtDur(d.hoje.trabalhado_ms)}<span style={{ fontSize: 15, fontWeight: 500, color: 'var(--t-text-muted)' }}> de {fmtDur(d.hoje.jornada_ms)}</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>trabalhadas hoje{d.hoje.virada ? ' · dia de virada (desde as 7h)' : ''}</div>
@@ -76,9 +76,9 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         </div>
         {gestao && d.acao && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {([['Sem técnico', d.acao.sem_tecnico, 'quadro', '#dc2626'], ['Em risco', d.acao.em_risco, 'quadro', '#d97706'], ['Esperando validação', d.acao.esperando_validacao, 'quadro', '#2E6EAB'], ['Recados sem leitura', d.acao.recados_sem_leitura, 'avisos', '#64748b']] as [string, number, string, string][]).map(([l, n, aba, cor]) => (
-              <button key={l} onClick={() => irPara(aba)} style={{ textAlign: 'left', border: '1px solid var(--t-card-border)', borderRadius: 10, padding: '12px 14px', background: 'transparent', cursor: 'pointer', display: 'grid', gap: 2, minHeight: 72 }}>
-                <span style={{ fontSize: 28, fontWeight: 650, color: n ? cor : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{n}</span>
+            {([['Sem técnico', d.acao.sem_tecnico, 'quadro', '#dc2626'], ['Em risco', d.acao.em_risco, 'quadro', '#d97706'], ['Esperando validação', d.acao.esperando_validacao, 'quadro', '#286397'], ['Recados sem leitura', d.acao.recados_sem_leitura, 'avisos', '#64748b']] as [string, number, string, string][]).map(([l, n, aba, cor]) => (
+              <button key={l} onClick={() => irPara(aba)} style={{ textAlign: 'left', border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '12px 14px', background: 'transparent', cursor: 'pointer', display: 'grid', gap: 2, minHeight: 72 }}>
+                <span style={{ fontSize: 22, fontWeight: 600, color: n ? cor : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{n}</span>
                 <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-secondary)' }}>{l}</span>
               </button>
             ))}
@@ -111,7 +111,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
 
       {/* Agenda: viradas e treinamentos combinados com os clientes (próximos 14 dias) */}
       <section style={cartao}>
-        <div style={titulo}><CalendarDays size={16} color="#2E6EAB" /> Agenda {gestao ? 'da equipe' : ''}<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>próximos 14 dias</span></div>
+        <div style={titulo}><CalendarDays size={16} color="#286397" /> Agenda {gestao ? 'da equipe' : ''}<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>próximos 14 dias</span></div>
         <div style={{ padding: '0 16px 14px', display: 'grid' }}>
           {(!d.agenda || d.agenda.length === 0) && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nada agendado. Agende a virada na aba Virada do card e marque as fases do treinamento.</div>}
           {(d.agenda || []).map((a: any, k: number) => {
@@ -120,7 +120,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
             return (
               <button key={`${a.implantacao_id}-${k}`} onClick={() => irPara('quadro', a.implantacao_id)}
                 style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', textAlign: 'left', padding: '10px 2px', minHeight: 44, border: 'none', borderTop: k ? '1px solid var(--t-card-border)' : 'none', background: 'transparent', cursor: 'pointer' }}>
-                <span style={{ width: 92, flexShrink: 0, fontSize: 13, fontWeight: 600, color: ehHoje ? '#2E6EAB' : 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', textTransform: 'capitalize' }}>
+                <span style={{ width: 92, flexShrink: 0, fontSize: 13, fontWeight: 600, color: ehHoje ? '#286397' : 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums', textTransform: 'capitalize' }}>
                   {ehHoje ? 'Hoje' : dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit' })}{!a.dia_todo && <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>{dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}</span>}
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
@@ -133,15 +133,15 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
         </div>
       </section>
 
-      <div className="pt-inicio-grade" style={{ display: 'grid', gap: 18, alignItems: 'stretch' }}>
+      <div className="pt-inicio-grade" style={{ display: 'grid', gap: 12, alignItems: 'stretch' }}>
         {/* Tarefas */}
         <section style={cartao}>
-          <div style={{ ...titulo, justifyContent: 'space-between' }}><span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><ClipboardList size={16} color="#2E6EAB" /> {gestao ? 'Tarefas avulsas da equipe' : 'Minhas tarefas'}</span></div>
+          <div style={{ ...titulo, justifyContent: 'space-between' }}><span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><ClipboardList size={16} color="#286397" /> {gestao ? 'Tarefas avulsas da equipe' : 'Minhas tarefas'}</span></div>
           <div style={{ padding: '0 16px 14px', display: 'grid', gap: 6 }}>
             {abertas.length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nenhuma tarefa aberta. {gestao ? 'Crie uma abaixo.' : 'Tudo em dia! 🎉'}</div>}
             {abertas.map((t: any) => (
-              <div key={t.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, background: t.atrasada ? '#dc26260d' : 'var(--t-content-bg)' }}>
-                <button onClick={() => concluir(t)} title="Marcar como concluída" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, marginTop: 1 }}><Circle size={18} color={t.prioridade === 'URGENTE' ? '#dc2626' : '#2E6EAB'} /></button>
+              <div key={t.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 6, background: t.atrasada ? '#dc26260d' : 'var(--t-content-bg)' }}>
+                <button onClick={() => concluir(t)} title="Marcar como concluída" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, marginTop: 1 }}><Circle size={18} color={t.prioridade === 'URGENTE' ? '#dc2626' : '#286397'} /></button>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
                   <div style={{ color: 'var(--t-text-primary)', fontWeight: 600 }}>{t.texto}</div>
                   <div style={{ fontSize: 11, color: t.atrasada ? '#dc2626' : 'var(--t-text-muted)', marginTop: 2 }}>
@@ -166,13 +166,13 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
 
         {/* Meu dia */}
         <section style={cartao}>
-          <div style={titulo}><Clock size={16} color="#2E6EAB" /> Meu dia</div>
+          <div style={titulo}><Clock size={16} color="#286397" /> Meu dia</div>
           <div style={{ padding: '0 16px 16px', display: 'grid', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {[['Trabalhado', fmtDur(d.hoje.trabalhado_ms)], ['Na jornada', `${fmtDur(d.hoje.dentro_ms)}`], ['Hora extra', fmtDur(d.hoje.extra_ms)]].map(([l, v]) => (
-                <div key={l} style={{ background: 'var(--t-content-bg)', borderRadius: 10, padding: '8px 10px' }}>
+                <div key={l} style={{ background: 'var(--t-content-bg)', borderRadius: 6, padding: '8px 10px' }}>
                   <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{l}</div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
                 </div>
               ))}
             </div>
@@ -181,10 +181,10 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
                 <span>Aproveitamento da jornada ({fmtDur(d.hoje.jornada_ms)})</span><b style={{ color: 'var(--t-text-primary)' }}>{pct == null ? 'fim de semana' : `${pct}%`}</b>
               </div>
               <div style={{ height: 8, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ width: `${pct || 0}%`, height: '100%', borderRadius: 99, background: (pct || 0) >= 75 ? '#16a34a' : (pct || 0) >= 50 ? '#d97706' : '#2E6EAB', transition: 'width .4s' }} />
+                <div style={{ width: `${pct || 0}%`, height: '100%', borderRadius: 99, background: (pct || 0) >= 75 ? '#16a34a' : (pct || 0) >= 50 ? '#d97706' : '#286397', transition: 'width .4s' }} />
               </div>
             </div>
-            <button onClick={() => irPara('meudia')} style={{ justifySelf: 'start', fontSize: 12, fontWeight: 700, color: '#2E6EAB', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Ver registros do dia →</button>
+            <button onClick={() => irPara('meudia')} style={{ justifySelf: 'start', fontSize: 12, fontWeight: 700, color: '#286397', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Ver registros do dia →</button>
           </div>
         </section>
 
@@ -196,7 +196,7 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
             {d.atencao.map((a: any, k: number) => {
               const { Icon, cor } = ICONE_ATENCAO[a.tipo] || ICONE_ATENCAO.RISCO;
               return (
-                <button key={k} onClick={() => irPara('quadro', a.implantacao_id)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', padding: '8px 10px', borderRadius: 10, border: 'none', background: 'var(--t-content-bg)', cursor: 'pointer', fontSize: 13, color: 'var(--t-text-primary)' }}>
+                <button key={k} onClick={() => irPara('quadro', a.implantacao_id)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', background: 'var(--t-content-bg)', cursor: 'pointer', fontSize: 13, color: 'var(--t-text-primary)' }}>
                   <Icon size={15} color={cor} style={{ flexShrink: 0, marginTop: 2 }} /><span>{a.texto}</span>
                 </button>
               );
@@ -206,17 +206,17 @@ export function PainelInicio({ gestao, irPara }: { gestao: boolean; irPara: (tab
 
         {/* Recados */}
         <section style={cartao}>
-          <div style={titulo}><Bell size={16} color="#2E6EAB" /> Recados</div>
+          <div style={titulo}><Bell size={16} color="#286397" /> Recados</div>
           <div style={{ padding: '0 16px 14px', display: 'grid', gap: 6 }}>
             {d.recados.length === 0 && <div style={{ fontSize: 13, color: 'var(--t-text-muted)', padding: '6px 0' }}>Nenhum recado novo.</div>}
             {d.recados.map((r: any) => (
-              <button key={r.id} type="button" onClick={() => setAberto(r)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', minHeight: 44, background: r.lido_em ? 'transparent' : '#2E6EAB0d' }}>
-                {r.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" style={{ marginTop: 2 }} /> : <Bell size={15} color="#2E6EAB" style={{ marginTop: 2 }} />}
+              <button key={r.id} type="button" onClick={() => setAberto(r)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 6, border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', minHeight: 44, background: r.lido_em ? 'transparent' : '#2863970d' }}>
+                {r.prioridade === 'URGENTE' ? <AlertTriangle size={15} color="#dc2626" style={{ marginTop: 2 }} /> : <Bell size={15} color="#286397" style={{ marginTop: 2 }} />}
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
                   <div style={{ color: 'var(--t-text-primary)', fontWeight: r.lido_em ? 400 : 700 }}>{r.texto}</div>
                   <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>de {r.de_nome || 'Gestão'}{r.implantacao ? ` · ${r.implantacao.cliente_razao_social}` : ''} · {fmtData(r.created_at)}</div>
                 </div>
-                {!r.lido_em && <span style={{ fontSize: 11, fontWeight: 700, color: '#2E6EAB', whiteSpace: 'nowrap' }}>Ler</span>}
+                {!r.lido_em && <span style={{ fontSize: 11, fontWeight: 700, color: '#286397', whiteSpace: 'nowrap' }}>Ler</span>}
               </button>
             ))}
           </div>
@@ -251,7 +251,7 @@ function NovaTarefaOuRecado({ onEnviado }: { onEnviado: () => void }) {
     } catch (e) { alert(erroDe(e)); } finally { setEnviando(false); }
   };
   const aba = (v: 'TAREFA' | 'AVISO', t: string) => (
-    <button onClick={() => setTipo(v)} style={{ fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${tipo === v ? '#2E6EAB' : 'var(--t-card-border)'}`, background: tipo === v ? '#2E6EAB14' : 'transparent', color: tipo === v ? '#2E6EAB' : 'var(--t-text-secondary)' }}>{t}</button>
+    <button onClick={() => setTipo(v)} style={{ fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${tipo === v ? '#286397' : 'var(--t-card-border)'}`, background: tipo === v ? '#28639714' : 'transparent', color: tipo === v ? '#286397' : 'var(--t-text-secondary)' }}>{t}</button>
   );
   return (
     <section style={{ ...cartao, padding: 16, display: 'grid', gap: 10 }}>
@@ -266,7 +266,7 @@ function NovaTarefaOuRecado({ onEnviado }: { onEnviado: () => void }) {
       </div>
       <textarea id="nt-texto" rows={2} value={texto} onChange={e => setTexto(e.target.value)} className="ps-input w-full" placeholder={tipo === 'TAREFA' ? 'Ex.: atualizar o certificado digital da Drogaria X' : 'Ex.: amanhã a reunião da equipe é às 9h'} />
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button disabled={enviando} onClick={enviar} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: '#fff', background: '#2E6EAB', border: 'none', borderRadius: 10, padding: '9px 14px', cursor: 'pointer' }}>
+        <button disabled={enviando} onClick={enviar} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: '#fff', background: '#286397', border: 'none', borderRadius: 6, padding: '9px 14px', cursor: 'pointer' }}>
           {enviando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {tipo === 'TAREFA' ? 'Criar tarefa' : 'Enviar recado'}
         </button>
         {ok && <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>{ok}</span>}
@@ -301,7 +301,7 @@ function PosImplantacao({ gestao, irPara }: { gestao: boolean; irPara: (tab: str
   );
   return (
     <section style={cartao}>
-      <div style={titulo}><Clock size={16} color="#2E6EAB" /> Pós-implantação<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>30, 60 e 90 dias depois da virada</span></div>
+      <div style={titulo}><Clock size={16} color="#286397" /> Pós-implantação<span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>30, 60 e 90 dias depois da virada</span></div>
       <div style={{ padding: '0 16px 14px', display: 'grid' }}>
         {pendentes.map((x, k) => (
           <div key={x.id} style={{ borderTop: k ? '1px solid var(--t-card-border)' : 'none', padding: '10px 2px', display: 'grid', gap: 8 }}>
@@ -313,7 +313,7 @@ function PosImplantacao({ gestao, irPara }: { gestao: boolean; irPara: (tab: str
               <button onClick={() => setAberto(a => (a === x.id ? null : x.id))} style={{ ...btnPequeno, minHeight: 36 }}>{aberto === x.id ? 'Fechar' : 'Registrar a conversa'}</button>
             </div>
             {aberto === x.id && (
-              <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 10, background: 'var(--t-content-bg)' }}>
+              <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 6, background: 'var(--t-content-bg)' }}>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {opcoes('usa_todo_dia', 'Está usando o sistema todo dia?', ['Sim', 'Não'])}
                   {opcoes('usa_financeiro', 'Usa o financeiro?', ['Sim', 'Não', 'Não contratou'])}
@@ -322,13 +322,13 @@ function PosImplantacao({ gestao, irPara }: { gestao: boolean; irPara: (tab: str
                 <div style={{ display: 'grid', gap: 4 }}>
                   <span style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Satisfação com a Prosystem (1 a 5)</span>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => setF(p => ({ ...p, satisfacao: n }))} style={{ width: 44, height: 44, borderRadius: 10, cursor: 'pointer', fontWeight: 700, border: `1px solid ${f.satisfacao === n ? '#2E6EAB' : 'var(--t-card-border)'}`, background: f.satisfacao === n ? '#2E6EAB' : 'transparent', color: f.satisfacao === n ? '#fff' : 'var(--t-text-secondary)' }}>{n}</button>)}
+                    {[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => setF(p => ({ ...p, satisfacao: n }))} style={{ width: 44, height: 44, borderRadius: 6, cursor: 'pointer', fontWeight: 700, border: `1px solid ${f.satisfacao === n ? '#286397' : 'var(--t-card-border)'}`, background: f.satisfacao === n ? '#286397' : 'transparent', color: f.satisfacao === n ? '#fff' : 'var(--t-text-secondary)' }}>{n}</button>)}
                   </div>
                 </div>
                 <input value={f.dificuldade} onChange={e => setF(p => ({ ...p, dificuldade: e.target.value }))} placeholder="Alguma dificuldade? (opcional)" className="ps-input w-full" style={{ minHeight: 40 }} />
                 <input value={f.observacao} onChange={e => setF(p => ({ ...p, observacao: e.target.value }))} placeholder="Observação (opcional)" className="ps-input w-full" style={{ minHeight: 40 }} />
                 <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Nota até 3, loja sem usar todo dia ou SNGPC com problema avisam a supervisão e entram no radar de retenção.</div>
-                <div><button disabled={salvando} onClick={() => salvar(x.id)} style={{ ...btnPequeno, minHeight: 40, background: '#2E6EAB', color: '#fff', border: 'none' }}>{salvando ? 'Salvando…' : 'Registrar'}</button></div>
+                <div><button disabled={salvando} onClick={() => salvar(x.id)} style={{ ...btnPequeno, minHeight: 40, background: '#286397', color: '#fff', border: 'none' }}>{salvando ? 'Salvando…' : 'Registrar'}</button></div>
               </div>
             )}
           </div>
@@ -348,4 +348,4 @@ function PosImplantacao({ gestao, irPara }: { gestao: boolean; irPara: (tab: str
   );
 }
 
-const btnPequeno: React.CSSProperties = { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', border: '1px solid #2E6EAB55', background: 'transparent', color: '#2E6EAB' };
+const btnPequeno: React.CSSProperties = { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, cursor: 'pointer', border: '1px solid #28639755', background: 'transparent', color: '#286397' };
