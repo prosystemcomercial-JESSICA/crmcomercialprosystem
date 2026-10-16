@@ -1722,3 +1722,15 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
   - Se a pipeline falhou, interrompe sem mudar nada. Emergência: `SEM_CI=1 bash /root/deploy-vps.sh <commit>`.
   - Depois do `git pull`, roda `npm ci` no backend e/ou no frontend se o `package-lock.json` mudou. Antes, uma biblioteca nova quebraria o deploy.
 - **Ativação:** o script novo vai para `/root/deploy-vps.sh` depois da primeira execução verde da pipeline no GitHub.
+
+#### Refatoração 16/10/2026: Portal Técnico sóbrio, etapa 2 (Quadro)
+
+- **Abas "Tudo / Implantações / Serviços":** saíram os botões redondos cheios e entraram abas sublinhadas, como "Conversas | Fila de Chamados" do WhatsApp. A aba ativa fica com sublinhado azul do CRM, e o contador aparece em cinza.
+- **Indicadores** (em andamento, prazo em risco, prazo estourado, paradas em espera, cobrança a lançar): uma faixa única com divisórias, no lugar de cinco cartões. O número só tem cor quando é maior que zero.
+- **Filtros rápidos** (Em risco, Meus, Virada esta semana, Esperando cliente) e **troca de vista** (Quadro, Lista, Calendário, Equipe): botões retos (6 px). O ativo fica em azul claro (`--t-primary-light`) com texto azul, em vez de azul cheio.
+- **Kanban:**
+  - Título da coluna em caixa alta, menor e cinza.
+  - Cartão branco com borda colorida à esquerda **só** quando o prazo está em risco (laranja) ou estourado (vermelho).
+  - Etiquetas mais leves (fundo 5%, cantos 4 px).
+  - Prazo (SLA) sem moldura, com texto colorido sobre fundo leve.
+- **Sem mudança de função:** filtros, arrastar e soltar, vistas e a ficha da demanda continuam iguais.
