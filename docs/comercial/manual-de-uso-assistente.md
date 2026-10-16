@@ -1277,3 +1277,10 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - O Portal Técnico agora tem a mesma barra do topo e o mesmo menu lateral do CRM, com as mesmas cores, inclusive no modo escuro. A tela ficou mais sóbria, como a do WhatsApp.
 - Tudo continua no mesmo lugar: Início, Quadro, Meu dia, Avisos, Tickets & SLA, Templates e Base de Conhecimento.
 - No celular, toque em ☰ para abrir o menu.
+
+### Correção 16/10/2026: nenhuma conversa fica sem resposta
+
+- Os agentes não param mais de responder quando a resposta parece com algo que já disseram. Se travarem, pedem ajuda ao Rafael e aos colegas e tentam de novo a cada 10 minutos. Na segunda vez, você recebe "🆘 … travou na conversa de …" com o link para responder.
+- Todos os agentes seguem o playbook da casa: conversa com começo, meio e fim, as respostas para as objeções mais comuns ("não sou o responsável", "já tenho sistema", "está caro", "agora não", "manda por e-mail"…) e técnicas de persuasão éticas.
+- O Rafael, ao revisar as conversas, ensina o time ("quando o cliente disser X, responda Y"), orienta o agente de cada conversa com problema e faz o agente retomar na hora quem ficou sem resposta.
+- Tocar numa notificação agora abre direto a conversa certa no WhatsApp do CRM.
