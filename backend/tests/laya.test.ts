@@ -19,10 +19,10 @@ describe('montarEstadoConversa', () => {
 describe('lerRespostaLaya', () => {
   it('lê as respostas e limita os números', () => {
     expect(lerRespostaLaya({ answers: { segmento: { choice: 'padaria' }, intencao: { choice: 'comprar' }, cancelar: { noul: 0.1234 }, urgencia: { score: 9 } } }))
-      .toEqual({ segmento: 'padaria', intencao: 'comprar', cancelar: 0.12, urgencia: 3 });
+      .toEqual({ segmento: 'padaria', intencao: 'comprar', cancelar: 0.12, urgencia: 3, qualificacao: null, temperatura: null, temperatura_conf: 0 });
   });
   it('resposta estranha vira valores neutros', () => {
-    expect(lerRespostaLaya({ answers: { segmento: { choice: 'banco' } } })).toEqual({ segmento: 'nao_sei', intencao: 'outro', cancelar: 0, urgencia: 0 });
+    expect(lerRespostaLaya({ answers: { segmento: { choice: 'banco' } } })).toEqual({ segmento: 'nao_sei', intencao: 'outro', cancelar: 0, urgencia: 0, qualificacao: null, temperatura: null, temperatura_conf: 0 });
   });
 });
 

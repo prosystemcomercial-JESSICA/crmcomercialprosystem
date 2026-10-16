@@ -1689,3 +1689,22 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
   - Meu dia.
   - Tickets & SLA.
   - Ficha da demanda (gaveta).
+
+### Implementação 16/10/2026: pipeline no GitHub (CI) e deploy só com a pipeline verde
+
+- **Pedido da Jessica:** pilares de qualidade (CI/CD). Primeiro passo: um "porteiro" automático antes do deploy.
+- **`.github/workflows/ci.yml`** roda a cada push e PR no `main` e também à mão:
+  - **Backend:** sobe um MySQL 8 descartável só para o teste (sem nenhum dado real), `prisma db push`, todos os testes (`vitest run`, inclusive os de rota que precisam de banco) e a checagem de tipos sem erro novo.
+  - **Frontend:** `tsc --noEmit` (o build do Next ignora erros de tipo) e o build de produção.
+- **Checagem de tipos com linha de base (`backend/scripts/checar-tipos.mjs`):**
+  - O backend tem 61 erros antigos de tipo, guardados em `scripts/tipos-baseline.json` como arquivo, código e mensagem, sem o número da linha.
+  - A checagem só falha com erro **novo**. Depois de corrigir antigos, rode `node scripts/checar-tipos.mjs --gravar`.
+- **Testes desatualizados corrigidos:**
+  - `assistente-demo`: a regra de 30/09 passou a ser um horário por janela (manhã/tarde) por dia.
+  - `laya`: `lerRespostaLaya` ganhou `qualificacao`, `temperatura` e `temperatura_conf`.
+  - Os outros 7 testes que falhavam localmente precisam de banco e rodam na CI: auth, backup, candidatos, health-score, leads-previsão, retenção e rotas.
+- **`deploy-vps.sh`:**
+  - Antes do backup e do `git pull`, consulta a API pública do GitHub (o repositório é público) e só publica se a pipeline do commit terminou verde. Espera até 15 min.
+  - Se a pipeline falhou, interrompe sem mudar nada. Emergência: `SEM_CI=1 bash /root/deploy-vps.sh <commit>`.
+  - Depois do `git pull`, roda `npm ci` no backend e/ou no frontend se o `package-lock.json` mudou. Antes, uma biblioteca nova quebraria o deploy.
+- **Ativação:** o script novo vai para `/root/deploy-vps.sh` depois da primeira execução verde da pipeline no GitHub.

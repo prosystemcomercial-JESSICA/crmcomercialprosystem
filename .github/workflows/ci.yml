@@ -1,0 +1,79 @@
+# Pipeline do CRM Comercial (16/10/2026): a cada push ou PR no main, confere o código antes de ir ao ar.
+# Backend: testes (com um MySQL só para o teste) + checagem de tipos sem erro novo.
+# Frontend: checagem de tipos + build de produção (o mesmo que o deploy faz na VPS).
+# O deploy continua pela VPS (backend/scripts/deploy-vps.sh); antes de publicar, a pipeline do commit precisa estar verde.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (testes e tipos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: crm_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      # Banco descartável, só do teste. Nenhum dado real.
+      DATABASE_URL: mysql://root:ci@127.0.0.1:3306/crm_ci
+      JWT_SECRET: ci-somente-teste
+      JWT_REFRESH_SECRET: ci-somente-teste-refresh
+      NODE_ENV: test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Cria as tabelas no banco do teste
+        run: npx prisma db push --skip-generate --accept-data-loss
+      - name: Testes
+        run: npx vitest run
+      - name: Tipos (sem erro novo)
+        run: node scripts/checar-tipos.mjs
+
+  frontend:
+    name: Frontend (tipos e build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_API_URL: https://comercial.prosystemnet.com/api
+      NEXT_TELEMETRY_DISABLED: 1
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npx tsc --noEmit -p .
+      - name: Build de produção
+        run: npm run build

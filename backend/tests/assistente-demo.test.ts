@@ -6,12 +6,14 @@ const quinta8h = new Date('2026-09-24T11:00:00Z');
 const hora = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit' });
 
 describe('gerarHorarios', () => {
-  it('respeita 2h de antecedência, janelas 9–12 e 14–17 e 30 min', () => {
+  // Regra de 30/09/2026: no máximo um horário por janela (manhã/tarde) em cada dia, para a lista cobrir vários dias.
+  it('respeita 2h de antecedência, janelas 9–12 e 14–17 e um horário por janela', () => {
     const s = gerarHorarios(quinta8h, []);
     expect(s).toHaveLength(10);
-    expect(hora(s[0])).toMatch(/10:00/); // 8h + 2h
+    expect(hora(s[0])).toMatch(/qui.*10:00/); // 8h + 2h
+    expect(hora(s[1])).toMatch(/qui.*14:00/);
+    expect(hora(s[2])).toMatch(/sex.*09:00/);
     expect(s.map(hora).some(h => /12:00|12:30|13:/.test(h))).toBe(false);
-    expect(hora(s[4])).toMatch(/14:00/);
   });
   it('pula fim de semana e horários ocupados', () => {
     const sexta16h = new Date('2026-09-25T19:00:00Z'); // sex 16h SP → sobra só seg
