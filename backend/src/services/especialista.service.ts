@@ -232,7 +232,9 @@ async function ensinarERetomar(prisma: PrismaClient, alertas: { id?: string; gra
     const txt = (ultE.tipo === 'AUDIO' ? ultE.transcricao : ultE.conteudo) || '';
     if (ultE.tipo !== 'AUDIO' && (ehRespostaAutomatica(txt) || ehSoConfirmacao(txt))) continue;
     const d: any = s.dados || {};
-    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'CONVERSANDO', ultima_lead_em: ultE.created_at, dados: { ...d, retomar_em: null, socorro: null, retomada_rafael_em: new Date().toISOString() } } });
+    // A vez é do agente: a última ação dele fica ANTES da fala da pessoa (senão a rodada "parou no meio"
+    // tratava como se o agente tivesse falado por último e remarcava para o dia seguinte).
+    await prisma.sdrLead.update({ where: { id: s.id }, data: { status: 'CONVERSANDO', ultima_lead_em: ultE.created_at, ultima_caroline_em: new Date(ultE.created_at.getTime() - 1000), dados: { ...d, retomar_em: null, socorro: null, retomada_rafael_em: new Date().toISOString() } } });
     registrarAcaoAgente('rafael', `mandou ${s.agente} retomar a conversa de ${s.nome || s.numero}: a pessoa estava sem resposta`);
     retomadas++;
   }
