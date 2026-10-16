@@ -924,12 +924,13 @@ export default function PortalTecnicoPage() {
             .pt-topo-extra { display: none !important; }
             .pt-conteudo { padding: 10px !important; }
           }
+          @media (max-width: 640px) { .pt-sem-celular { display: none !important; } }
         `}</style>
         {menuAberto && <div onClick={() => setMenuAberto(false)} className="md:hidden fixed inset-0 bg-black/50" style={{ zIndex: 60 }} />}
         <SidebarMenu
           groups={SIDEBAR_GROUPS.map(g => ({ label: g.group, items: g.items.map(i => ({ href: i.key, icon: i.icon, label: i.label, badge: i.badge })) }))}
           pathname={tab} open={menuAberto} onClose={() => setMenuAberto(false)}
-          onSelect={item => setTab(item.href as Tab)} rodape="Portal Técnico · Prosystem" />
+          onSelect={item => setTab(item.href as Tab)} rodape="Portal Técnico · Prosystem" iniciarAberto />
 
         {/* ── CONTENT ── */}
         <div className="pt-conteudo ps-content" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 12 }}>

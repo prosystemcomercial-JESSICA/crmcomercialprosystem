@@ -11,9 +11,11 @@ type MenuItem = { href: string; icon: LucideIcon; label: string; destaque?: 'wha
 type MenuGroup = { label: string; items: MenuItem[] };
 
 // onSelect (Portal Técnico, 16/10/2026): o mesmo menu do CRM navegando por abas; `href` vira a chave da aba e `pathname` a aba atual.
-export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExternal, onSelect, rodape = 'Prosystem · Desde 2008' }: {
+export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExternal, onSelect, rodape = 'Prosystem · Desde 2008', iniciarAberto = false }: {
   groups: MenuGroup[]; pathname: string | null; open: boolean; onClose: () => void; onOpenExternal?: (item: MenuItem) => void;
   onSelect?: (item: MenuItem) => void; rodape?: string;
+  /** Abre todos os grupos ao entrar (Portal Técnico, poucos itens). No CRM os grupos começam fechados. */
+  iniciarAberto?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const { isClosed, toggle, toggleAll } = useMenuGroups();
@@ -23,6 +25,8 @@ export default function SidebarMenu({ groups, pathname, open, onClose, onOpenExt
   const compact = collapsed && !open;
   const labels = groups.map(g => g.label);
   const allClosed = labels.every(g => isClosed(g));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (iniciarAberto && allClosed) toggleAll(labels); }, []);
   const current = onSelect ? pathname : activeMenuHref(pathname, groups.flatMap(g => g.items.map(i => i.href)));
   const toggleWidth = () => {
     setCollapsed(!collapsed);
