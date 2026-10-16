@@ -41,7 +41,7 @@ function SlaBadge({ sla, etapa }: { sla: any; etapa?: string }) {
   const c = COR_SLA[sla.situacao] || COR_SLA.NO_PRAZO;
   return (
     <span title={`Prazo da ${etapa || 'demanda'}: ${fmtData(sla.prazo)} · ${sla.pct}% do tempo usado`}
-      style={{ fontSize: 11, fontWeight: 700, color: c.cor, background: `${c.cor}14`, border: `1px solid ${c.cor}40`, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+      style={{ fontSize: 11, fontWeight: 600, color: c.cor, background: `${c.cor}0f`, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
       {c.txt} · {fmtData(sla.prazo)}
     </span>
   );
@@ -107,38 +107,41 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }} role="tablist" aria-label="Tipo de demanda">
+      {/* Abas sublinhadas, como "Conversas | Fila de Chamados" do WhatsApp (tela sóbria, 16/10/2026). */}
+      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-end', borderBottom: '1px solid var(--t-card-border)' }} role="tablist" aria-label="Tipo de demanda">
         {([['', 'Tudo'], ['IMPLANTACAO', 'Implantações'], ['SERVICO', 'Serviços']] as const).map(([k, l]) => (
           <button key={k || 'tudo'} role="tab" aria-selected={modulo === k} onClick={() => setModulo(k)}
-            style={{ fontSize: 13, fontWeight: 700, padding: '7px 14px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${modulo === k ? '#286397' : 'var(--t-card-border)'}`, background: modulo === k ? '#286397' : 'var(--t-card-bg)', color: modulo === k ? '#fff' : 'var(--t-text-secondary)' }}>
-            {l} <span style={{ opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>{contagem(k)}</span>
+            style={{ fontSize: 13, fontWeight: modulo === k ? 600 : 500, padding: '6px 2px 8px', marginBottom: -1, cursor: 'pointer', border: 'none', borderBottom: `2px solid ${modulo === k ? 'var(--t-primary)' : 'transparent'}`, background: 'transparent', color: modulo === k ? 'var(--t-link)' : 'var(--t-text-secondary)' }}>
+            {l} <span style={{ color: 'var(--t-text-muted)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{contagem(k)}</span>
           </button>
         ))}
       </div>
       {gestao && <CargaEquipe />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {[
-          ['Em andamento', resumo.ativos, '#286397'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
-          ['Paradas em espera', resumo.esperando, '#a16207'], ...(modulo !== 'SERVICO' ? [['Cobrança a lançar', resumo.cobranca, '#7c3aed']] : []),
-        ].map(([l, v, cor]) => (
-          <div key={l as string} style={{ ...cartao, padding: '8px 14px', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-            <b style={{ fontSize: 20, color: cor as string, fontVariantNumeric: 'tabular-nums' }}>{v as number}</b>
-            <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{l}</span>
-          </div>
-        ))}
+        <div style={{ ...cartao, display: 'flex', flexWrap: 'wrap' }}>
+          {[
+            ['Em andamento', resumo.ativos, 'var(--t-text-primary)'], ['Prazo em risco', resumo.risco, '#d97706'], ['Prazo estourado', resumo.estourado, '#dc2626'],
+            ['Paradas em espera', resumo.esperando, '#a16207'], ...(modulo !== 'SERVICO' ? [['Cobrança a lançar', resumo.cobranca, '#7c3aed']] : []),
+          ].map(([l, v, cor], i) => (
+            <div key={l as string} style={{ padding: '6px 14px', display: 'flex', gap: 6, alignItems: 'baseline', borderLeft: i ? '1px solid var(--t-card-border)' : 'none' }}>
+              <b style={{ fontSize: 16, fontWeight: 600, color: (v as number) ? cor as string : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{v as number}</b>
+              <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{l}</span>
+            </div>
+          ))}
+        </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => setSoRisco(v => !v)} aria-pressed={soRisco}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${soRisco ? '#d97706' : 'var(--t-card-border)'}`, background: soRisco ? '#d977060f' : 'transparent', color: soRisco ? '#b45309' : 'var(--t-text-secondary)' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '5px 10px', minHeight: 30, borderRadius: 6, cursor: 'pointer', border: `1px solid ${soRisco ? '#d97706' : 'var(--t-card-border)'}`, background: soRisco ? '#d977060f' : 'transparent', color: soRisco ? '#b45309' : 'var(--t-text-secondary)' }}>
           <span style={{ width: 7, height: 7, borderRadius: 99, background: '#d97706' }} /> Em risco <span style={{ fontVariantNumeric: 'tabular-nums' }}>{emRisco}</span>
         </button>
         {([['meus', 'Meus'], ['virada', 'Virada esta semana'], ['cliente', 'Esperando cliente']] as [string, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setRapidos(r => (r.includes(k) ? r.filter(x => x !== k) : [...r, k]))} aria-pressed={rapidos.includes(k)}
-            style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', minHeight: 32, borderRadius: 999, cursor: 'pointer', border: `1px solid ${rapidos.includes(k) ? '#286397' : 'var(--t-card-border)'}`, background: rapidos.includes(k) ? '#2863970f' : 'transparent', color: rapidos.includes(k) ? '#286397' : 'var(--t-text-secondary)' }}>{l}</button>
+            style={{ fontSize: 12, fontWeight: rapidos.includes(k) ? 600 : 500, padding: '5px 10px', minHeight: 30, borderRadius: 6, cursor: 'pointer', border: `1px solid ${rapidos.includes(k) ? 'var(--t-primary)' : 'var(--t-card-border)'}`, background: rapidos.includes(k) ? 'var(--t-primary-light)' : 'transparent', color: rapidos.includes(k) ? 'var(--t-link)' : 'var(--t-text-secondary)' }}>{l}</button>
         ))}
         <div role="tablist" aria-label="Vista do quadro" style={{ display: 'inline-flex', border: '1px solid var(--t-card-border)', borderRadius: 6, overflow: 'hidden' }}>
           {([['kanban', 'Quadro'], ['lista', 'Lista'], ['calendario', 'Calendário'], ...(gestao ? [['equipe', 'Equipe']] : [])] as [typeof vista, string][]).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={vista === k} onClick={() => setVista(k)}
-              style={{ fontSize: 12, fontWeight: vista === k ? 600 : 500, padding: '6px 12px', minHeight: 32, border: 'none', cursor: 'pointer', background: vista === k ? '#286397' : 'transparent', color: vista === k ? '#fff' : 'var(--t-text-secondary)' }}>{l}</button>
+              style={{ fontSize: 12, fontWeight: vista === k ? 600 : 500, padding: '5px 10px', minHeight: 30, border: 'none', cursor: 'pointer', background: vista === k ? 'var(--t-primary-light)' : 'transparent', color: vista === k ? 'var(--t-link)' : 'var(--t-text-secondary)' }}>{l}</button>
           ))}
         </div>
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente ou técnico" className="ps-input" style={{ width: 220 }} />
@@ -173,13 +176,13 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
               style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
-                <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>{col.label}</b>
+                <b style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</b>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
               </div>
               {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '14px 0' }}>Arraste um card para cá</div>}
               {doCol.map(c => (
                 <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => setAberta(c.id)}
-                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, borderLeft: `3px solid ${c.sla?.situacao === 'ESTOURADO' ? '#dc2626' : c.sla?.situacao === 'EM_RISCO' ? '#d97706' : '#286397'}` }}>
+                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, background: 'var(--t-card-bg)', ...(c.sla?.situacao === 'ESTOURADO' || c.sla?.situacao === 'EM_RISCO' ? { borderLeft: `3px solid ${c.sla.situacao === 'ESTOURADO' ? '#dc2626' : '#d97706'}` } : {}) }}>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
                     {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
@@ -191,7 +194,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                     {c.saude && c.saude.nivel !== 'VERDE' && <span style={{ transform: 'translateY(-1px)' }}><PontoSaude saude={c.saude} /></span>}
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
                   </div>
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
                     <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
@@ -215,7 +218,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
 }
 
 function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
-  return <span style={{ fontSize: 10, fontWeight: 700, color: cor, background: `${cor}14`, padding: '2px 6px', borderRadius: 6, whiteSpace: 'nowrap', maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>;
+  return <span style={{ fontSize: 10, fontWeight: 600, color: cor, background: `${cor}0d`, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>;
 }
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
