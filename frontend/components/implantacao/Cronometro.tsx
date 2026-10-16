@@ -102,7 +102,7 @@ export function CronometroBarra() {
           <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
         </div>
       ) : (
-        <span style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coffee size={13} /> Cronômetro parado</span>
+        <span className="pt-sem-celular" style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coffee size={13} /> Cronômetro parado</span>
       )}
       <button onClick={() => setMenu(m => !m)} style={btn('#286397', false)}>Outra atividade</button>
       {menu && (
@@ -116,7 +116,7 @@ export function CronometroBarra() {
         </div>
       )}
       {pausa && <ModalPausa onClose={() => setPausa(false)} />}
-      <span title="Trabalhado hoje (sem contar em dobro)" style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span className="pt-sem-celular" title="Trabalhado hoje (sem contar em dobro)" style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         <Clock size={12} /> Hoje {fmtDur(trabalhadoHoje)}
         {resumo?.aproveitamento != null && <b style={{ color: 'var(--t-text-primary)' }}> · {Math.round(resumo.aproveitamento * 100)}%</b>}
       </span>
