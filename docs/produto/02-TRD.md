@@ -1742,3 +1742,7 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
   - O push dos avisos abria só `/whatsapp`. Agora `enviarAvisoGestao` usa o link da conversa quando o texto traz um (ou `opts.url`).
   - Na tela do WhatsApp, `?conversa=` busca a própria conversa (`GET /whatsapp/conversas?id=`, com a regra de leitura de quem pede) e abre, mesmo antiga, de outro número ou fora da aba. Antes ela procurava na lista carregada e ficava trocando de aba sem abrir.
 - **Testes:** `tests/sdr-nunca-abandonar.test.ts`.
+- **Ajuste 16/10/2026 (mesmo dia):**
+  - Boas-vindas do robô em **imagem com legenda** ("Seja bem-vindo(a)… Em breve iremos lhe atender") agora contam como robô em `soRoboDaLoja`. Antes viravam "pessoa", a IA não achava o que responder e o agente pedia socorro à toa.
+  - "Agradecemos pela preferência" entra como encerramento do robô.
+  - Resultado da revisão completa do Rafael em 16/10: 11 conversas com problema (6 graves), 4 lições para o time, 6 conversas retomadas. 5 foram respondidas em minutos, incluindo Didio ("Sem problema, Didio. Você sabe quem cuida da escolha do sistema na Pharmic…?"). A sexta era o robô em imagem.

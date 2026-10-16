@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { regraRepeticao, tentativasDeSocorro, SOCORRO_MAX, ehRespostaAutomatica, PLAYBOOK_CONVERSA, promptCaroline } from '../src/lib/assistente/sdr';
+import { regraRepeticao, tentativasDeSocorro, SOCORRO_MAX, ehRespostaAutomatica, soRoboDaLoja, PLAYBOOK_CONVERSA, promptCaroline } from '../src/lib/assistente/sdr';
 
 // Pedido da Jessica (16/10/2026): conversas abandonadas são gravíssimas; toda conversa tem começo, meio e fim.
 describe('trava de repetição não pode matar a conversa', () => {
@@ -49,5 +49,15 @@ describe('playbook de condução e objeções', () => {
         lead: { nome: 'Didio', empresa: null, segmento: 'Farmácia', campanha: null, abertura_jessica: false, tentativa: 1 } } as any);
       expect(p.sistema + p.usuario).toContain('QUEBRA DE OBJEÇÕES');
     }
+  });
+});
+
+describe('robô em imagem e agradecimento de encerramento', () => {
+  it('boas-vindas em imagem com legenda automática é robô', () => {
+    expect(soRoboDaLoja([{ tipo: 'IMAGEM', conteudo: 'Seja bem-vindo(a) à Extra Popular São Pedro 1! 💙💊 É um grande prazer poder atender você.  Em breve iremos lhe atender! 😊' }])).toBe(true);
+    expect(soRoboDaLoja([{ tipo: 'IMAGEM', conteudo: null }])).toBe(false);
+  });
+  it('"Agradecemos pela preferência!" + pesquisa é encerramento do robô', () => {
+    expect(soRoboDaLoja([{ tipo: 'TEXTO', conteudo: 'Agradecemos pela preferência! CrescerFarma, cuidando de você!' }, { tipo: 'TEXTO', conteudo: 'Para aperfeiçoar nosso atendimento, nos diga como foi a sua experiência neste atendimento?' }])).toBe(true);
   });
 });
