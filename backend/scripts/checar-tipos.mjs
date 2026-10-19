@@ -15,9 +15,11 @@ let saida = '';
 try { saida = execSync('npx tsc --noEmit -p . --rootDir .', { cwd: raiz, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
 catch (e) { saida = `${e.stdout || ''}${e.stderr || ''}`; }
 
+// Caminho absoluto do repositório vira <repo>: a mesma mensagem no Windows e na CI (Linux).
+const repo = join(raiz, '..').replace(/\\/g, '/');
 const chave = l => {
   const m = l.match(/^(.+?)\(\d+,\d+\): error (TS\d+): (.*)$/);
-  return m ? `${m[1].replace(/\\/g, '/')} ${m[2]} ${m[3]}` : null;
+  return m ? `${m[1].replace(/\\/g, '/')} ${m[2]} ${m[3].split(repo).join('<repo>')}` : null;
 };
 const atuais = saida.split(/\r?\n/).map(chave).filter(Boolean);
 
