@@ -22,7 +22,7 @@ import { ehPayloadUazapi, parseUazapiEvento, EventoMensagemUazapi } from '@/lib/
 import { parseEvolutionEvento } from '@/lib/evolution-webhook-parser';
 import * as gratis from '@/services/whatsapp-gratis.service';
 import { instanciaDonaDoContato, limparCacheInstancias } from '@/services/whatsapp-roteador.service';
-import { VAGAS, NOMES_NUMEROS_EMPRESA, vagaPorNome, limiteDoDia, AVISO_LICENCA_GRATIS } from '@/lib/whatsapp-vagas';
+import { VAGAS, NOMES_NUMEROS_EMPRESA, vagaPorNome, limiteDoDia, AVISO_LICENCA_GRATIS, chaveServidorDaVaga, normalizarServidorUazapi } from '@/lib/whatsapp-vagas';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'INTERESSADO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
@@ -187,8 +187,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const hoje = new Date(Date.now() - 3 * 36e5); hoje.setUTCHours(3, 0, 0, 0);
     // Primeiros contatos de hoje: conversas abertas hoje neste número com mensagem nossa.
     const contatosHoje = inst ? await prisma.whatsappConversa.count({ where: { instanciaId: inst.id, created_at: { gte: hoje }, mensagens: { some: { direcao: 'SAIDA' } } } }).catch(() => null) : null;
+    // Conta UAZAPI da vaga (endereço, sem token); null = conta do número principal.
+    const servidor = v.provedor === 'UAZAPI' && !v.principal
+      ? (await prisma.configuracaoIntegracao.findUnique({ where: { chave: chaveServidorDaVaga(v.vaga) } }).catch(() => null))?.valor || null
+      : null;
     return {
-      vaga: v.vaga, rotulo: v.rotulo, provedor: v.provedor, principal: !!v.principal,
+      vaga: v.vaga, rotulo: v.rotulo, provedor: v.provedor, principal: !!v.principal, servidor,
       cadastrada: !!inst?.instance_token, apelido: inst?.apelido || null, status, numero,
       qr: status === 'CONECTADO' ? null : (inst?.qr_code || null),
       uso: inst?.uso || (v.principal ? 'PRINCIPAL' : 'PROSPECCAO'), rodizio: !!inst?.rodizio,
@@ -214,13 +218,33 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     let inst = await prisma.whatsappInstancia.findUnique({ where: { instancia_nome: v.vaga } });
 
     if (v.provedor === 'UAZAPI') {
-      const body = z.object({ instance_token: z.string().trim().min(8) }).safeParse(request.body);
+      const body = z.object({ instance_token: z.string().trim().min(8), servidor: z.string().max(200).optional() }).safeParse(request.body);
       if (!body.success) return reply.status(400).send({ status: 'error', message: 'Cole o token da instância da UAZAPI.' });
       const token = body.data.instance_token;
+      // Conta UAZAPI da vaga (19/10/2026): "Server URL" do painel; vazio = conta do número principal.
+      const servidor = normalizarServidorUazapi(body.data.servidor);
+      if (servidor === null) return reply.status(400).send({ status: 'error', message: 'Endereço da conta inválido. Copie o "Server URL" do painel da UAZAPI (ex.: https://suaconta.uazapi.com).' });
       const outra = await prisma.whatsappInstancia.findFirst({ where: { instance_token: token, instancia_nome: { not: v.vaga } } });
       if (outra) return reply.status(400).send({ status: 'error', message: 'Este token já está em uso em outro número do CRM.' });
+      const chave = chaveServidorDaVaga(v.vaga);
+      evo.definirServidorDoToken(token, servidor);
       const st = await evo.obterStatus(token);
-      if (st.status === 'DESCONECTADO') return reply.status(400).send({ status: 'error', message: 'A UAZAPI não reconheceu o token ou o número não está pareado. Confira no painel da UAZAPI.' });
+      if (st.status === 'DESCONECTADO') {
+        // Volta ao servidor que estava valendo (o mesmo token pode já estar em uso nesta vaga).
+        const salvo = inst?.instance_token === token ? (await prisma.configuracaoIntegracao.findUnique({ where: { chave } }))?.valor : null;
+        evo.definirServidorDoToken(token, salvo);
+        return reply.status(400).send({ status: 'error', message: 'A UAZAPI não reconheceu o token nesta conta ou o número não está pareado. Confira o token, o endereço da conta (Server URL) e se o número está conectado no painel da UAZAPI.' });
+      }
+      if (inst?.instance_token && inst.instance_token !== token) evo.definirServidorDoToken(inst.instance_token, null);
+      if (servidor) {
+        await prisma.configuracaoIntegracao.upsert({
+          where: { chave },
+          create: { chave, valor: servidor, descricao: `Conta UAZAPI do ${v.rotulo}`, updated_by: user.id },
+          update: { valor: servidor, updated_by: user.id },
+        });
+      } else {
+        await prisma.configuracaoIntegracao.deleteMany({ where: { chave } });
+      }
       inst = await prisma.whatsappInstancia.upsert({
         where: { instancia_nome: v.vaga },
         create: { instancia_nome: v.vaga, apelido: v.rotulo, dono_id: user.id, dono_nome: user.nome, provedor: 'UAZAPI', uso: 'PROSPECCAO',

@@ -33,7 +33,18 @@ let roteador: Roteador | null = null;
 export function registrarRoteadorEnvio(fn: Roteador) { roteador = fn; }
 const rotear = async (instanceToken: string, numero: string) => (roteador ? roteador(instanceToken, numero) : instanceToken);
 
-function getBaseUrl(): string {
+// Mais de uma conta UAZAPI (pedido da Jessica, 19/10/2026): vagas extras podem estar em outra conta
+// (lib/whatsapp-vagas: chaveServidorDaVaga). Token sem servidor registrado → conta do servidor.
+// Registrado ao ligar o backend (whatsapp-roteador) e ao conectar a vaga.
+const servidorDoToken = new Map<string, string>();
+export function definirServidorDoToken(instanceToken: string, servidor: string | null | undefined) {
+  if (servidor) servidorDoToken.set(instanceToken, servidor.replace(/\/+$/, ''));
+  else servidorDoToken.delete(instanceToken);
+}
+
+function getBaseUrl(instanceToken?: string): string {
+  const daConta = instanceToken ? servidorDoToken.get(instanceToken) : undefined;
+  if (daConta) return daConta;
   const url = process.env.EVOLUTION_API_URL || '';
   if (!url) throw new Error('EVOLUTION_API_URL não configurado');
   return url.replace(/\/+$/, '');
@@ -72,7 +83,7 @@ export function numeroAlternativoBR(numero: string): string | null {
 }
 
 async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: string, body?: any) {
-  const res = await fetch(`${getBaseUrl()}${path}`, {
+  const res = await fetch(`${getBaseUrl(token)}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',

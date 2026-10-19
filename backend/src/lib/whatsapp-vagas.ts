@@ -11,12 +11,31 @@ export const VAGAS: Vaga[] = [
   { vaga: 'gratis-1', provedor: 'GRATIS', rotulo: 'Número 3 (API gratuita)' },
   { vaga: 'gratis-2', provedor: 'GRATIS', rotulo: 'Número 4 (API gratuita)' },
   { vaga: 'gratis-3', provedor: 'GRATIS', rotulo: 'Número 5 (API gratuita)' },
+  // 19/10/2026: segunda conta UAZAPI paga, para mais números sem mexer no principal.
+  { vaga: 'uazapi-3', provedor: 'UAZAPI', rotulo: 'Número 6 (UAZAPI)' },
 ];
 
 /** Nomes reservados aos números da empresa: nunca aparecem como instância pessoal de vendedor. */
 export const NOMES_NUMEROS_EMPRESA = VAGAS.map(v => v.vaga);
 
 export const vagaPorNome = (nome: string) => VAGAS.find(v => v.vaga === nome) || null;
+
+// Mais de uma conta UAZAPI (pedido da Jessica, 19/10/2026): o número principal segue na conta do
+// servidor (EVOLUTION_API_URL) e cada vaga UAZAPI extra pode estar em outra conta. O endereço da
+// conta de cada vaga fica em ConfiguracaoIntegracao (sem mudar o banco); vazio = conta do servidor.
+export const chaveServidorDaVaga = (vaga: string) => `whatsapp.servidor.${vaga}`;
+
+/**
+ * Endereço de uma conta UAZAPI ("Server URL" do painel), normalizado para https://<conta>.uazapi.com.
+ * Só aceita servidores da UAZAPI, porque o token da instância vai no cabeçalho de toda chamada.
+ * Vazio → '' (conta do servidor). Inválido → null.
+ */
+export function normalizarServidorUazapi(url: string | null | undefined): string | null {
+  const t = (url || '').trim();
+  if (!t) return '';
+  const m = t.match(/^(?:https:\/\/)?([a-z0-9-]+)\.uazapi\.com\/*$/i);
+  return m ? `https://${m[1].toLowerCase()}.uazapi.com` : null;
+}
 
 /**
  * Primeiros contatos por dia de um número novo na prospecção, subindo aos poucos (aquecimento):

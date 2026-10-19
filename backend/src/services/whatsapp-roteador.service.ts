@@ -2,7 +2,8 @@
 // antes de todo envio feito por evolution.service.ts. Registrado uma vez no server.ts.
 import { PrismaClient } from '@prisma/client';
 import { chaveContato, decidirInstanciaEnvio, InstanciaResumo } from '@/lib/contato-instancia';
-import { ContatoDeOutroNumero, registrarRoteadorEnvio } from './evolution.service';
+import { VAGAS, chaveServidorDaVaga } from '@/lib/whatsapp-vagas';
+import { ContatoDeOutroNumero, definirServidorDoToken, registrarRoteadorEnvio } from './evolution.service';
 
 const SELECT = { id: true, instancia_nome: true, apelido: true, instance_token: true, status: true } as const;
 
@@ -32,7 +33,21 @@ export async function instanciaDonaDoContato(prisma: PrismaClient, numero: strin
   return (convs.find(c => c._count.mensagens > 0) || convs[0])?.instancia || null;
 }
 
+/** Conta UAZAPI de cada vaga extra (19/10/2026): recarrega do banco o servidor de cada token. */
+export async function carregarServidoresUazapi(prisma: PrismaClient) {
+  const extras = VAGAS.filter(v => v.provedor === 'UAZAPI' && !v.principal);
+  const [regs, insts] = await Promise.all([
+    prisma.configuracaoIntegracao.findMany({ where: { chave: { in: extras.map(v => chaveServidorDaVaga(v.vaga)) } } }),
+    prisma.whatsappInstancia.findMany({ where: { instancia_nome: { in: extras.map(v => v.vaga) } }, select: { instancia_nome: true, instance_token: true } }),
+  ]);
+  for (const i of insts) {
+    const servidor = regs.find(r => r.chave === chaveServidorDaVaga(i.instancia_nome))?.valor;
+    if (i.instance_token && servidor) definirServidorDoToken(i.instance_token, servidor);
+  }
+}
+
 export function ativarRoteadorEnvio(prisma: PrismaClient) {
+  carregarServidoresUazapi(prisma).catch((e: any) => console.error('[WPP] contas UAZAPI:', e?.message));
   registrarRoteadorEnvio(async (tokenPedido, numero) => {
     const lista = await instancias(prisma);
     // Só um número cadastrado: nada a rotear (situação de hoje, sem consulta extra).

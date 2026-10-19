@@ -1,14 +1,15 @@
 'use client';
 
 // Números de WhatsApp da empresa (pedido da Jessica, 07/10/2026): o principal segue na UAZAPI,
-// vaga 2 na UAZAPI (cola o token) e vagas 3–5 na API gratuita (conecta pelo QR).
+// vagas 2 e 6 na UAZAPI (cola o token; podem estar em outra conta UAZAPI, 19/10/2026) e vagas 3–5
+// na API gratuita (conecta pelo QR).
 // Regra fixa: o contato fica sempre no número que falou com ele primeiro.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Smartphone, QrCode, Power, AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
 type Numero = {
-  vaga: string; rotulo: string; provedor: 'UAZAPI' | 'GRATIS'; principal: boolean;
+  vaga: string; rotulo: string; provedor: 'UAZAPI' | 'GRATIS'; principal: boolean; servidor: string | null;
   cadastrada: boolean; apelido: string | null; status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero: string | null; qr: string | null;
   uso: string; rodizio: boolean; limite_dia: number | null; limite_hoje: number | null; aquecimento_desde: string | null;
   pausada_motivo: string | null; contatos_hoje: number | null; conversas: number;
@@ -35,6 +36,7 @@ export default function NumerosWhatsapp() {
   const [erro, setErro] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [tokens, setTokens] = useState<Record<string, string>>({});
+  const [servidores, setServidores] = useState<Record<string, string>>({});
   const espera = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const carregar = useCallback(async () => {
@@ -113,12 +115,19 @@ export default function NumerosWhatsapp() {
                 <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Configurado no bloco &quot;WhatsApp da empresa&quot;. Segue com o atendimento, a Bia e os clientes. Fica fora do rodízio de prospecção.</p>
               )}
 
-              {/* Vaga 2 (UAZAPI): colar o token da instância comprada */}
+              {!n.principal && n.provedor === 'UAZAPI' && n.cadastrada && (
+                <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Conta UAZAPI: {n.servidor ? n.servidor.replace(/^https:\/\//, '') : 'a mesma do número principal'}</p>
+              )}
+
+              {/* Vagas 2 e 6 (UAZAPI): endereço da conta (Server URL) e token da instância comprada */}
               {!n.principal && n.provedor === 'UAZAPI' && n.status !== 'CONECTADO' && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input type="text" autoComplete="off" className="ps-input" style={{ flex: 1, minWidth: 200, fontFamily: 'monospace', fontSize: 12 }}
+                    placeholder="Server URL da conta (vazio = conta do número principal)" value={servidores[n.vaga] ?? n.servidor ?? ''}
+                    onChange={e => setServidores(t => ({ ...t, [n.vaga]: e.target.value }))} />
                   <input type="password" autoComplete="off" className="ps-input" style={{ flex: 1, minWidth: 200, fontFamily: 'monospace', fontSize: 12 }}
                     placeholder="Token da nova instância da UAZAPI" value={tokens[n.vaga] || ''} onChange={e => setTokens(t => ({ ...t, [n.vaga]: e.target.value }))} />
-                  <button disabled={busy || !(tokens[n.vaga] || '').trim()} onClick={() => agir(n.vaga, () => apiClient.conectarNumeroWhatsapp(n.vaga, tokens[n.vaga].trim()))}
+                  <button disabled={busy || !(tokens[n.vaga] || '').trim()} onClick={() => agir(n.vaga, () => apiClient.conectarNumeroWhatsapp(n.vaga, tokens[n.vaga].trim(), (servidores[n.vaga] ?? n.servidor ?? '').trim()))}
                     style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
                     {busy ? 'Validando...' : 'Conectar'}
                   </button>
