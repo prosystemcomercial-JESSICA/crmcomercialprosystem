@@ -1284,3 +1284,10 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Todos os agentes seguem o playbook da casa: conversa com começo, meio e fim, as respostas para as objeções mais comuns ("não sou o responsável", "já tenho sistema", "está caro", "agora não", "manda por e-mail"…) e técnicas de persuasão éticas.
 - O Rafael, ao revisar as conversas, ensina o time ("quando o cliente disser X, responda Y"), orienta o agente de cada conversa com problema e faz o agente retomar na hora quem ficou sem resposta.
 - Tocar numa notificação agora abre direto a conversa certa no WhatsApp do CRM.
+
+### Atualização 19/10/2026: números em outra conta da UAZAPI (Números 2 e 6)
+
+- Em **Configurações › Números de WhatsApp** agora há duas vagas UAZAPI extras: **Número 2** e **Número 6**. Elas podem ficar numa conta da UAZAPI diferente da do número principal, que continua conectado como está.
+- Para conectar: no painel da UAZAPI da conta nova, clique em **Nova Instância**, leia o QR com o celular do número e copie o **token da instância**. No CRM, na vaga livre, cole o **Server URL** da conta (aparece no topo do painel, por exemplo `https://suaconta.uazapi.com`) e o token, e clique em **Conectar**. O CRM confere tudo e liga o recebimento de mensagens sozinho.
+- Deixe o Server URL vazio só se a instância estiver na mesma conta do número principal.
+- Depois de conectado, o número mostra a conta em que está. Para usá-lo na prospecção, marque **Usar na prospecção (rodízio)**: ele começa com 10 primeiros contatos por dia e sobe uma etapa por semana.
