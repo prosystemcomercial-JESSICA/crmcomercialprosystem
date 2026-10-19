@@ -119,7 +119,8 @@ describe('Casos Churn Routes', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json().status).toBe('success');
-      expect(response.json().data).toBeInstanceOf(Array);
+      // Formato que o front lê: data.casos + data.total (e pagination repetida no topo).
+      expect(response.json().data.casos).toBeInstanceOf(Array);
       expect(response.json().pagination).toBeDefined();
       expect(response.json().pagination.page).toBe(0);
     });
@@ -134,7 +135,8 @@ describe('Casos Churn Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const casos = response.json().data;
+      const casos = response.json().data.casos;
+      expect(casos).toBeInstanceOf(Array);
       casos.forEach((caso: any) => {
         expect(caso.status).toBe('NOVO');
       });
@@ -210,7 +212,8 @@ describe('Casos Churn Routes', () => {
       expect(response.json().data.status).toBe('DIAGNOSTICADO');
     });
 
-    it('should reject invalid status transition', async () => {
+    // A gestão pode mover o caso para qualquer etapa (kanban); só status desconhecido é recusado.
+    it('should reject unknown status', async () => {
       const response = await fastify.inject({
         method: 'PATCH',
         url: `/casos-churn/${casoId}`,
@@ -218,7 +221,7 @@ describe('Casos Churn Routes', () => {
           authorization: BEARER_TESTE
         },
         payload: {
-          status: 'NOVO' // Can't go back from DIAGNOSTICADO to NOVO
+          status: 'ETAPA_INEXISTENTE'
         }
       });
 
