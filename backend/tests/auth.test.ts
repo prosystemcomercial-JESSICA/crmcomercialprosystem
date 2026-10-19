@@ -4,6 +4,14 @@ import { PrismaClient } from '@prisma/client';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { authRoutes } from '@/routes/auth';
+import { hashSenha } from '@/lib/seguranca';
+
+// Usuários de teste (o banco da CI começa vazio): login por e-mail e senha em UsuarioCRM.
+const USUARIOS = [
+  { id: 'user-ceo', email: 'ceo@prosystem.com.br', cargo: 'CEO' },
+  { id: 'user-supervisao', email: 'supervisao@prosystem.com.br', cargo: 'SUPERVISAO' },
+  { id: 'user-tecnico', email: 'tecnico@prosystem.com.br', cargo: 'TECNICO' },
+];
 
 describe('Authentication Routes', () => {
   let fastify: FastifyInstance;
@@ -11,6 +19,11 @@ describe('Authentication Routes', () => {
 
   beforeAll(async () => {
     prisma = new PrismaClient();
+    const senha = await hashSenha('senha123');
+    for (const u of USUARIOS) {
+      const dados = { nome: `Teste ${u.cargo}`, email: u.email, senha, cargo: u.cargo, status: 'ATIVO' };
+      await prisma.usuarioCRM.upsert({ where: { id: u.id }, create: { id: u.id, ...dados }, update: dados });
+    }
     fastify = Fastify();
 
     fastify.register(cors);
@@ -25,6 +38,7 @@ describe('Authentication Routes', () => {
   });
 
   afterAll(async () => {
+    await prisma.usuarioCRM.deleteMany({ where: { id: { in: USUARIOS.map(u => u.id) } } });
     await prisma.$disconnect();
     await fastify.close();
   });

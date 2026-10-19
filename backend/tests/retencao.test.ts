@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import { simularLogin } from './helpers/login-teste';
 import { casosChurnRoutes } from '@/routes/casos-churn';
 import { diagnosisChurnRoutes } from '@/routes/diagnosis-churn';
 import { retencaoRoutes } from '@/routes/retencao';
@@ -19,7 +20,9 @@ describe('Retention Module Routes', () => {
 
   beforeAll(async () => {
     prisma = new PrismaClient();
-    fastify = Fastify();
+    fastify = Fastify();
+
+    simularLogin(fastify);
 
     fastify.register(cors);
     fastify.register(helmet, { contentSecurityPolicy: false });
