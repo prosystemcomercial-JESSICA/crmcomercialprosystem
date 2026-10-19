@@ -21,7 +21,7 @@ describe('Authentication Routes', () => {
     prisma = new PrismaClient();
     const senha = await hashSenha('senha123');
     for (const u of USUARIOS) {
-      const dados = { nome: `Teste ${u.cargo}`, email: u.email, senha, cargo: u.cargo, status: 'ATIVO' };
+      const dados = { nome: u.cargo === 'CEO' ? 'CEO ProSystem' : `Teste ${u.cargo}`, email: u.email, senha, cargo: u.cargo, status: 'ATIVO' };
       await prisma.usuarioCRM.upsert({ where: { id: u.id }, create: { id: u.id, ...dados }, update: dados });
     }
     fastify = Fastify();
@@ -174,6 +174,8 @@ describe('Authentication Routes', () => {
     });
 
     it('should refresh token with valid refresh token', async () => {
+      // O JWT carrega a hora em segundos: no mesmo segundo do login, o token novo sairia idêntico.
+      await new Promise(r => setTimeout(r, 1100));
       const response = await fastify.inject({
         method: 'POST',
         url: '/auth/refresh',

@@ -1,12 +1,9 @@
-import type { FastifyInstance } from 'fastify';
+import { AuthService } from '@/services/auth.service';
 
-// Os testes de rota não sobem o server.ts, que é quem lê o token e preenche request.user
-// (hook global de login). Este hook faz o papel dele: com cabeçalho Authorization entra um
-// usuário da administração; sem cabeçalho, ninguém (as rotas respondem 401).
-export const USUARIO_TESTE = { id: 'test-user', nome: 'Usuário de Teste', email: 'teste@prosystem.test', role: 'ADMIN', admin: true };
+// Token de acesso de verdade (assinado com o JWT_SECRET do ambiente de teste) para as rotas
+// protegidas por requireAuth: um usuário da administração, que passa em qualquer requireRole.
+const tokens = new AuthService().generateTokens({
+  userId: 'test-user', email: 'teste@prosystem.test', nome: 'Usuário de Teste', role: 'ADMIN', admin: true,
+} as any);
 
-export function simularLogin(fastify: FastifyInstance) {
-  fastify.addHook('onRequest', async request => {
-    if (request.headers.authorization) (request as any).user = { ...USUARIO_TESTE };
-  });
-}
+export const BEARER_TESTE = `Bearer ${tokens.accessToken}`;
