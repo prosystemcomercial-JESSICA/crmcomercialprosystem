@@ -3,7 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { simularLogin } from './helpers/login-teste';
+import { BEARER_TESTE } from './helpers/login-teste';
 import { casosChurnRoutes } from '@/routes/casos-churn';
 
 describe('Casos Churn Routes', () => {
@@ -14,9 +14,7 @@ describe('Casos Churn Routes', () => {
   beforeAll(async () => {
     // Setup
     prisma = new PrismaClient();
-    fastify = Fastify();
-
-    simularLogin(fastify);
+    fastify = Fastify();
 
     fastify.register(cors);
     fastify.register(helmet, {contentSecurityPolicy: false});
@@ -50,7 +48,7 @@ describe('Casos Churn Routes', () => {
         method: 'POST',
         url: '/casos-churn',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           clienteId: testClienteId,
@@ -69,7 +67,7 @@ describe('Casos Churn Routes', () => {
         method: 'POST',
         url: '/casos-churn',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           motivo_principal: 'Preço'
@@ -85,7 +83,7 @@ describe('Casos Churn Routes', () => {
         method: 'POST',
         url: '/casos-churn',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           clienteId: 'non-existent-id'
@@ -115,7 +113,7 @@ describe('Casos Churn Routes', () => {
         method: 'GET',
         url: '/casos-churn?page=0&limit=10',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -131,7 +129,7 @@ describe('Casos Churn Routes', () => {
         method: 'GET',
         url: '/casos-churn?status=NOVO',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -161,7 +159,7 @@ describe('Casos Churn Routes', () => {
         method: 'GET',
         url: `/casos-churn/${casoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -175,7 +173,7 @@ describe('Casos Churn Routes', () => {
         method: 'GET',
         url: '/casos-churn/non-existent',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -201,7 +199,7 @@ describe('Casos Churn Routes', () => {
         method: 'PATCH',
         url: `/casos-churn/${casoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           status: 'DIAGNOSTICADO'
@@ -217,7 +215,7 @@ describe('Casos Churn Routes', () => {
         method: 'PATCH',
         url: `/casos-churn/${casoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           status: 'NOVO' // Can't go back from DIAGNOSTICADO to NOVO

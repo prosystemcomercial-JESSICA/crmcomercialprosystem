@@ -3,7 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import { simularLogin } from './helpers/login-teste';
+import { BEARER_TESTE } from './helpers/login-teste';
 import { casosChurnRoutes } from '@/routes/casos-churn';
 import { diagnosisChurnRoutes } from '@/routes/diagnosis-churn';
 import { retencaoRoutes } from '@/routes/retencao';
@@ -20,9 +20,7 @@ describe('Retention Module Routes', () => {
 
   beforeAll(async () => {
     prisma = new PrismaClient();
-    fastify = Fastify();
-
-    simularLogin(fastify);
+    fastify = Fastify();
 
     fastify.register(cors);
     fastify.register(helmet, { contentSecurityPolicy: false });
@@ -70,7 +68,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/casos/${testCasoId}/diagnostico`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           dias_sem_interacao: 45,
@@ -94,7 +92,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/casos/${testCasoId}/diagnostico`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -110,7 +108,7 @@ describe('Retention Module Routes', () => {
         method: 'PATCH',
         url: `/diagnosticos/${testDiagnosisId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           dias_sem_interacao: 65,
@@ -129,7 +127,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/casos/non-existent/diagnostico',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -145,7 +143,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/casos/${testCasoId}/planos`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           titulo: 'Plano de Retenção Premium',
@@ -165,7 +163,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/casos/${testCasoId}/planos`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -181,7 +179,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/planos/${testPlanoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -196,7 +194,7 @@ describe('Retention Module Routes', () => {
         method: 'PATCH',
         url: `/planos/${testPlanoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           titulo: 'Plano Atualizado'
@@ -213,7 +211,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/planos/${testPlanoId}/ativar`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -227,7 +225,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/planos/${testPlanoId}/concluir`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -245,7 +243,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/casos/${testCasoId}/acoes`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           titulo: 'Contato com cliente',
@@ -268,7 +266,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/casos/${testCasoId}/acoes`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -283,7 +281,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/casos/${testCasoId}/acoes?status=NOVA`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -297,7 +295,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/acoes/${testAcaoId}`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -311,7 +309,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/acoes/${testAcaoId}/progresso`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -325,7 +323,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/acoes/${testAcaoId}/concluir`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -339,7 +337,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: `/casos/${testCasoId}/timeline`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -355,7 +353,7 @@ describe('Retention Module Routes', () => {
         method: 'POST',
         url: `/casos/${testCasoId}/acoes`,
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         },
         payload: {
           titulo: 'Invalid action',
@@ -375,7 +373,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao?periodo=30dias',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -393,7 +391,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/chart/status?dias=30',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -408,7 +406,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/chart/risco',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -425,7 +423,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/top-risco?limit=5',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -440,7 +438,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/planos-status',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -454,7 +452,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/acoes-tipo',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
@@ -469,7 +467,7 @@ describe('Retention Module Routes', () => {
         method: 'GET',
         url: '/dashboard/retencao/recuperacao-motivo',
         headers: {
-          authorization: 'Bearer test-token'
+          authorization: BEARER_TESTE
         }
       });
 
