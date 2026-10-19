@@ -1291,3 +1291,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Para conectar: no painel da UAZAPI da conta nova, clique em **Nova Instância**, leia o QR com o celular do número e copie o **token da instância**. No CRM, na vaga livre, cole o **Server URL** da conta (aparece no topo do painel, por exemplo `https://suaconta.uazapi.com`) e o token, e clique em **Conectar**. O CRM confere tudo e liga o recebimento de mensagens sozinho.
 - Deixe o Server URL vazio só se a instância estiver na mesma conta do número principal.
 - Depois de conectado, o número mostra a conta em que está. Para usá-lo na prospecção, marque **Usar na prospecção (rodízio)**: ele começa com 10 primeiros contatos por dia e sobe uma etapa por semana.
+
+### Atualização 19/10/2026: agentes não perguntam mais "você é quem decide?" para quem nos procurou
+
+- Quando o cliente procurou a Prosystem (WhatsApp, campanha ou site), os agentes tratam quem escreve como o interessado e não perguntam mais se ele é quem decide. Essa pergunta fica só para quando nós chamamos a loja (prospecção do Heitor) ou quando alguém passou o contato do dono.
+- Se o cliente responde que ainda está procurando sistema, o agente já mostra que dá para ajudar, pergunta o que motivou a busca e oferece a demonstração com os horários livres.
+- Os agentes também não repetem uma pergunta que já fizeram na conversa.

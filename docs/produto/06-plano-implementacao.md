@@ -1779,3 +1779,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - **Recebimento:** sem mudança. O webhook identifica o número pelo token do payload, qualquer que seja a conta. O webhook de cada instância nova é registrado pelo próprio CRM ao conectar.
 - **Tela (Configurações › Números de WhatsApp):** as vagas UAZAPI extras têm o campo **Server URL da conta** (vazio = conta do número principal) ao lado do token; o número conectado mostra "Conta UAZAPI: <conta>".
 - **Testes:** `backend/tests/whatsapp-contas-uazapi.test.ts` (endereço aceito/recusado, vaga 6, envio pela conta do token e volta à conta do servidor).
+
+### Correção 19/10/2026: lead que nos procurou não é mais interrogado sobre "quem decide"
+
+- **Caso:** lead que tinha chamado a Prosystem pelo WhatsApp (11/10) foi retomado pelo Julio ("você cuida dessa escolha e ainda está procurando ou já resolveu?"). O cliente respondeu "Ainda na procura" e o Julio repetiu "Você é quem decide sobre o sistema da farmácia?". A conversa parou. O CRM tinha agendado a 1ª retomada para o dia útil seguinte (regra das retomadas), mas a resposta tinha travado a conversa.
+- **Causa:** a regra "QUEM ESTÁ FALANDO" do roteiro (`backend/src/lib/assistente/sdr.ts › promptCaroline`) era obrigatória para todo lead. Ela foi feita para o contato ativo (número geral da loja, onde quem atende pode ser balconista) e passava na frente da missão do Julio ("se ainda faz sentido e mostra interesse, ofereça a demonstração").
+- **Agora:** `contatoAtivo = prospeccao (Heitor) || indicacao`. No contato ativo a regra continua como era. Para quem procurou a Prosystem (WhatsApp, campanha, site), quem escreve é tratado como interessado: o agente não pergunta se é quem decide, registra "interlocutor" só pelo que a pessoa contar e pede o contato de quem decide só se ela disser que é outra pessoa.
+- **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
+- **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
+- **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
