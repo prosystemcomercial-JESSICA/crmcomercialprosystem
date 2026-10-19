@@ -39,4 +39,24 @@ describe('roteiro do agente', () => {
     expect(tudo).toContain('farmacêutico responsável');
     expect(tudo).toContain('- Dor principal: fila no caixa');
   });
+
+  // 19/10/2026: lead que chamou a Prosystem respondeu "Ainda na procura" e o Julio repetiu
+  // "Você é quem decide?" em vez de avançar; a conversa morreu.
+  const base = { guia: 'g', instrucoes: '', exemplos: [], historico: 'Cliente: Ainda na procura', fase: 'resposta', saudacao: 'Boa tarde' };
+  const lead = { nome: null, empresa: 'Loja', segmento: null, campanha: null, abertura_jessica: false, tentativa: 1 };
+
+  it('lead que procurou a Prosystem: não pergunta se é quem decide e avança', () => {
+    const p = promptCaroline({ ...base, perfil: 'julio', lead } as any);
+    expect(p.sistema).toContain('procurou a Prosystem por conta própria');
+    expect(p.sistema).toContain('NÃO pergunte se ele é quem decide');
+    expect(p.sistema).not.toContain('obrigatório já na PRIMEIRA resposta');
+    expect(p.sistema).toContain('JÁ é interesse');
+    expect(p.sistema).toContain('Nunca repita uma pergunta');
+  });
+
+  it('prospecção ativa (número da loja): continua descobrindo quem decide', () => {
+    const p = promptCaroline({ ...base, perfil: 'caroline', lead: { ...lead, prospeccao: { cidade: 'Vitória', bairro: null } } } as any);
+    expect(p.sistema).toContain('obrigatório já na PRIMEIRA resposta');
+    expect(p.sistema).not.toContain('procurou a Prosystem por conta própria');
+  });
 });
