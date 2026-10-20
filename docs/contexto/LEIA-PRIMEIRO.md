@@ -34,6 +34,10 @@ CRM comercial da **Prosystem Sistemas** (ERP e PDV para farmácias, drogarias, m
 - **Windows:** use Git Bash; não há `python`. `/tmp` do Bash não é o `/tmp` do Node: passe caminhos com `cygpath -m`. O disco `C:` chegou a 0 bytes livres em 14/10; confira `df -h /c` antes de builds.
 - **Documentos da Jessica (Claude Docs, privados da conta dela):** listados em ESTADO.md. Outro perfil/conta pode não enxergar; peça a ela para compartilhar se precisar editar.
 
+## Reunião semanal com a diretoria (desde 20/10/2026)
+
+Claude é o assistente da reunião semanal da Jessica com os superiores: um relatório completo e clicável, com dados de produção. **Siga [reuniao-semanal.md](reuniao-semanal.md)** (seções, script `backend/scripts/relatorio-reuniao-semanal.cjs`, armadilhas e links dos relatórios anteriores).
+
 ## Onde está cada coisa (comercial e agentes)
 
 | Assunto | Arquivo |

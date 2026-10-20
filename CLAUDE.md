@@ -5,6 +5,8 @@
 - Acessos e chaves (servidor, SSH) ficam **só** no arquivo local, nunca no repositório.
 - **Passagem automática entre sessões (pedido da Jessica, 20/10/2026):** a Jessica não precisa digitar `/handoff`. O agente usa a skill `handoff` sozinho quando a resposta termina com a tarefa pela metade, quando a conversa é compactada no meio de um trabalho, ou quando ela avisa que vai parar ou trocar de sessão. Ao abrir uma sessão, o hook `.claude/hooks/handoff-recente.mjs` lista os handoffs dos últimos 7 dias. Se o pedido continuar um deles, leia-o antes de começar.
 
+- **Reunião semanal com a diretoria (pedido da Jessica, 20/10/2026):** Claude monta o relatório da reunião semanal, completo e clicável, com dados de produção; siga `docs/contexto/reuniao-semanal.md`.
+
 - Falar sempre em português do Brasil.
 - Não bagunçar o que existe: agregar e analisar o fluxo inteiro, não só a função.
 - A cada entrega: commit e push no `main`, deploy com backup (script de deploy com lista `PERMITIDO` para o banco).
