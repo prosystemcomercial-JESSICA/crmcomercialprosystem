@@ -196,5 +196,19 @@
       "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\suporte",
       "c:\\Users\\prosy\\Documents\\CRM COMERCIAL PROSYSTEM\\frontend\\app\\metas"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/handoff-recente.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

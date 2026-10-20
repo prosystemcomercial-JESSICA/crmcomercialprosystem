@@ -3,6 +3,7 @@
 - **Antes de qualquer tarefa, leia** `docs/contexto/LEIA-PRIMEIRO.md` e `docs/contexto/ESTADO.md`.
 - **Atualização imediata (pedido da Jessica, 15/10/2026):** tudo o que for feito é registrado na hora, no mesmo passo: `docs/contexto/ESTADO.md` (o que mudou, decisões, pendências), o arquivo local `C:\Users\prosy\CONTEXTO-CRM-COMERCIAL-LOCAL.md` (se envolver acessos ou casos de leads) e commit + push.
 - Acessos e chaves (servidor, SSH) ficam **só** no arquivo local, nunca no repositório.
+- **Passagem automática entre sessões (pedido da Jessica, 20/10/2026):** a Jessica não precisa digitar `/handoff`. O agente usa a skill `handoff` sozinho quando a resposta termina com a tarefa pela metade, quando a conversa é compactada no meio de um trabalho, ou quando ela avisa que vai parar ou trocar de sessão. Ao abrir uma sessão, o hook `.claude/hooks/handoff-recente.mjs` lista os handoffs dos últimos 7 dias. Se o pedido continuar um deles, leia-o antes de começar.
 
 - Falar sempre em português do Brasil.
 - Não bagunçar o que existe: agregar e analisar o fluxo inteiro, não só a função.

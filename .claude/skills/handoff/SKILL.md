@@ -1,9 +1,15 @@
 ---
 name: handoff
-description: Resume a conversa atual num documento de passagem para outra sessão (Claude ou Codex) continuar a tarefa do CRM Comercial de onde parou.
+description: Resume a conversa atual num documento de passagem para outra sessão (Claude ou Codex) continuar a tarefa do CRM Comercial de onde parou. Use SOZINHO, sem esperar pedido, quando terminar uma resposta com a tarefa pela metade (esperando a Jessica, bloqueada, ou com próximo passo definido e não feito), logo depois de a conversa ser compactada com tarefa em andamento, ou quando a Jessica disser que vai parar, trocar de sessão ou passar para o Codex.
 argument-hint: "Para que a próxima sessão vai ser usada?"
-disable-model-invocation: true
 ---
+
+## Quando rodar sozinho (regra da Jessica, 20/10/2026)
+
+- **Sim:** tarefa pela metade no fim da resposta; conversa recém-compactada com trabalho em andamento; a Jessica avisa que vai parar ou trocar de sessão.
+- **Não:** pergunta simples, tarefa terminada e já registrada no ESTADO.md (aí não há meio de tarefa a guardar), ou nada mudou desde o último handoff desta tarefa.
+- **Um arquivo por tarefa:** se já existe handoff desta tarefa (mesmo assunto, aberto nesta sessão ou lido no início), atualize o mesmo arquivo em vez de criar outro.
+- Ao rodar sozinho, avise numa linha só no fim da resposta: "Handoff salvo em <caminho>". Não peça licença.
 
 Escreva um documento de passagem (handoff) desta conversa para que uma sessão nova continue o trabalho sem refazer o que já foi feito. Tudo em português do Brasil.
 
