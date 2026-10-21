@@ -1759,3 +1759,14 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+- **Tela `/analista`** (menu Análises & TV › Analista de Resultados, gestão comercial). Padrão visual do CRM: cartões `--t-card-bg`, títulos de 17px/800, tabelas com rolagem lateral no celular.
+- **Cabeçalho:** título, semana e hora de geração; seletor de semanas, "Imprimir ou salvar PDF" e "Gerar agora com os dados de hoje" (que fica "Gerando… (1 a 3 min)").
+- **Barra de seções fixa** (chips com âncora): Números, Ações da próxima semana, Leads por temperatura, Propostas, Ranking, Decisores, Sistemas, Análise das conversas e Dados que faltam. Some na impressão.
+- **Recado da semana** em destaque (borda azul) quando a IA responde.
+- **Números:** 6 cartões (semana em destaque, mês embaixo); demonstrações, propostas e contratos zerados ficam em vermelho.
+- **Ações:** tabela com caixa "feito" (salva no navegador), ação, responsável, quando, meta e origem (dados ou IA).
+- **Temperatura:** abas Quentes, Mornos e Frios com a contagem. O nome do lead é link para a conversa. Chance colorida: alta verde, média laranja, baixa cinza.
+- **Ranking:** abas por agrupamento, ordenado pela % de avanço, com barra.

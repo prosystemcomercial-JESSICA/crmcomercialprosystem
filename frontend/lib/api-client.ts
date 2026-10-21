@@ -1538,6 +1538,9 @@ class ApiClient {
   async getPlacarComercial() { return this.client.get('/comercial/placar'); }
   // Funil por origem (parte 4 do plano, 14/10/2026)
   async getFunilOrigem(dias = 30) { return this.client.get('/comercial/funil-origem', { params: { dias } }); }
+  // Analista de Resultados: relatório de sexta (21/10/2026)
+  async getAnalistaResultados(semana?: string | null) { return this.client.get('/comercial/analista', { params: semana ? { semana } : {} }); }
+  async gerarAnaliseResultados() { return this.client.post('/comercial/analista/gerar', {}); }
   // Perguntas do Rafael para a Jessica (14/10/2026)
   async rafaelPerguntas() { return this.client.get('/especialista/perguntas'); }
   async rafaelResponder(id: string, resposta: string) { return this.client.post(`/especialista/perguntas/${id}/responder`, { resposta }); }

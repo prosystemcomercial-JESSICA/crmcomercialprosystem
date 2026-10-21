@@ -1297,3 +1297,13 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Quando o cliente procurou a Prosystem (WhatsApp, campanha ou site), os agentes tratam quem escreve como o interessado e não perguntam mais se ele é quem decide. Essa pergunta fica só para quando nós chamamos a loja (prospecção do Heitor) ou quando alguém passou o contato do dono.
 - Se o cliente responde que ainda está procurando sistema, o agente já mostra que dá para ajudar, pergunta o que motivou a busca e oferece a demonstração com os horários livres.
 - Os agentes também não repetem uma pergunta que já fizeram na conversa.
+
+### Novidade 21/10/2026: Analista de Resultados (relatório de sexta)
+
+- **Onde fica:** menu **Análises & TV › Analista de Resultados** (só gestão comercial). Toda sexta, às 16h, o relatório é montado sozinho e um resumo chega no WhatsApp indicado pela Jessica, com o link da página.
+- **O que mostra:** números da semana e do mês; ações da próxima semana (marque "feito" conforme for fazendo); leads quentes, mornos e frios, com a chance de fechar, o motivo e o próximo passo; propostas paradas para reativar, com a soma da mensalidade; ranking dos retornos (por quem respondeu, agente, segmento, cidade, dia e hora); decisores conseguidos e retornos combinados que ficaram para trás; sistemas mais citados; o que trava as conversas e como converter mais; dados que faltam preencher.
+- **Clique no nome do lead** para abrir a conversa no WhatsApp do CRM.
+- **Gerar agora com os dados de hoje:** refaz o relatório da semana em 1 a 3 minutos (a IA lê as conversas). A página atualiza sozinha quando termina.
+- **Imprimir ou salvar PDF:** para levar à reunião com a diretoria.
+- **Semanas anteriores:** escolha no seletor ao lado dos botões.
+- **Para a análise melhorar:** marque o resultado de cada demonstração na agenda, registre ligações como observação na conversa e preencha o sistema atual e o número de computadores dos leads.

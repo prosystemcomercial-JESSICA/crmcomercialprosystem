@@ -92,6 +92,26 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', data: await placarComercial(prisma) });
   });
 
+  // Analista de Resultados (21/10/2026): relatório de sexta guardado por semana; gerar de novo leva 1 a 3 min (IA).
+  let analistaGerando = false;
+  fastify.get('/comercial/analista', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const { lerAnaliseResultados, semanasComAnalise } = await import('../services/analista-resultados.service');
+    const semana = (request.query as any)?.semana || null;
+    return reply.send({ status: 'success', data: { relatorio: await lerAnaliseResultados(prisma, semana), semanas: await semanasComAnalise(prisma), gerando: analistaGerando } });
+  });
+  fastify.post('/comercial/analista/gerar', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    if (!analistaGerando) {
+      analistaGerando = true;
+      import('../services/analista-resultados.service')
+        .then(m => m.gerarAnaliseResultados(prisma))
+        .catch(e => console.error('[ANALISTA] gerar:', e?.message || e))
+        .finally(() => { analistaGerando = false; });
+    }
+    return reply.code(202).send({ status: 'success', data: { gerando: true } });
+  });
+
   // ===== ALERTAS =====
   fastify.get('/alertas', async (request, reply) => {
     const now = new Date();

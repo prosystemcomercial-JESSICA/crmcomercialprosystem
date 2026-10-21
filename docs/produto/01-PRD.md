@@ -1805,3 +1805,20 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+- **Pedido da Jessica (21/10/2026):** um agente que entregue toda sexta a análise da prospecção. Ela pediu números, análise das conversas, leads com chance de conversão, como aumentar o engajamento e chegar ao menos à proposta, leads por temperatura, ranking dos retornos, decisores conseguidos, sistemas mais citados, como converter mais e campanhas para farmácia e padaria. Contexto: zero propostas em outubro e meta de 5 contratos em 7 dias úteis.
+- **Entrega:** página **Analista de Resultados** (`/analista`, só gestão comercial), dinâmica e navegável por seções:
+  - números da semana e do mês;
+  - ações da próxima semana, com caixa de "feito";
+  - leads por temperatura: cada nome abre a conversa, com chance, por quê e próximo passo;
+  - propostas para reativar, com a soma da mensalidade;
+  - ranking dos retornos por 7 agrupamentos;
+  - decisores e retornos combinados atrasados;
+  - sistemas citados, análise das conversas pela IA e dados que faltam.
+  Botões "Gerar agora" e "Imprimir ou salvar PDF"; semanas anteriores pelo seletor.
+- **Toda sexta às 16h** o relatório é gerado sozinho e um resumo vai **só para um WhatsApp** (pedido da Jessica: o número que ela indicou, guardado na configuração do banco), com o link da página. Não vai para a lista da gestão.
+- **Temperatura do analista** (mais dura que o termômetro do agente): quente = proposta na mão ou pedido de preço/pessoa nos últimos 14 dias; morno = demonstração pedida, conversa com a equipe, termômetro 35+ ou sinal de compra; frio = o resto.
+- **Primeira edição (21/10, manual):** documento "Análise de resultados: semana de 19/10/2026 (plano para 5 contratos)" no Claude Docs, com plano de 7 dias úteis. Achados: 258 contatados em outubro, cerca de 76 respostas de pessoa, 16 avanços, 0 propostas, 18 propostas paradas (R$ 6.230/mês) e pelo menos 5 clientes Prosystem contatados pelo buscador como lead.
+- **Sem mudança de banco.** Nada é enviado a lead.

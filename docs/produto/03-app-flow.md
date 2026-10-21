@@ -1798,3 +1798,12 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+1. Sexta, das 16h às 18h: `rodarRafael` chama `gerarAnaliseResultados(..., { enviar: true })` uma vez.
+2. O serviço junta os números, classifica os leads que responderam (quente, morno, frio) e monta ranking, decisores, sistemas e propostas paradas.
+3. A IA lê as 25 conversas com mais sinal e escreve chance, motivo e próximo passo de cada uma, mais os padrões e as ações da semana seguinte.
+4. O relatório é gravado (`analista.relatorio.<segunda>`) e o resumo vai ao WhatsApp configurado, com o link `/analista?semana=<segunda>`.
+5. A Jessica abre o link: vê o recado da semana, os números e as ações, marca o que fez e clica nos leads para abrir a conversa.
+6. A qualquer momento, "Gerar agora" refaz o relatório da semana corrente; a página confere a cada 15 s até ficar pronto.
