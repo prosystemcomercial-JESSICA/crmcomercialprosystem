@@ -1309,7 +1309,7 @@ Relato da Jessica (conversa da Carlinha, 557184547733): a cliente disse "Assim q
 
 Pedido da Jessica: organizar o menu juntando o que é do mesmo setor, do que mais usa para o que menos usa.
 
-- **Grupos, nesta ordem:** **Painéis** (Painel do CEO, Radar Comercial, Painel da IA, Desempenho do setor, Meu Desempenho da SDR, Alertas) · **Atendimento & IA** (WhatsApp, Aprovar, Retornos agendados, Escritório virtual, Meu tempo) · **Vendas** (Central de Leads, Funil do SDR, Leads para Distribuir, Atividades, Agenda Google, Propostas, Contratos, Nutrição, Campanhas, Campanha Padarias, Representantes) · **Clientes & Pós-venda** (Clientes, Cross-sell, Cross-sell & Up-sell, Ativos (CS), Churn & Retenção, Health Score, NPS, Pesquisas) · **Técnico** (Portal Técnico) · **Metas & Financeiro** (Metas Comerciais do vendedor, Comissões, Relatório Comercial, Indicadores do CEO, Centro de Custos, LTV, Lançar Retroativo) · **Análises & TV** (Previsão, Ciclo de Vendas, Análise Comercial do vendedor, Painel TV, TV do Escritório) · **Administração** (Usuários, Configurações, Importar Leads, Auditoria, Manual do CRM).
+- **Grupos, nesta ordem:** **Painéis** (Painel do CEO, Radar Comercial, Painel da IA, Desempenho do setor, Meu Desempenho da SDR, Alertas) · **Atendimento & IA** (WhatsApp, Aprovar, Retornos agendados, Escritório virtual, Meu tempo) · **Vendas** (Central de Leads, Funil do SDR, Leads para Distribuir, Atividades, Agenda Google, Propostas, Contratos, Nutrição, Campanhas, Campanha Padarias, Representantes) · **Clientes & Pós-venda** (Clientes, Cross-sell, Cross-sell & Up-sell, Ativos (CS), Churn & Retenção, Relatório de Retenção) · **Técnico** (Portal Técnico) · **Metas & Financeiro** (Metas Comerciais do vendedor, Comissões, Relatório Comercial, Indicadores do CEO, Centro de Custos, LTV, Lançar Retroativo) · **Análises & TV** (Previsão, Ciclo de Vendas, Análise Comercial do vendedor, Painel TV, TV do Escritório) · **Administração** (Usuários, Configurações, Importar Leads, Auditoria, Manual do CRM).
 - **Acessos iguais:** cada item manteve `roles`/`modulo`; conferido item a item (48 telas). Única junção: "Radar Comercial" estava duas vezes (vendedor em Principal, gestão em Performance) e virou um item com `COMERCIAL` (mesmo público).
 - Arquivo: `frontend/components/dashboard/DashboardLayout.tsx` (`navGroups`).
 
@@ -1770,3 +1770,11 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
 - **Ações:** tabela com caixa "feito" (salva no navegador), ação, responsável, quando, meta e origem (dados ou IA).
 - **Temperatura:** abas Quentes, Mornos e Frios com a contagem. O nome do lead é link para a conversa. Chance colorida: alta verde, média laranja, baixa cinza.
 - **Ranking:** abas por agrupamento, ordenado pela % de avanço, com barra.
+
+### Atualização 21/10/2026: Health Score, NPS e Pesquisas saem do menu
+
+- **Pedido da Jessica:** enxugar o CRM. Pesquisas e qualidade do atendimento ficam no CRM de atendimento; aqui o foco é o caso registrado no Churn & Retenção.
+- **Menu (`components/dashboard/DashboardLayout.tsx`):** saem Health Score, NPS e Pesquisas do grupo Clientes & Pós-venda. O grupo fica: Clientes, Cross-sell, Cross-sell & Up-sell, Ativos (CS), Churn & Retenção, Relatório de Retenção.
+- **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
+- **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
+- **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.

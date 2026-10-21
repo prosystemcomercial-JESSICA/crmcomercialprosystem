@@ -12,7 +12,7 @@ import SidebarMenu from './SidebarMenu';
 import {
   LayoutDashboard, GitMerge, CalendarCheck, Calendar as CalendarIcon, FileCheck2,
   Megaphone, Trophy, Building2, Users, DollarSign,
-  Handshake, Flame, Activity, Star, KeyRound, RefreshCw,
+  Handshake, Flame, KeyRound, RefreshCw,
   Headphones, Bell, TrendingUp, Sprout, Upload,
   Settings, BarChart2, LineChart, LogOut, Moon, Sun,
   MessageSquare, Shield, ClipboardList, BookOpen, Wrench, Menu, X as XIcon,
@@ -104,9 +104,6 @@ const navGroups: NavGroup[] = [
       // SDR também inclui e trata casos de churn (pedido da Jessica, 06/10/2026).
       { href: '/casos',          icon: Flame,         label: 'Churn & Retenção', roles: [...TECNICO, 'SDR'], modulo: 'Cancelamentos / Churn' },
       { href: '/relatorio-retencao', icon: LineChart,  label: 'Relatório de Retenção', roles: GESTAO_COMERCIAL },
-      { href: '/health-score',   icon: Activity,      label: 'Health Score',     roles: TECNICO },
-      { href: '/nps',            icon: Star,          label: 'NPS',              roles: TECNICO },
-      { href: '/pesquisas',      icon: MessageSquare, label: 'Pesquisas',        roles: TECNICO },
     ],
   },
   {

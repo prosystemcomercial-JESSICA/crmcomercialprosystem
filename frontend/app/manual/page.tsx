@@ -443,12 +443,8 @@ const SUP_TECNICA_SECOES: Secao[] = [
         conteudo: 'Em "Churn & Retenção" você vê clientes em risco classificados por score (Baixo, Médio, Alto, Crítico). Cada caso tem diagnóstico, plano de retenção e ações.',
       },
       {
-        titulo: 'Health Score',
-        conteudo: 'Em "Health Score" o CRM calcula automaticamente a saúde de cada cliente baseado em uso, suporte, pagamentos e engajamento. Vermelho = atenção urgente.',
-      },
-      {
-        titulo: 'NPS',
-        conteudo: 'Em "NPS" você dispara pesquisas de satisfação. Detratores (0-6) viram casos de churn automaticamente.',
+        titulo: 'Pesquisas e qualidade do atendimento',
+        conteudo: 'Ficam no CRM de atendimento. Aqui o foco é o caso de churn: quem dá nota baixa na pesquisa do fim da implantação continua virando caso de churn automaticamente.',
       },
     ],
   },
@@ -499,7 +495,7 @@ const TECNICO_SECOES: Secao[] = [
     titulo: 'Monitoramento de clientes',
     icone: Activity,
     cor: '#16a34a',
-    resumo: 'Health Score e sinais de alerta',
+    resumo: 'Sinais de alerta que viram caso de churn',
     blocos: [
       {
         titulo: 'O que monitorar',

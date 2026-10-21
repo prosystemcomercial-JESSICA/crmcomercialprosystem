@@ -1307,3 +1307,11 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Imprimir ou salvar PDF:** para levar à reunião com a diretoria.
 - **Semanas anteriores:** escolha no seletor ao lado dos botões.
 - **Para a análise melhorar:** marque o resultado de cada demonstração na agenda, registre ligações como observação na conversa e preencha o sistema atual e o número de computadores dos leads.
+
+### Atualização 21/10/2026: Health Score, NPS e Pesquisas saem do menu
+
+- **Pedido da Jessica:** enxugar o CRM. Pesquisas e qualidade do atendimento ficam no CRM de atendimento; aqui o foco é o caso registrado no Churn & Retenção.
+- **Menu (`components/dashboard/DashboardLayout.tsx`):** saem Health Score, NPS e Pesquisas do grupo Clientes & Pós-venda. O grupo fica: Clientes, Cross-sell, Cross-sell & Up-sell, Ativos (CS), Churn & Retenção, Relatório de Retenção.
+- **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
+- **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
+- **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.

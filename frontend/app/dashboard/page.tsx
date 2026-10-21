@@ -179,7 +179,7 @@ function AlertStrip({ alertas }: { alertas: DashboardPower['alertas'] }) {
   const items = [
     { count: alertas.atividades_atrasadas, label: 'atividades atrasadas', color: '#dc2626', href: '/atividades' },
     { count: alertas.tickets_criticos, label: 'tickets críticos', color: '#9333ea', href: '/suporte' },
-    { count: alertas.hs_em_risco, label: 'clientes em risco', color: '#d97706', href: '/health-score' },
+    { count: alertas.hs_em_risco, label: 'clientes em risco', color: '#d97706', href: '/casos' },
   ].filter(i => i.count > 0);
 
   if (items.length === 0) return null;
