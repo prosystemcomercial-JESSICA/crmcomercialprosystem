@@ -4,6 +4,13 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **21/10/2026, tarde (retomadas presas, Previsão e Ciclo com dados reais):**
+  - **Primeira edição automática do Analista** gerada em produção: 6 quentes, 22 mornos, 14 ações. O resumo de teste foi mandado ao WhatsApp configurado; o CRM não guarda mensagem para o próprio número, então falta a Jessica confirmar se chegou.
+  - **Retomadas:** o Analista achou 73 retornos combinados vencidos (até 6 dias) sem mensagem. Causa: a rodada pegava `take: 50` sem ordem, de 248 leads em AGUARDANDO. Agora todos entram, do mais atrasado ao menos, com teto de 6 por rodada (`lib/assistente/fila-retomadas.ts`). As retomadas seguem com aprovação, então a fila "Para você aprovar" vai crescer.
+  - **Previsão (`/previsao`):** passou a usar propostas, contratos e leads do Analista (`services/previsao-ciclo.service.ts`). Em 21/10: realista 3 contratos (R$ 1.056/mês), pessimista 0 (nenhuma proposta com 40%+ de chance), taxa histórica de 54%.
+  - **Ciclo (`/ciclo-vendas`):** passou a usar os contratos. Em 21/10: mediana de 31 dias da entrada ao contrato, medida em 5 de 23 contratos (18 foram lançados no dia da venda); propostas abertas paradas há 80 dias (mediana).
+  - **Pendência da Jessica:** a meta de contratos de outubro está cadastrada como 7.500; corrigir em Metas.
+
 - **21/10/2026 (menu enxuto: Health Score, NPS e Pesquisas saem):** a Jessica não usa mais esses três módulos; pesquisas e qualidade do atendimento ficam no CRM de atendimento, e aqui o foco é o caso registrado no Churn. Saíram do menu; `/health-score`, `/nps` e `/pesquisas` redirecionam para `/casos`; o aviso "clientes em risco" do Dashboard abre `/casos`; saiu o cartão "Saúde da carteira por técnico" da tela de Churn. **Sem mudança de banco e sem apagar dados.** Backend intacto de propósito: a pesquisa pública `/pesquisa` do fim da implantação segue (nota baixa abre caso de churn), abrir caso ainda rebaixa o Health Score, e o NPS continua no Dashboard, Panorama do CEO, Análise Comercial e ficha do cliente. Se ela quiser tirar também esses números das telas, é o próximo passo.
 
 - **21/10/2026 (Analista de Resultados + situação crítica):** a Jessica avisou que o comercial está com zero conversões e precisa de **5 contratos em 7 dias úteis (até 29/10)**. Ela pediu um analista que entregue toda sexta números, análise das conversas, leads por temperatura, ranking dos retornos, decisores, sistemas citados e como converter mais.

@@ -27,6 +27,7 @@ import {
   apresentacaoDoSegmento, garantirLinkApresentacao, MARCA_APRESENTACAO, type Apresentacao,
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
+import { ordenarParaRetomada, MAX_RETOMADAS_RODADA } from '@/lib/assistente/fila-retomadas';
 
 // Caroline, a SDR: recebe os leads das campanhas (colados pela Jessica), faz o
 // primeiro contato pelo WhatsApp da empresa com ritmo seguro, conversa pela IA
@@ -1843,14 +1844,20 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   if (!horarioComercial(agora)) return;
 
   // 2) Retomadas de quem não respondeu; depois da 3ª tentativa, o ciclo longo (nunca desiste de cara).
-  const aguardando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'AGUARDANDO' }, take: 50 });
+  // Todos os que aguardam, do mais atrasado ao menos; no máximo MAX_RETOMADAS_RODADA mensagens por rodada (21/10/2026:
+  // o antigo take: 50 sem ordem deixava ~200 leads sem nenhuma retomada).
+  const aguardando = ordenarParaRetomada(await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'AGUARDANDO' } }), agora);
+  let faladas = 0;
+  const falarNaVez = async (id: string, fase: Parameters<typeof falar>[3]) => { faladas++; await falar(prisma, token, id, fase); };
   for (const s of aguardando) {
+    if (faladas >= MAX_RETOMADAS_RODADA) break;
     // Recuperação de proposta recusada: sem retomadas; fecha sozinha após 3 dias sem resposta.
     if (recuperacaoAtiva(s) && !(s.dados as any)?.retomar_em) { await fecharRecuperacaoSemResposta(prisma, s, agora); continue; }
     // Luiz Felipe sem resposta às 3 tentativas: encerra a proposta (expirada) com agradecimento, blog e Instagram.
     // Vale também para quem já recebeu o encerramento antigo; só um retorno combinado com o cliente vem antes.
     if (agenteDe(s) === 'luiz_felipe' && s.tentativas >= TENTATIVAS_MAX && !(s.dados as any)?.combinado) {
       if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= ((s.dados as any)?.encerramento_em ? 1 : 2) && horaBoaParaRetomar(agora)) {
+        faladas++;
         await encerrarPropostaSemResposta(prisma, token, s, agora).catch((e: any) => console.warn('[LUIZ FELIPE] encerramento:', e?.message));
       }
       continue;
@@ -1861,7 +1868,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       if (agora >= combinado) {
         // "Como combinamos" só quando houve combinado de verdade com o cliente; retomada que o sistema agendou sozinho não é combinado.
         await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((s.dados as any) || {}), retomar_em: null, chamar_combinado: (s.dados as any).combinado || null } } });
-        await falar(prisma, token, s.id, 'retomada');
+        await falarNaVez(s.id, 'retomada');
         // O "como combinamos" vale só para esta mensagem.
         const depois = await prisma.sdrLead.findUnique({ where: { id: s.id }, select: { dados: true } });
         await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...((depois?.dados as any) || {}), chamar_combinado: null } } });
@@ -1873,7 +1880,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     if (ciclo) {
       if (agora >= ciclo && horaBoaParaRetomar(agora)) {
         await prisma.sdrLead.update({ where: { id: s.id }, data: { tentativas: 0, dados: { ...((s.dados as any) || {}), ciclo_em: null } } });
-        await falar(prisma, token, s.id, 'retomada');
+        await falarNaVez(s.id, 'retomada');
       }
       continue;
     }
@@ -1884,7 +1891,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       if (!d.encerramento_em) {
         if (s.ultima_caroline_em && diasUteisEntre(s.ultima_caroline_em, agora) >= 2 && horaBoaParaRetomar(agora)) {
           await prisma.sdrLead.update({ where: { id: s.id }, data: { dados: { ...d, encerramento_em: agora.toISOString() } } });
-          await falar(prisma, token, s.id, 'encerramento');
+          await falarNaVez(s.id, 'encerramento');
         }
         continue;
       }
@@ -1901,7 +1908,7 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     const pronto = interessado
       ? !!s.ultima_caroline_em && s.tentativas < TENTATIVAS_MAX && diasUteisEntre(s.ultima_caroline_em, agora) >= 1
       : deveRetomar(s.tentativas, s.ultima_caroline_em, agora);
-    if (pronto && horaBoaParaRetomar(agora)) await falar(prisma, token, s.id, 'retomada');
+    if (pronto && horaBoaParaRetomar(agora)) await falarNaVez(s.id, 'retomada');
   }
 
   // 2b) Conversas assumidas por uma pessoa em que o cliente parou de responder: o agente retoma no contexto.

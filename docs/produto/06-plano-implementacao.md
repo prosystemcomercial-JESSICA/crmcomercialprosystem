@@ -1807,3 +1807,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: retomadas presas, Previsão de Fechamento e Ciclo de Vendas com dados concretos
+
+- [x] Fila de retomadas sem limite cego de 50, ordenada pelo atraso, com teto de 6 por rodada (testes).
+- [x] Previsão de Fechamento sobre propostas, contratos e leads do Analista (testes; conferida com dados de produção em 21/10: realista 3 contratos, pessimista 0).
+- [x] Ciclo de Vendas sobre os contratos do módulo de contratos (conferido em 21/10: mediana de 31 dias em 5 de 23 contratos).
+- [ ] Jessica: corrigir a meta de contratos de outubro (está 7.500).
+- [ ] Conferir em 22/10 se os retornos atrasados caíram no relatório do Analista ("Gerar agora").
+- [ ] Opcional: `/dashboard/forecast` (Painel do CEO e Análise Comercial) ainda usa a fórmula antiga pelo kanban; avaliar trocar pela mesma base.

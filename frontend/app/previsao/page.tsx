@@ -1,247 +1,128 @@
 'use client';
 
+// Previsão de fechamento com dados concretos (21/10/2026): propostas comerciais vivas (chance pelo status e pela idade)
+// e leads quentes/mornos do Analista de Resultados, com meta e realizado pelo módulo de contratos.
+// Antes somava os leads pela etapa do kanban, quase todos sem valor; ver backend/src/lib/previsao-fechamento.ts.
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 
-interface Previsao { otimista: number; realista: number; pessimista: number; }
-interface MetaInfo { periodo: string; valor_alvo: number; valor_atual: number; pct_evolucao: number; falta_para_meta: number; }
-interface TopOportunidade {
-  id: string;
-  nome: string;
-  empresa?: string;
-  valor_estimado: number;
-  probabilidade: number;
-  valor_ponderado: number;
-  etapa: string;
-  status: string;
-}
-
-// Mesmas chaves de PROB_ETAPA (backend/src/lib/forecast.ts) — até esta correção,
-// /leads/previsao retornava `etapa_funil` (valores tipo PROSPECCAO/PROPOSTA) e
-// esta tabela batia; agora que a rota foi unificada para usar a mesma fórmula/
-// campo que /dashboard/forecast, `op.etapa` vem de `etapa_comercial`.
-const ETAPA_LABELS: Record<string, string> = {
-  NOVO_LEAD: 'Novo Lead', PRIMEIRO_CONTATO: 'Primeiro Contato', EM_ATENDIMENTO: 'Em Atendimento',
-  AGUARDANDO_RETORNO: 'Aguardando Retorno', PROPOSTA_A_GERAR: 'Proposta a Gerar',
-  PROPOSTA_ENVIADA: 'Proposta Enviada', EM_NEGOCIACAO: 'Em Negociação', ACEITO: 'Aceito',
-  CONTRATO_EM_ANDAMENTO: 'Contrato em Andamento', CONTRATO_ASSINADO: 'Contrato Assinado',
+type Cenario = { pessimista: number; realista: number; otimista: number };
+type Item = { origem: 'proposta' | 'lead'; empresa: string; status: string; probabilidade: number; mensalidade: number; implantacao: number; dias: number | null; vendedor: string | null; link: string | null };
+type Previsao = {
+  gerado_em: string;
+  resumo: { contratos: Cenario; mensalidade: Cenario; implantacao_realista: number };
+  meta: { periodo: string; contratos: number | null; realizados: number; mensalidade_realizada: number; faltam: number | null; meta_em_reais_ignorada: boolean };
+  taxa_historica: { ganhas: number; perdidas: number; pct: number | null };
+  ticket_medio: { mensalidade: number; implantacao: number; contratos: number };
+  por_origem: { propostas: number; leads: number };
+  itens: Item[];
 };
+
+const brl = (v: number) => `R$ ${Math.round(v || 0).toLocaleString('pt-BR')}`;
+const STATUS: Record<string, string> = {
+  ENVIADA: 'Enviada', VISUALIZADA: 'Visualizada', EXPIRADA: 'Expirada', RASCUNHO: 'Rascunho', ACEITA: 'Aceita',
+  CONTRATO_EM_GERACAO: 'Contrato em geração', CONTRATO_ENVIADO: 'Contrato enviado', QUENTE: 'Lead quente', MORNO: 'Lead morno',
+};
+const card = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 14, padding: 16 } as const;
+const th = { padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' } as const;
+const td = { padding: '8px 10px', fontSize: 13, color: 'var(--t-text-secondary)' } as const;
+const tdN = { ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } as const;
 
 export default function PrevisaoPage() {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const [previsao, setPrevisao] = useState<Previsao | null>(null);
-  const [meta, setMeta] = useState<MetaInfo | null>(null);
-  const [top, setTop] = useState<TopOportunidade[]>([]);
-  const [totalOps, setTotalOps] = useState(0);
-  const [pipeline, setPipeline] = useState(0);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [dias, setDias] = useState(30);
-  const [forecast, setForecast] = useState<{ receita_esperada: number; valor_pipeline_bruto: number; etapas: { etapa: string; label: string; prob: number; qtd: number; valor_ponderado: number }[] } | null>(null);
+  const [d, setD] = useState<Previsao | null>(null);
+  const [estado, setEstado] = useState<'carregando' | 'ok' | 'erro'>('carregando');
 
-  useEffect(() => {
-    if (!isAuthenticated && !loading) router.push('/');
-  }, [isAuthenticated, loading]);
-
+  useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
   useEffect(() => {
     if (!isAuthenticated) return;
-    setDataLoading(true);
-    apiClient.getPrevisao(dias)
-      .then(res => {
-        const d = res.data.data;
-        setPrevisao(d.previsao);
-        setMeta(d.meta || null);
-        setTop(d.top_oportunidades);
-        setTotalOps(d.total_oportunidades);
-        setPipeline(d.valor_total_pipeline);
-      })
-      .catch(console.error)
-      .finally(() => setDataLoading(false));
-    apiClient.getForecast()
-      .then(res => setForecast(res.data.data))
-      .catch(console.error);
-  }, [isAuthenticated, dias]);
+    apiClient.getPrevisao().then(r => { setD(r.data.data); setEstado('ok'); }).catch(() => setEstado('erro'));
+  }, [isAuthenticated]);
 
-  if (loading || !isAuthenticated) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>;
-  }
+  if (loading || !isAuthenticated) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
 
-  const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR')}`;
+  const meta = d?.meta;
+  const pctMeta = meta?.contratos ? Math.min(100, Math.round((meta.realizados / meta.contratos) * 100)) : 0;
 
   return (
     <DashboardLayout>
-      <div className="ios-tela space-y-6">
-        <div className="ios-topo flex items-center justify-between">
-          <div>
-            <h1 className="ios-large-title text-3xl font-bold text-sm font-semibold">Previsão de Fechamento</h1>
-            <p className="text-gray-500 mt-1">Sua meta do período e a estimativa de receita do seu pipeline</p>
-          </div>
-          <div className="flex gap-2">
-            {[15, 30, 60, 90].map(d => (
-              <button key={d} onClick={() => setDias(d)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${dias === d ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200  hover:bg-opacity-0'}`}>
-                {d}d
-              </button>
-            ))}
-          </div>
+      <div className="ios-tela" style={{ display: 'grid', gap: 14, paddingBottom: 32 }}>
+        <div>
+          <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Previsão de Fechamento</h1>
+          <p style={{ fontSize: 13, color: 'var(--t-text-muted)', maxWidth: 820 }}>
+            Quantos contratos devem fechar a partir das propostas abertas (chance pelo status e pelos dias desde o envio) e dos leads quentes e mornos lidos pelo Analista de Resultados. Meta e realizado vêm do módulo de contratos.
+          </p>
         </div>
 
-        {/* Meta do período (definida pela supervisão) + evolução */}
-        {meta && meta.valor_alvo > 0 && (
-          <div className="ps-card rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-sm font-semibold">Minha meta — {meta.periodo}</h2>
-              <span className="text-sm font-bold text-blue-700">{meta.pct_evolucao}% atingido</span>
-            </div>
-            <div className="w-full bg-opacity-0 rounded-full h-4 mb-3">
-              <div className={`h-4 rounded-full transition-all ${meta.pct_evolucao >= 100 ? 'bg-green-500' : meta.pct_evolucao >= 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
-                style={{ width: `${Math.min(100, meta.pct_evolucao)}%` }} />
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div><p className="text-gray-500">Meta</p><p className="font-bold ">{fmt(meta.valor_alvo)}</p></div>
-              <div><p className="text-gray-500">Realizado</p><p className="font-bold text-green-700">{fmt(meta.valor_atual)}</p></div>
-              <div><p className="text-gray-500">Falta</p><p className="font-bold ">{fmt(meta.falta_para_meta)}</p></div>
-            </div>
-          </div>
-        )}
+        {estado === 'carregando' && <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Calculando…</p>}
+        {estado === 'erro' && <p style={{ fontSize: 13, color: '#dc2626' }}>Não foi possível calcular a previsão agora.</p>}
 
-        {/* Forecast ponderado (EVO-5): receita esperada = Σ valor × probabilidade da etapa */}
-        {forecast && (
-          <div className="ps-card rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-sm font-semibold mb-1">Forecast de Receita (ponderado)</h2>
-            <p className="text-sm  mb-4">Receita esperada do pipeline considerando a probabilidade de cada etapa.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <p className="text-xs  mb-1">💰 Receita esperada (ponderada)</p>
-                <p className="text-3xl font-bold text-green-700">{fmt(forecast.receita_esperada)}</p>
-              </div>
-              <div className="bg-opacity-0 border border-gray-200 rounded-xl p-4">
-                <p className="text-xs  mb-1">📊 Pipeline bruto (sem ponderar)</p>
-                <p className="text-3xl font-bold ">{fmt(forecast.valor_pipeline_bruto)}</p>
-              </div>
+        {d && meta && (<>
+          <section style={{ ...card, display: 'grid', gap: 10 }} aria-label="Meta do mês">
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text-primary)' }}>Meta de contratos · {meta.periodo.split('-').reverse().join('/')}</h2>
+              {meta.contratos != null && <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8' }}>{meta.realizados} de {meta.contratos} ({pctMeta}%)</span>}
             </div>
-            <div className="space-y-2">
-              {forecast.etapas.map(e => {
-                const max = Math.max(...forecast.etapas.map(x => x.valor_ponderado), 1);
-                return (
-                  <div key={e.etapa} className="flex items-center gap-3">
-                    <span className="text-xs  w-40 flex-shrink-0 truncate">{e.label} <span className="text-gray-400">({Math.round(e.prob * 100)}%)</span></span>
-                    <div className="flex-1 bg-opacity-0 rounded-full h-5 relative">
-                      <div className="bg-blue-500 h-5 rounded-full" style={{ width: `${(e.valor_ponderado / max) * 100}%` }} />
-                    </div>
-                    <span className="text-xs font-medium  w-28 text-right flex-shrink-0">{fmt(e.valor_ponderado)}</span>
-                    <span className="text-xs  w-10 text-right flex-shrink-0">{e.qtd}×</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {dataLoading ? (
-          <div className="text-center p-12 ">Calculando previsão...</div>
-        ) : (
-          <>
-            {/* KPI summary */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-opacity-0 rounded-xl p-4 border border-gray-200">
-                <p className="text-sm ">Oportunidades</p>
-                <p className="text-3xl font-bold  mt-1">{totalOps}</p>
+            {meta.contratos != null ? (
+              <div style={{ background: 'var(--t-card-border)', borderRadius: 6, height: 12 }} aria-hidden>
+                <div style={{ width: `${pctMeta}%`, height: 12, borderRadius: 6, background: pctMeta >= 100 ? '#16a34a' : '#1d4ed8' }} />
               </div>
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                <p className="text-sm ">Pipeline Total</p>
-                <p className="text-2xl font-bold text-blue-700 mt-1">{fmt(pipeline)}</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                <p className="text-sm ">Realista</p>
-                <p className="text-2xl font-bold text-green-700 mt-1">{previsao ? fmt(previsao.realista) : '-'}</p>
-              </div>
-              <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                <p className="text-sm ">Otimista</p>
-                <p className="text-2xl font-bold text-purple-700 mt-1">{previsao ? fmt(previsao.otimista) : '-'}</p>
-              </div>
-            </div>
-
-            {/* Cenários */}
-            {previsao && (
-              <div className="ps-card rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-sm font-semibold mb-4">Cenários de Fechamento</h2>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Otimista', desc: '100% do pipeline', value: previsao.otimista, color: 'bg-purple-500', pct: 100 },
-                    { label: 'Realista', desc: 'Ponderado pela probabilidade', value: previsao.realista, color: 'bg-green-500', pct: pipeline > 0 ? (previsao.realista / previsao.otimista) * 100 : 0 },
-                    { label: 'Pessimista', desc: 'Somente alta probabilidade (≥70%)', value: previsao.pessimista, color: 'bg-orange-400', pct: pipeline > 0 ? (previsao.pessimista / previsao.otimista) * 100 : 0 },
-                  ].map(c => (
-                    <div key={c.label} className="flex items-center gap-4">
-                      <div className="w-28 flex-shrink-0">
-                        <p className="text-sm font-semibold ">{c.label}</p>
-                        <p className="text-xs ">{c.desc}</p>
-                      </div>
-                      <div className="flex-1 bg-opacity-0 rounded-full h-6 relative">
-                        <div className={`h-6 rounded-full ${c.color} transition-all flex items-center justify-end pr-3`}
-                          style={{ width: `${Math.max(c.pct, 2)}%` }}>
-                          {c.pct > 20 && <span className="text-xs text-white font-medium">{fmt(c.value)}</span>}
-                        </div>
-                      </div>
-                      {c.pct <= 20 && <span className="text-sm font-bold  w-24 text-right">{fmt(c.value)}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: '#b45309' }}>
+                Sem meta de contratos válida para o mês{meta.meta_em_reais_ignorada ? ' (a meta cadastrada parece estar em reais, não em número de contratos; corrija em Metas)' : ''}.
+              </p>
             )}
+            <p style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>
+              Realizado no mês: <b>{meta.realizados} contrato(s)</b>, {brl(meta.mensalidade_realizada)}/mês.
+              {meta.faltam != null && <> Faltam <b>{meta.faltam}</b>; a previsão realista abaixo é de <b>{d.resumo.contratos.realista}</b>.</>}
+            </p>
+          </section>
 
-            {/* Top oportunidades */}
-            {top.length > 0 && (
-              <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-sm font-semibold">Top Oportunidades</h2>
-                </div>
-                <table className="w-full">
-                  <thead className="bg-opacity-0 border-b border-gray-200">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Lead</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold  uppercase">Etapa</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Valor Est.</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Prob.</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold  uppercase">Ponderado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {top.map(op => (
-                      <tr key={op.id} className="hover:opacity-80 transition-colors">
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-sm font-semibold">{op.nome}</p>
-                          {op.empresa && <p className="text-xs ">{op.empresa}</p>}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-sm ">{ETAPA_LABELS[op.etapa] || op.etapa}</span>
-                        </td>
-                        <td className="px-5 py-4 text-right text-sm ">{fmt(op.valor_estimado)}</td>
-                        <td className="px-5 py-4 text-right">
-                          <span className={`text-sm font-medium ${op.probabilidade >= 70 ? 'text-green-600' : op.probabilidade >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {op.probabilidade}%
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right text-sm font-bold text-green-700">{fmt(Math.round(op.valor_ponderado))}</td>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            {([['Pessimista', 'só chance de 40% ou mais', 'pessimista', '#b45309'], ['Realista', 'soma ponderada pela chance', 'realista', '#16a34a'], ['Otimista', 'tudo com chance de 15% ou mais', 'otimista', '#7c3aed']] as const).map(([rot, desc, k, cor]) => (
+              <div key={k} style={{ ...card, borderTop: `3px solid ${cor}` }}>
+                <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{rot} · {desc}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: cor, fontVariantNumeric: 'tabular-nums' }}>{d.resumo.contratos[k]} contratos</div>
+                <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{brl(d.resumo.mensalidade[k])}/mês</div>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
+            Base: {d.por_origem.propostas} propostas abertas e {d.por_origem.leads} leads quentes ou mornos sem proposta (valor pelo ticket médio de {d.ticket_medio.contratos} contratos em 180 dias: {brl(d.ticket_medio.mensalidade)}/mês e {brl(d.ticket_medio.implantacao)} de implantação). Implantação esperada (realista): {brl(d.resumo.implantacao_realista)}.
+            {d.taxa_historica.pct != null && <> Das propostas de 180 dias com desfecho, {d.taxa_historica.pct}% viraram contrato ({d.taxa_historica.ganhas} de {d.taxa_historica.ganhas + d.taxa_historica.perdidas}).</>}
+          </p>
+
+          <section style={{ ...card, display: 'grid', gap: 10 }} aria-label="Oportunidades">
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t-text-primary)' }}>Oportunidades, da maior chance para a menor</h2>
+            {d.itens.length === 0 ? <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhuma proposta aberta nem lead quente agora.</p> : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+                  <thead><tr><th style={th}>Empresa</th><th style={th}>Situação</th><th style={{ ...th, textAlign: 'right' }}>Chance</th><th style={{ ...th, textAlign: 'right' }}>Mensalidade</th><th style={{ ...th, textAlign: 'right' }}>Implantação</th><th style={{ ...th, textAlign: 'right' }}>Dias</th><th style={th}>Vendedor</th></tr></thead>
+                  <tbody>
+                    {d.itens.map((i, n) => (
+                      <tr key={n} style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                        <td style={{ ...td, fontWeight: 600 }}>{i.link ? <a href={i.link} style={{ color: 'var(--t-link)' }}>{i.empresa}</a> : i.empresa}</td>
+                        <td style={td}>{STATUS[i.status] || i.status}{i.origem === 'lead' ? ' (sem proposta)' : ''}</td>
+                        <td style={{ ...tdN, fontWeight: 700, color: i.probabilidade >= 40 ? '#16a34a' : i.probabilidade >= 15 ? '#b45309' : 'var(--t-text-muted)' }}>{i.probabilidade}%</td>
+                        <td style={tdN}>{brl(i.mensalidade)}{i.origem === 'lead' ? '*' : ''}</td>
+                        <td style={tdN}>{i.implantacao ? brl(i.implantacao) : '–'}</td>
+                        <td style={tdN}>{i.dias ?? '–'}</td>
+                        <td style={td}>{i.vendedor || '–'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-
-            {top.length === 0 && (
-              <div className="ps-card rounded-xl border border-gray-200 p-12 text-center">
-                <div className="text-4xl mb-3">📈</div>
-                <p className="text-gray-500">Sem oportunidades com valor estimado no pipeline</p>
-                <p className="text-sm  mt-1">Adicione valor estimado e probabilidade aos leads para ver a previsão</p>
-              </div>
-            )}
-          </>
-        )}
+            <p style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>* lead sem proposta: valor pelo ticket médio. Dias = desde o envio da proposta ou desde a última resposta do lead.</p>
+          </section>
+        </>)}
       </div>
     </DashboardLayout>
   );

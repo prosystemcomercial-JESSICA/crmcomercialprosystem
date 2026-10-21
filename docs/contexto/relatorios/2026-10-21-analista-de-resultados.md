@@ -52,3 +52,18 @@ Durante a tarefa, ela acrescentou:
 ## Próxima sessão
 
 Na sexta, 23/10, depois das 16h: abrir `/analista`, conferir se o relatório da semana foi gerado e se o resumo chegou ao WhatsApp configurado. Conferir também os logs `[ANALISTA]` em `comercial-backend-error.log`. Em 29/10, contar os contratos contra a meta de 5. Skills: `relatorio-final` e `handoff`.
+
+## Complemento (tarde de 21/10): deploy, retomadas presas, Previsão e Ciclo
+
+- **Pedido:** "ligue a previsão de fechamento… hoje os resultados de lá estão incorretos" (`/previsao`) e "o ciclo de vendas também" (`/ciclo-vendas`).
+- **Verificado:**
+  - Deploy de `765b370` concluído com backup (servidor no commit, backend e frontend no ar). CI verde.
+  - Primeira edição do Analista gerada em produção, com a IA respondendo. O resumo foi mandado ao WhatsApp configurado (`<REMOVIDO>`); a entrega não foi verificada, porque o CRM não grava mensagem para o próprio número.
+  - Previsão e Ciclo novos rodados com dados de produção (só leitura) antes de publicar; números no ESTADO.md.
+  - Testes `fila-retomadas` e `previsao-fechamento` passando; tipos sem erro novo (`checar-tipos.mjs`).
+- **Feito:** fila de retomadas ordenada com teto (`lib/assistente/fila-retomadas.ts`, `caroline.service.ts`); `lib/previsao-fechamento.ts` e `services/previsao-ciclo.service.ts`; rotas `/leads/previsao` e `/leads/ciclo-vendas`; telas `frontend/app/previsao` e `frontend/app/ciclo-vendas`; documentos.
+- **Decisões:**
+  - Probabilidades fixas por status e idade, documentadas no TRD, com a taxa histórica (54%) mostrada ao lado para comparação.
+  - Teto de 6 retomadas por rodada, para não soltar 73 mensagens de uma vez no número nem na fila de aprovação.
+  - `/dashboard/forecast` (Painel do CEO) não foi mexido; fica como sugestão.
+- **Pendente:** a Jessica corrigir a meta de outubro (7.500) e confirmar se o resumo chegou no WhatsApp. Em 22/10, "Gerar agora" no Analista para conferir se os retornos atrasados caíram.

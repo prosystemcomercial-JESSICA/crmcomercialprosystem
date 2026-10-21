@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { ownerWhere, getUser, podeVerTudo, requireGestor } from '@/lib/scope';
-import { calcularPrevisao } from '@/lib/previsao';
 import { CORTE_PORTAL, alertaPrazoDemanda } from '@/lib/implantacao/portal';
 
 export async function complementosRoutes(fastify: FastifyInstance, options: { prisma: PrismaClient }) {
@@ -470,56 +469,13 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
   });
 
   // ===== PREVISÃO DE FECHAMENTO =====
+  // Previsão de fechamento sobre dados concretos (21/10/2026): propostas comerciais vivas, ponderadas pelo status e pela
+  // idade, mais os leads quentes/mornos do Analista; meta e realizado pelo módulo de contratos. Vendedor vê só as suas.
   fastify.get('/leads/previsao', async (request, reply) => {
-    const query = z.object({
-      dias: z.coerce.number().default(30)
-    }).safeParse(request.query);
-    const { dias } = query.data || { dias: 30 };
-
-    // Previsão é sobre a meta/pipeline do PRÓPRIO vendedor; gestor vê tudo.
-    // Fórmula unificada com /dashboard/forecast e /analise-comercial: valor
-    // anualizado (setup + mensalidade×12, fallback valor_estimado) ponderado
-    // por probabilidade de etapa (PROB_ETAPA) — ver backend/src/lib/previsao.ts.
-    const resultado = await calcularPrevisao(prisma, {
-      dias,
-      ownerFilter: ownerWhere(request, 'Lead'),
-    });
-
-    const previsao = resultado.previsao;
-    const top = resultado.top_oportunidades;
-
-    // Meta do próprio vendedor (definida pela supervisão) — período atual
-    const agora = new Date();
-    const periodoAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-    const metasReceita = await prisma.meta.findMany({
-      where: { tipo: 'RECEITA', periodo: periodoAtual, ...ownerWhere(request, 'Meta') },
-    });
-    const metaValor  = metasReceita.reduce((s, m) => s + (m.valor_alvo || 0), 0);
-    const metaAtual  = metasReceita.reduce((s, m) => s + (m.valor_atual || 0), 0);
-    const metaPctEvolucao = metaValor > 0 ? Math.round((metaAtual / metaValor) * 100) : 0;
-
-    return reply.send({
-      status: 'success',
-      data: {
-        previsao: {
-          otimista: Math.round(previsao.otimista),
-          realista: Math.round(previsao.realista),
-          pessimista: Math.round(previsao.pessimista)
-        },
-        total_oportunidades: previsao.total_oportunidades,
-        valor_total_pipeline: Math.round(previsao.valor_total_pipeline),
-        top_oportunidades: top,
-        periodo_dias: dias,
-        // Meta do vendedor + evolução (para a previsão focar na meta própria)
-        meta: {
-          periodo: periodoAtual,
-          valor_alvo: Math.round(metaValor),
-          valor_atual: Math.round(metaAtual),
-          pct_evolucao: metaPctEvolucao,
-          falta_para_meta: Math.max(0, Math.round(metaValor - metaAtual)),
-        }
-      }
-    });
+    const user = getUser(request);
+    const { calcularPrevisaoFechamento } = await import('../services/previsao-ciclo.service');
+    const data = await calcularPrevisaoFechamento(prisma, { vendedorId: podeVerTudo(user) ? null : (user?.id || '__sem_usuario__') });
+    return reply.send({ status: 'success', data });
   });
 
   // ===== NUTRIÇÃO — Leads para recontato =====

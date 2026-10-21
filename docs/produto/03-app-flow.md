@@ -1815,3 +1815,9 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: retomadas presas, Previsão de Fechamento e Ciclo de Vendas com dados concretos
+
+1. A cada 2 min, em horário comercial, a rodada dos agentes lista todos os leads em "aguardando", do mais atrasado ao menos, e fala com até 6: primeiro os retornos combinados vencidos. Com a aprovação ligada, a mensagem vai para "Para você aprovar".
+2. `/previsao`: a tela chama `GET /leads/previsao` e mostra a meta de contratos do mês, os três cenários e as oportunidades. O link de cada uma abre as propostas ou a conversa.
+3. `/ciclo-vendas`: a tela chama `GET /leads/ciclo-vendas` e mostra o ciclo típico, o tempo por etapa, as propostas abertas e cada contrato medido (com exportação).

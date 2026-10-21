@@ -496,52 +496,11 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
   // ── RELATÓRIO DE CICLO DE VENDAS (agregado, SUPERVISÃO) ───────────────────
   fastify.get('/leads/ciclo-vendas', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
-    const q = request.query as { data_inicio?: string; data_fim?: string };
-
-    const where: any = {};
-    if (q.data_inicio || q.data_fim) {
-      where.created_at = {};
-      if (q.data_inicio) where.created_at.gte = new Date(q.data_inicio);
-      if (q.data_fim) where.created_at.lte = new Date(q.data_fim);
-    }
-    const leads = await prisma.lead.findMany({
-      where, select: { id: true }, orderBy: { created_at: 'desc' }, take: 1000,
-    });
-
-    // Acumula tempo por etapa e ciclo total dos leads que já fecharam (assinatura)
-    const porEtapa: Record<string, { totalDias: number; n: number }> = {};
-    let ciclosFechados: number[] = [];
-    let fechados = 0, emAberto = 0;
-
-    for (const l of leads) {
-      const c = await calcularCicloLead(prisma, l.id);
-      if (!c) continue;
-      for (const e of c.etapas) {
-        if (!porEtapa[e.etapa]) porEtapa[e.etapa] = { totalDias: 0, n: 0 };
-        porEtapa[e.etapa].totalDias += e.dias;
-        porEtapa[e.etapa].n += 1;
-      }
-      if (c.assinado_em && c.ciclo_dias != null) { ciclosFechados.push(c.ciclo_dias); fechados++; }
-      else if (c.em_aberto) emAberto++;
-    }
-
-    const tempo_medio_por_etapa = Object.entries(porEtapa)
-      .map(([etapa, v]) => ({ etapa, dias_medio: +(v.totalDias / Math.max(1, v.n)).toFixed(1), amostras: v.n }))
-      .sort((a, b) => b.dias_medio - a.dias_medio);
-    const ciclo_medio_dias = ciclosFechados.length
-      ? +(ciclosFechados.reduce((s, d) => s + d, 0) / ciclosFechados.length).toFixed(1) : 0;
-    const ciclo_min = ciclosFechados.length ? +Math.min(...ciclosFechados).toFixed(1) : 0;
-    const ciclo_max = ciclosFechados.length ? +Math.max(...ciclosFechados).toFixed(1) : 0;
-
-    return reply.send({
-      status: 'success',
-      data: {
-        total_leads: leads.length,
-        fechados, em_aberto: emAberto,
-        ciclo_medio_dias, ciclo_min, ciclo_max,
-        tempo_medio_por_etapa,
-      },
-    });
+    // Ciclo real (21/10/2026): contratos do módulo de contratos ligados à proposta e à entrada do lead/conversa.
+    const q = request.query as { data_inicio?: string };
+    const { calcularCicloVendas } = await import('../services/previsao-ciclo.service');
+    const desde = q.data_inicio && !Number.isNaN(new Date(q.data_inicio).getTime()) ? new Date(q.data_inicio) : undefined;
+    return reply.send({ status: 'success', data: await calcularCicloVendas(prisma, { desde }) });
   });
 
   // List leads ────────────────────────────────────────────────────────────
