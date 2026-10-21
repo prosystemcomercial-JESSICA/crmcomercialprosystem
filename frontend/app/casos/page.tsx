@@ -839,16 +839,6 @@ export default function CasosPage() {
           ))}
         </div>
 
-        {/* Saúde da carteira por técnico — link para tela dedicada */}
-        <div className="ps-card rounded-xl p-4 flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>Saúde da carteira por técnico</p>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>Ranking completo disponível na tela de Health Score.</p>
-          </div>
-          <Link href="/health-score" className="text-[11px] font-semibold" style={{ color: 'var(--t-link)' }}>
-            Ver ranking completo →
-          </Link>
-        </div>
 
         {/* Table */}
         <div className="ps-card rounded-xl border border-gray-200 overflow-hidden">
