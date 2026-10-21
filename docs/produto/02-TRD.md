@@ -1776,3 +1776,21 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+- **Regras puras (`backend/src/lib/analista-resultados.ts`):**
+  - `SISTEMAS`/`sistemasNoTexto`: lista de ERPs de farmácia, manipulação, padaria e varejo; a própria Prosystem não conta.
+  - `rankingRetorno`, `pct`.
+  - `temSinalDeCompra`: "o valor", "quanto custa", "taxa de instalação", "ainda não resolvemos" e parecidos; o nome de loja "Preço Baixo" não conta.
+  - `temperaturaAnalista`, `retornoAtrasado` (`dados.retomar_em` vencido há mais de 2 h sem mensagem do agente depois), `semContato`, `mensagemWhatsapp`.
+- **Serviço (`backend/src/services/analista-resultados.service.ts`):** `gerarAnaliseResultados(prisma, agora, { enviar?, ia? })`.
+  - Lê `SdrLead` (45 dias), `Lead`, `WhatsappMensagem`, `PropostaComercial` (180 dias), `ContratoComercial`, `Atividade` (REUNIAO) e os leads com `campanha_nome = "Decisor indicado pela loja"`.
+  - A IA (`chamarGemini`, JSON, 180 s) lê as 25 conversas com mais sinal (18 últimas mensagens, sem e-mail nem telefone). Devolve chance, motivo e próximo passo por lead, mais padrões, engajamento, caminho até a proposta, como converter, campanhas e até 8 ações. Falha da IA não impede o relatório (`analise_ia: null`).
+  - Ações calculadas pelos dados: quentes, propostas paradas, mornos, retornos atrasados, demonstrações sem resultado e clientes contatados como lead.
+  - Também exporta `inicioDaSemana`, `proximaSemana`, `lerAnaliseResultados` e `semanasComAnalise`.
+- **Envio:** `enviarAoDestino` manda pela instância da empresa só para o número em `ConfiguracaoIntegracao` `analista.whatsapp_destino`; sem número configurado, não envia.
+- **Agenda:** `especialista.service.ts › rodarRafael`, sexta das 16h às 18h, trava `analista.semana.<dia>` (`podeEnviarUmaVez`, 20 h).
+- **Rotas (`routes/complementos.ts`, `requireGestor`):** `GET /comercial/analista?semana=AAAA-MM-DD` → `{ relatorio, semanas, gerando }`; `POST /comercial/analista/gerar` → 202, gera em segundo plano (uma geração por vez).
+- **Script de estudo:** `backend/scripts/analise-resultados-semana.cjs <segunda> [--conversas]` (só leitura, JSON, sem telefone nem e-mail).
+- **Testes:** `backend/tests/analista-resultados.test.ts` (9).

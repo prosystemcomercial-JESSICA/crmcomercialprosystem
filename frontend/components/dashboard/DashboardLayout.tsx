@@ -131,6 +131,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Análises & TV',
     items: [
+      { href: '/analista',          icon: Target,     label: 'Analista de Resultados', roles: GESTAO_COMERCIAL },
       { href: '/previsao',          icon: TrendingUp, label: 'Previsão',          roles: COMERCIAL.concat('SUPERVISAO_TECNICA') },
       { href: '/ciclo-vendas',      icon: LineChart,  label: 'Ciclo de Vendas',   roles: GESTAO_COMERCIAL },
       // Gestão vê Análise e Pipeline como abas do Painel do CEO.

@@ -1784,3 +1784,13 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+- **Sem tabela nova e sem mudança de schema.** Tudo fica em `ConfiguracaoIntegracao`:
+  - `analista.relatorio.<AAAA-MM-DD da segunda>`: o relatório inteiro em JSON. Campos: `semana`, `gerado_em`, `numeros{semana,mes}`, `fila`, `ja_clientes_contatados`, `ranking{agente,segmento,campanha,cidade,dia_semana,hora,quem_respondeu}`, `por_temperatura`, `leads[]` (até 120), `propostas_paradas[]`, `mensalidade_parada`, `sistemas[]`, `sistema_conhecido`, `decisores{indicados,falando_com_decisor,decisor_identificado,pedimos_contato,retornos_atrasados}`, `demonstracoes[]`, `dados_faltando[]`, `analise_ia` e `proxima_semana{de,ate,acoes[]}`.
+  - `analista.whatsapp_destino`: número (só dígitos, com 55) que recebe o resumo de sexta.
+  - `envio.analista.semana.<dia>`: trava de envio único.
+- **Campos lidos:**
+  - `SdrLead.dados`: `interlocutor`, `decisor`, `pediu_decisor_em`, `sistema_atual`, `computadores`, `retomar_em`, `combinado`, `ja_cliente` e `cidade`.
+  - `Lead.campanha_nome`, `PropostaComercial.status/sistema_atual/mensalidade_*`, `ContratoComercial.data_contrato/recuado_at` e `Atividade` do tipo REUNIAO.

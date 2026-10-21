@@ -1788,3 +1788,14 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - **Julio:** "ainda na procura", "ainda estou vendo" ou "ainda não resolvi" já contam como interesse. Na mesma resposta o agente mostra em uma frase que dá para ajudar, pergunta de leve o que motivou a busca e oferece a demonstração (`oferecer_demo`).
 - **Todos os agentes (CONTEXTO OBRIGATÓRIO):** nunca repetir uma pergunta já feita na conversa; se a pessoa respondeu só parte, seguir com o que ela respondeu.
 - **Testes:** `backend/tests/sdr-contexto-ficha.test.ts` (lead que nos procurou × prospecção ativa).
+
+### Implementação 21/10/2026: Analista de Resultados (relatório de sexta da prospecção)
+
+- [x] Primeira análise manual com dados de produção (21/10, Claude Docs) e plano de 7 dias úteis para 5 contratos.
+- [x] Regras puras e testes (`lib/analista-resultados.ts`, 9 testes).
+- [x] Serviço com leitura das conversas pela IA e ações da próxima semana.
+- [x] Rotas `GET /comercial/analista` e `POST /comercial/analista/gerar`.
+- [x] Rotina de sexta às 16h (`rodarRafael`), com envio só ao WhatsApp configurado.
+- [x] Tela `/analista` e item no menu.
+- [ ] Conferir na sexta, 23/10, se o resumo chegou. O número indicado é o mesmo da empresa, que envia: a mensagem deve aparecer na conversa "você mesmo" do WhatsApp.
+- [ ] Próximos passos sugeridos, que dependem da Jessica: o buscador cruzar com a base de clientes; a pergunta "qual sistema vocês usam?" na abertura; aviso imediato quando o cliente pede preço ou uma pessoa.
