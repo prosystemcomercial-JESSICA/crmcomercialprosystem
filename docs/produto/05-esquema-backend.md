@@ -1802,3 +1802,10 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: retomadas presas, Previsão de Fechamento e Ciclo de Vendas com dados concretos
+
+- **Sem mudança de schema.**
+- **Previsão (leitura):** `PropostaComercial` (`status`, `mensalidade_*`, `valor_final`/`valor_implantacao`, `wpp_enviada_em`, `created_at`, `vendedor_id`, `created_by`, `deleted_at`), `ContratoComercial` (`mensalidade`, `valor_setup_total`, `data_contrato`, `recuado_at`), `Meta` (tipo CONTRATOS) e o último `analista.relatorio.*` de `ConfiguracaoIntegracao`.
+- **Ciclo (leitura):** `ContratoComercial.proposta_comercial_id/cnpj/representante_telefone`, `PropostaComercial.created_at/data_aceite/cnpj/responsavel_telefone`, `Lead.cnpj/responsavel_telefone/telefone/created_at` e `WhatsappConversa.contato_numero/created_at`.
+- **Retomadas:** os mesmos campos de `SdrLead.dados` (`retomar_em`, `ciclo_em`); só muda a ordem e o teto por rodada.

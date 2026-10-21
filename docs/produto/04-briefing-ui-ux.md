@@ -1778,3 +1778,16 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: retomadas presas, Previsão de Fechamento e Ciclo de Vendas com dados concretos
+
+- **`/previsao`** no padrão do Analista (cartões `--t-card-bg`):
+  - cartão da meta de contratos com barra de progresso; aviso laranja quando a meta cadastrada parece estar em reais;
+  - três cartões de cenário (pessimista laranja, realista verde, otimista roxo), em contratos e R$/mês;
+  - linha de base explicando de onde vem cada número;
+  - tabela de oportunidades (chance colorida: verde ≥ 40%, laranja ≥ 15%; asterisco no valor estimado pelo ticket médio).
+- **`/ciclo-vendas`:**
+  - 4 cartões: ciclo típico (mediana), média com mínimo e máximo, contratos medidos e propostas abertas;
+  - barras do tempo por etapa (pela mediana) e nota sobre o tamanho da amostra;
+  - tabela dos contratos, com os lançados no dia da venda em opacidade reduzida;
+  - botão de exportar mantido.

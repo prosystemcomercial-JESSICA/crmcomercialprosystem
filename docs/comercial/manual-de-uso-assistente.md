@@ -1315,3 +1315,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: Previsão, Ciclo de Vendas e retomadas
+
+- **Previsão de Fechamento** (Análises & TV › Previsão): agora mostra quantos contratos devem fechar, em três cenários, a partir das propostas abertas e dos leads quentes e mornos do Analista. Cada oportunidade aparece com a chance e o link. A meta do mês e o realizado vêm do módulo de contratos. Se aparecer o aviso de meta em reais, corrija a meta de contratos em **Metas** (número de contratos, ex.: 5).
+- **Ciclo de Vendas:** mostra quanto tempo vai da entrada do lead até a proposta e até o contrato, nos contratos assinados desde junho. Para o número ficar preciso, crie a proposta no CRM quando enviar ao cliente e o contrato no dia da assinatura.
+- **Retomadas dos agentes:** havia leads com retorno combinado que nunca eram chamados. Agora todos entram na vez, do mais atrasado ao menos. Como as retomadas passam pela sua aprovação, você deve ver mais mensagens em **Para você aprovar** nos próximos dias.

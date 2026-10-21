@@ -1802,3 +1802,15 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
 - **Endereços antigos:** `/health-score`, `/nps` e `/pesquisas` levam direto para `/casos` (`redirect` do Next).
 - **Atalhos:** o aviso "clientes em risco" do Dashboard abre `/casos`; saiu da tela de Churn o cartão "Saúde da carteira por técnico", que levava ao Health Score. Manual do CRM (`app/manual/page.tsx`) atualizado.
 - **O que continua igual (de propósito):** nenhuma tabela ou dado apagado e nenhuma mudança de banco. As rotas do backend seguem no ar, porque alimentam outras telas: a pesquisa pública `/pesquisa` do fim da implantação (Portal Técnico) continua, e nota baixa continua abrindo caso de churn; abrir caso continua rebaixando o Health Score do cliente; NPS no Dashboard, no Panorama do CEO e na Análise Comercial; "Pesquisas de satisfação" na ficha do cliente; Pesquisas da Sofia (Escritório), que são pesquisas de mercado.
+
+### Correção 21/10/2026: retomadas presas, Previsão de Fechamento e Ciclo de Vendas com dados concretos
+
+- **Retomadas:** `caroline.service.ts` (bloco "2) Retomadas") troca `findMany({ status: 'AGUARDANDO', take: 50 })` por todos os AGUARDANDO ordenados por `ordenarParaRetomada` (`lib/assistente/fila-retomadas.ts`): 0 = `dados.retomar_em` vencido (o mais antigo primeiro), 1 = `ciclo_em` vencido, 2 = demais por `ultima_caroline_em` crescente, 3 = combinado/ciclo futuro. `falarNaVez` conta cada envio (inclusive `encerrarPropostaSemResposta`) e a rodada para em `MAX_RETOMADAS_RODADA = 6`. Testes: `tests/fila-retomadas.test.ts`.
+- **Previsão:** `GET /leads/previsao` agora chama `services/previsao-ciclo.service.ts › calcularPrevisaoFechamento` (vendedor sem visão total vê só as propostas em que é `vendedor_id` ou `created_by`; os leads do Analista entram só para a gestão). Regras em `lib/previsao-fechamento.ts`:
+  - `probabilidadeProposta`: ACEITA/CONTRATO_EM_GERACAO/CONTRATO_ENVIADO 90%; enviada até 15 dias 40%, até 45 dias 20%, depois 10%; RASCUNHO 15%; EXPIRADA 8%; assinada, perdida, cancelada ou recusada ficam fora.
+  - `probabilidadeLeadAgente`: QUENTE 15%, MORNO 4%.
+  - `resumirPrevisao`: cenários pessimista (só chance ≥ 40%), realista (soma ponderada) e otimista (tudo com chance ≥ 15%), em contratos e mensalidade.
+  - Meta: `Meta` tipo CONTRATOS do período, aceita só valores entre 1 e 200 (`meta_em_reais_ignorada`).
+  - O parâmetro `dias` deixou de ser usado. `lib/previsao.ts` ficou só para o teste antigo.
+- **Ciclo:** `GET /leads/ciclo-vendas?data_inicio=` agora chama `calcularCicloVendas`. Ele parte de `ContratoComercial` (desde 01/06/2026, `recuado_at` nulo) e da proposta (`proposta_comercial_id`). A entrada é a mais antiga entre o lead achado por CNPJ ou pelos 8 últimos dígitos do telefone e a primeira `WhatsappConversa` desse telefone. `semHistorico`: entrada → contrato = 0, ou sem entrada e proposta → contrato = 0. Saída: mediana, média, mín. e máx., `tempo_medio_por_etapa` (entrada → proposta, proposta → aceite, proposta → contrato, com mediana), idade das propostas abertas e a lista de contratos.
+- **Testes:** `tests/previsao-fechamento.test.ts`.
