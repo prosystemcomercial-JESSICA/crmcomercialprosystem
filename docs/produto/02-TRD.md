@@ -1814,3 +1814,11 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
   - O parâmetro `dias` deixou de ser usado. `lib/previsao.ts` ficou só para o teste antigo.
 - **Ciclo:** `GET /leads/ciclo-vendas?data_inicio=` agora chama `calcularCicloVendas`. Ele parte de `ContratoComercial` (desde 01/06/2026, `recuado_at` nulo) e da proposta (`proposta_comercial_id`). A entrada é a mais antiga entre o lead achado por CNPJ ou pelos 8 últimos dígitos do telefone e a primeira `WhatsappConversa` desse telefone. `semHistorico`: entrada → contrato = 0, ou sem entrada e proposta → contrato = 0. Saída: mediana, média, mín. e máx., `tempo_medio_por_etapa` (entrada → proposta, proposta → aceite, proposta → contrato, com mediana), idade das propostas abertas e a lista de contratos.
 - **Testes:** `tests/previsao-fechamento.test.ts`.
+
+### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
+
+- `evolution.service.ts › obterStatus(token, { esperaMs?, agora? })` devolve `StatusInstancia` (`status`, `numero?`, `falhaApi?: true`). Na UAZAPI, `consultarStatusUazapi` faz até 2 tentativas (espera de 2 s) com tempo limite de 20 s (`call(..., timeoutMs)`). Na API gratuita, `whatsapp-gratis.service › status` devolve `{ falhou: true }` no erro.
+- Falha: `lib/whatsapp-status.ts › registrarFalha` guarda por token `{ desde, ultima }` em memória. Enquanto `agora - desde < TOLERANCIA_FALHA_MS` (15 min) devolve `{ status: 'DESCONECTADO', falhaApi: true }`; depois, `{ status: 'DESCONECTADO' }`. Sucesso apaga o registro; falha isolada mais de 15 min depois da última recomeça a contagem.
+- Quem grava status ignora `falhaApi` e mantém o do banco: `resumoEmpresa`, `resumoVaga`, `GET /whatsapp/instancia`, `GET /whatsapp/instancias` e `atualizarConexao` (evento `connection` do webhook). Na validação de token (`PUT /whatsapp/empresa` e `POST /whatsapp/numeros/:vaga/conectar`), `falhaApi` responde 502 "A UAZAPI não respondeu direito agora" em vez de "token inválido".
+- Vigia: `services/whatsapp-conexao.service.ts › iniciarVigiaConexoes` (ligado no `server.ts` junto com o roteador): 30 s após ligar e a cada 5 min, `conferirConexoes` consulta toda vaga de `NOMES_NUMEROS_EMPRESA` com token, grava mudanças, emite `conversa_atualizada` e limpa o cache do roteador.
+- Testes: `tests/whatsapp-status-falha.test.ts` (7).

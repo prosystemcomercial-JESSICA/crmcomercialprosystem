@@ -4,6 +4,11 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **22/10/2026, manhã (números "Caiu a conexão" com a UAZAPI conectada):**
+  - **Causa:** das 10h06 às 10h17 (Brasília), a UAZAPI (`prosystemnet.uazapi.com`) respondeu 401 "Invalid token" ao `GET /instance/status` e ao `/send/text` com os tokens certos do principal e do Número 2. Às 10h25 os mesmos tokens já respondiam "connected" (o `/status` da conta mostrava 3 de 3 conectadas). O `obterStatus` tratava qualquer erro como DESCONECTADO e gravava no banco. Efeito: envio aos contatos desses números bloqueado (`decidirInstanciaEnvio`), números fora do rodízio, avisos de lead qualificado para a Jessica perdidos (401). O Número 2 só se acertava se alguém abrisse Configurações › Números.
+  - **Correção:** `obterStatus` faz nova tentativa (2 s), tempo limite de 20 s e devolve `falhaApi` por até 15 min de falha seguida (`lib/whatsapp-status.ts`). Rotas e webhook de conexão mantêm o último status nesse caso. Vigia novo a cada 5 min (`services/whatsapp-conexao.service.ts`) confere e corrige todos os números. Validação de token com a UAZAPI instável responde "não respondeu direito agora" em vez de "token inválido". Testes em `tests/whatsapp-status-falha.test.ts`. Sem mudança de banco.
+  - **Número 4 (API gratuita):** continua desconectado de verdade (mesmo celular final 8103 do Número 2). A decisão sobre as 53 conversas dele continua pendente com a Jessica.
+
 - **21/10/2026, tarde (retomadas presas, Previsão e Ciclo com dados reais):**
   - **Primeira edição automática do Analista** gerada em produção: 6 quentes, 22 mornos, 14 ações. O resumo de teste foi mandado ao WhatsApp configurado; o CRM não guarda mensagem para o próprio número, então falta a Jessica confirmar se chegou.
   - **Retomadas:** o Analista achou 73 retornos combinados vencidos (até 6 dias) sem mensagem. Causa: a rodada pegava `take: 50` sem ordem, de 248 leads em AGUARDANDO. Agora todos entram, do mais atrasado ao menos, com teto de 6 por rodada (`lib/assistente/fila-retomadas.ts`). As retomadas seguem com aprovação, então a fila "Para você aprovar" vai crescer.

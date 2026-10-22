@@ -439,6 +439,8 @@ async function iniciarSchedulerAssistente() {
   console.log('[BOOT] Scheduler do assistente iniciado (prazo de resposta, 10 min)');
   // Contato preso ao número (07/10/2026): todo envio sai pelo número que já fala com o contato.
   import('./services/whatsapp-roteador.service.js').then(m => m.ativarRoteadorEnvio(prismaClient!)).catch((e: any) => console.error('[WPP] roteador:', e?.message));
+  // Vigia das conexões (22/10/2026): status de cada número conferido a cada 5 min, sem depender da tela.
+  import('./services/whatsapp-conexao.service.js').then(m => m.iniciarVigiaConexoes(prismaClient!)).catch((e: any) => console.error('[WPP] vigia:', e?.message));
   // Mural da equipe de agentes: memória e conversas entre eles recarregadas do banco (nada se perde ao reiniciar).
   import('./services/equipe.service.js').then(m => m.iniciarEquipe(prismaClient!)).catch((e: any) => console.error('[EQUIPE]', e?.message));
   // Caroline (SDR): rodada a cada 2 min (primeiro contato com intervalo sorteado de 4–9 min).

@@ -101,9 +101,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Status ao vivo da instância da empresa (sincroniza status/número no banco).
   // Nunca inclui o token.
   async function resumoEmpresa(inst: { id: string; instance_token: string | null; status: string; numero: string | null; conectado_em: Date | null }) {
-    const r = await evo.obterStatus(inst.instance_token || '');
+    const consulta = await evo.obterStatus(inst.instance_token || '');
+    // API instável não derruba o número (22/10/2026): fica o último status conhecido.
+    const r = consulta.falhaApi ? { status: inst.status as typeof consulta.status, numero: undefined } : consulta;
     const numero = r.numero || inst.numero || null;
-    if (r.status !== inst.status || numero !== inst.numero) {
+    if (!consulta.falhaApi && (r.status !== inst.status || numero !== inst.numero)) {
       await prisma.whatsappInstancia.update({
         where: { id: inst.id },
         data: { status: r.status, numero, conectado_em: r.status === 'CONECTADO' ? (inst.conectado_em ?? new Date()) : inst.conectado_em },
@@ -145,9 +147,11 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // instância sem celular pareado — nos dois casos não dá para usar.
     const st = await evo.obterStatus(token);
     if (st.status === 'DESCONECTADO') {
-      return reply.status(400).send({
+      return reply.status(st.falhaApi ? 502 : 400).send({
         status: 'error',
-        message: 'Não foi possível validar o token: a UAZAPI não reconheceu a instância ou ela está desconectada. Confira o token e se o número está pareado.',
+        message: st.falhaApi
+          ? 'A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos.'
+          : 'Não foi possível validar o token: a UAZAPI não reconheceu a instância ou ela está desconectada. Confira o token e se o número está pareado.',
       });
     }
 
@@ -175,8 +179,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   const resumoVaga = async (v: (typeof VAGAS)[number], inst: any, sincronizar: boolean) => {
     let status = inst?.status || 'DESCONECTADO', numero = inst?.numero || null;
     if (inst?.instance_token && sincronizar) {
-      const r = await evo.obterStatus(inst.instance_token);
-      if (r.status !== inst.status || (r.numero && r.numero !== inst.numero)) {
+      const consulta = await evo.obterStatus(inst.instance_token);
+      const r = consulta.falhaApi ? { status: inst.status, numero: undefined } : consulta;
+      if (!consulta.falhaApi && (r.status !== inst.status || (r.numero && r.numero !== inst.numero))) {
         await prisma.whatsappInstancia.update({ where: { id: inst.id }, data: {
           status: r.status, numero: r.numero || inst.numero, ...(r.status === 'CONECTADO' ? { qr_code: null, conectado_em: inst.conectado_em ?? new Date() } : {}),
         } }).catch(() => {});
@@ -233,6 +238,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         // Volta ao servidor que estava valendo (o mesmo token pode já estar em uso nesta vaga).
         const salvo = inst?.instance_token === token ? (await prisma.configuracaoIntegracao.findUnique({ where: { chave } }))?.valor : null;
         evo.definirServidorDoToken(token, salvo);
+        if (st.falhaApi) return reply.status(502).send({ status: 'error', message: 'A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos.' });
         return reply.status(400).send({ status: 'error', message: 'A UAZAPI não reconheceu o token nesta conta ou o número não está pareado. Confira o token, o endereço da conta (Server URL) e se o número está conectado no painel da UAZAPI.' });
       }
       if (inst?.instance_token && inst.instance_token !== token) evo.definirServidorDoToken(inst.instance_token, null);
@@ -375,7 +381,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // Sincroniza status real com a UazAPI (precisa do token DESSA instância).
     let statusReal: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO' = 'DESCONECTADO';
     if (inst?.instance_token) {
-      const r = await evo.obterStatus(inst.instance_token);
+      const consulta = await evo.obterStatus(inst.instance_token);
+      const r = consulta.falhaApi ? { status: inst.status as typeof consulta.status, numero: undefined } : consulta;
       statusReal = r.status;
       if (statusReal === 'CONECTADO' && inst.status !== 'CONECTADO') {
         await evo.configurarWebhook(inst.instance_token).catch(() => {});
@@ -475,7 +482,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     // Atualiza status real de cada uma (precisa do token DA instância).
     for (const i of lista) {
       if (!i.instance_token) continue; // instância antiga sem token salvo — precisa reconectar
-      const r = await evo.obterStatus(i.instance_token).catch(() => ({ status: i.status as any }));
+      const consulta = await evo.obterStatus(i.instance_token).catch(() => ({ status: i.status as any, falhaApi: true as const }));
+      const r = consulta.falhaApi ? { status: i.status as any, numero: undefined } : consulta;
       // Acabou de ficar conectada: garante que o webhook está configurado
       // nessa instância (sem isso, mensagens recebidas nunca chegam ao CRM).
       if (r.status === 'CONECTADO' && i.status !== 'CONECTADO') {
@@ -1886,6 +1894,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
   // Conexão mudou: o status real vem da própria API (o formato do evento varia).
   async function atualizarConexao(inst: { id: string; instance_token: string | null; numero: string | null; conectado_em: Date | null }) {
     const r = await evo.obterStatus(inst.instance_token || '');
+    if (r.falhaApi) return; // API instável: o vigia de conexões confere de novo (22/10/2026)
     await prisma.whatsappInstancia.update({
       where: { id: inst.id },
       data: {

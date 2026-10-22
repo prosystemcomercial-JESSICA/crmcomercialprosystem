@@ -78,7 +78,8 @@ export async function qr(nome: string): Promise<{ qr?: string }> {
   } catch { return {}; }
 }
 
-export async function status(nome: string): Promise<{ status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string }> {
+/** `falhou`: a API não respondeu; evolution.obterStatus decide se ainda é falha temporária. */
+export async function status(nome: string): Promise<{ status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string } | { falhou: true }> {
   try {
     const data = await chamar(`/instance/connectionState/${enc(nome)}`, 'GET');
     const state = data?.instance?.state || data?.state;
@@ -91,7 +92,7 @@ export async function status(nome: string): Promise<{ status: 'CONECTADO' | 'CON
     }
     if (state === 'connecting') return { status: 'CONECTANDO' };
     return { status: 'DESCONECTADO' };
-  } catch { return { status: 'DESCONECTADO' }; }
+  } catch { return { falhou: true }; }
 }
 
 export async function desconectar(nome: string) { await chamar(`/instance/logout/${enc(nome)}`, 'DELETE').catch(() => {}); }

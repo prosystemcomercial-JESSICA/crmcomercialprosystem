@@ -1321,3 +1321,11 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Previsão de Fechamento** (Análises & TV › Previsão): agora mostra quantos contratos devem fechar, em três cenários, a partir das propostas abertas e dos leads quentes e mornos do Analista. Cada oportunidade aparece com a chance e o link. A meta do mês e o realizado vêm do módulo de contratos. Se aparecer o aviso de meta em reais, corrija a meta de contratos em **Metas** (número de contratos, ex.: 5).
 - **Ciclo de Vendas:** mostra quanto tempo vai da entrada do lead até a proposta e até o contrato, nos contratos assinados desde junho. Para o número ficar preciso, crie a proposta no CRM quando enviar ao cliente e o contrato no dia da assinatura.
 - **Retomadas dos agentes:** havia leads com retorno combinado que nunca eram chamados. Agora todos entram na vez, do mais atrasado ao menos. Como as retomadas passam pela sua aprovação, você deve ver mais mensagens em **Para você aprovar** nos próximos dias.
+
+### Correção 22/10/2026: número aparecendo "Caiu a conexão" sem ter caído
+
+- Em 22/10, das 10h06 às 10h17, a UAZAPI recusou por alguns minutos os acessos do CRM, mesmo com os números conectados no painel dela. O CRM entendeu que os números tinham caído: mostrou "Caiu a conexão", segurou mensagens e não mandou alguns avisos.
+- Agora, quando a UAZAPI falha, o CRM tenta de novo e mantém o número como estava. Só mostra "Caiu a conexão" se a falha durar mais de 15 minutos seguidos ou se a própria UAZAPI disser que o celular desconectou.
+- O CRM também confere sozinho todos os números a cada 5 minutos. Não precisa abrir Configurações para o status voltar ao certo.
+- Se aparecer "Caiu a conexão", confira no painel da UAZAPI. Se lá estiver "connected", espere até 5 minutos que o CRM se acerta sozinho.
+- O **Número 4 (API gratuita)** continua desconectado de verdade: o celular dele (final 8103) agora está no Número 2. Falta você decidir se as conversas dele passam para o Número 2.
