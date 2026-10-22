@@ -34,4 +34,5 @@ A Jessica mandou dois prints: o painel da UAZAPI mostrava "Comercial 1" (princip
 - Skill sugerida: `diagnosing-bugs`.
 
 ## Publicação
-(preenchido após o deploy)
+- `ec0526f` publicado em 22/10, com backup do banco (378 MB, sem alteração no banco), build ok, backend e frontend no ar.
+- Conferido em produção: no log, `[BOOT] Vigia das conexões do WhatsApp iniciado` e, 30 s depois, `Vigia: "empresa" DESCONECTADO → CONECTADO` e `"uazapi-2" DESCONECTADO → CONECTADO`. No banco: principal, Número 2 e Número 3 conectados; Número 4 desconectado (esperado).
