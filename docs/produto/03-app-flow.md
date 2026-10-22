@@ -1821,3 +1821,9 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 1. A cada 2 min, em horário comercial, a rodada dos agentes lista todos os leads em "aguardando", do mais atrasado ao menos, e fala com até 6: primeiro os retornos combinados vencidos. Com a aprovação ligada, a mensagem vai para "Para você aprovar".
 2. `/previsao`: a tela chama `GET /leads/previsao` e mostra a meta de contratos do mês, os três cenários e as oportunidades. O link de cada uma abre as propostas ou a conversa.
 3. `/ciclo-vendas`: a tela chama `GET /leads/ciclo-vendas` e mostra o ciclo típico, o tempo por etapa, as propostas abertas e cada contrato medido (com exportação).
+
+### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
+
+- **Antes:** tela ou webhook de conexão consulta a UAZAPI → erro 401/rede → grava DESCONECTADO → envio aos contatos do número bloqueado, número fora do rodízio, bolinha "Caiu a conexão" → só a tela Configurações › Números consultava de novo o Número 2.
+- **Agora:** consulta → erro → nova tentativa após 2 s → ainda erro → mantém o último status conhecido (nada muda para quem usa). A cada 5 min o vigia confere todos os números e corrige o banco. Só depois de 15 min seguidos de erro o número passa a desconectado.
+- Ao colar um token em Configurações com a UAZAPI instável, a mensagem é "A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos."

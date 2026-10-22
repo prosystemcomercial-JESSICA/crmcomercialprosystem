@@ -16,6 +16,7 @@
 // DESCONECTADO mesmo após conectar de verdade.
 
 import * as gratis from './whatsapp-gratis.service';
+import { registrarFalha } from '../lib/whatsapp-status';
 
 // ── Contato preso ao número (regra da Jessica, 07/10/2026) ─────────────────
 // "Se o número foi chamado em uma instância, toda a conversa deve permanecer lá; não deve
@@ -82,7 +83,7 @@ export function numeroAlternativoBR(numero: string): string | null {
   return null;
 }
 
-async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: string, body?: any) {
+async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: string, body?: any, timeoutMs?: number) {
   const res = await fetch(`${getBaseUrl(token)}${path}`, {
     method,
     headers: {
@@ -90,6 +91,7 @@ async function call(path: string, method: 'GET' | 'POST' | 'DELETE', token: stri
       'token': token,
     },
     body: body ? JSON.stringify(body) : undefined,
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
   });
   const text = await res.text();
   let json: any = null;
@@ -131,11 +133,41 @@ export async function obterQrCode(instanceToken: string): Promise<{ qr?: string 
   }
 }
 
+/**
+ * Resultado da consulta de conexão. `falhaApi`: a API não respondeu direito (erro de rede, 401,
+ * 5xx, demora) há menos de TOLERANCIA_FALHA_MS. Não quer dizer que o celular caiu: quem grava
+ * status no banco mantém o último conhecido (lib/whatsapp-status, caso de 22/10/2026).
+ */
+export type StatusInstancia = { status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string; falhaApi?: true };
+
+const falhasDeStatus = new Map<string, { desde: number; ultima: number }>();
+const esperar = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 /** Estado da conexão via GET /instance/status (com o TOKEN DA INSTÂNCIA). */
-export async function obterStatus(instanceToken: string): Promise<{ status: 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO'; numero?: string }> {
-  if (gratis.ehTokenGratis(instanceToken)) return gratis.status(gratis.nomeDoToken(instanceToken));
+export async function obterStatus(instanceToken: string, opcoes: { esperaMs?: number; agora?: () => number } = {}): Promise<StatusInstancia> {
+  const agora = opcoes.agora || Date.now;
+  const r = gratis.ehTokenGratis(instanceToken)
+    ? await gratis.status(gratis.nomeDoToken(instanceToken))
+    : await consultarStatusUazapi(instanceToken, opcoes.esperaMs ?? 2000);
+  if (!('falhou' in r)) { falhasDeStatus.delete(instanceToken); return r; }
+  if (!instanceToken) return { status: 'DESCONECTADO' };
+  const temporaria = registrarFalha(falhasDeStatus, instanceToken, agora());
+  return temporaria ? { status: 'DESCONECTADO', falhaApi: true } : { status: 'DESCONECTADO' };
+}
+
+async function consultarStatusUazapi(instanceToken: string, esperaMs: number): Promise<StatusInstancia | { falhou: true }> {
+  // Uma nova tentativa: a UAZAPI já recusou tokens válidos por alguns minutos (22/10/2026).
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const r = await lerStatusUazapi(instanceToken);
+    if (!('falhou' in r) || tentativa === 2) return r;
+    await esperar(esperaMs);
+  }
+  return { falhou: true };
+}
+
+async function lerStatusUazapi(instanceToken: string): Promise<StatusInstancia | { falhou: true }> {
   try {
-    const data = await call('/instance/status', 'GET', instanceToken);
+    const data = await call('/instance/status', 'GET', instanceToken, undefined, 20_000);
     // A UazAPI aninha o estado real em instance.status ("connected"/"connecting"/
     // "disconnected") — o campo status no nível raiz (se existir) não é isso.
     const state = data?.instance?.status || data?.instance?.state || data?.state;
@@ -146,7 +178,7 @@ export async function obterStatus(instanceToken: string): Promise<{ status: 'CON
     return { status: 'DESCONECTADO', numero };
   } catch (e: any) {
     console.log('[UAZAPI][DIAG] obterStatus ERRO:', e?.message);
-    return { status: 'DESCONECTADO' };
+    return { falhou: true };
   }
 }
 

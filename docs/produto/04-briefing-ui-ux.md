@@ -1791,3 +1791,8 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
   - barras do tempo por etapa (pela mediana) e nota sobre o tamanho da amostra;
   - tabela dos contratos, com os lançados no dia da venda em opacidade reduzida;
   - botão de exportar mantido.
+
+### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
+
+- Nenhuma tela nova. As bolinhas do WhatsApp e Configurações › Números deixam de mostrar "Caiu a conexão" por uma instabilidade curta da UAZAPI: o estado só muda quando a API responde ou quando a falha passa de 15 minutos.
+- Nova mensagem na conexão por token, para não culpar o token quando a UAZAPI não respondeu: "A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos."

@@ -1816,3 +1816,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - [ ] Jessica: corrigir a meta de contratos de outubro (está 7.500).
 - [ ] Conferir em 22/10 se os retornos atrasados caíram no relatório do Analista ("Gerar agora").
 - [ ] Opcional: `/dashboard/forecast` (Painel do CEO e Análise Comercial) ainda usa a fórmula antiga pelo kanban; avaliar trocar pela mesma base.
+
+### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
+
+- [x] `obterStatus` com nova tentativa, tempo limite e `falhaApi` (UAZAPI e API gratuita).
+- [x] Rotas e webhook de conexão mantêm o último status quando há `falhaApi`.
+- [x] Vigia das conexões a cada 5 min (`whatsapp-conexao.service.ts`).
+- [x] Mensagem própria para UAZAPI instável na conexão por token.
+- [x] Testes `tests/whatsapp-status-falha.test.ts`.
+- [ ] Pendente da Jessica (desde 19/10): o Número 4 (API gratuita) tem o mesmo celular do Número 2 (final 8103) e está desconectado de verdade; decidir se as conversas dele passam para o Número 2 e se a vaga é liberada.

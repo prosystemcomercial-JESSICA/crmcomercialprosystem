@@ -1809,3 +1809,8 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Previsão (leitura):** `PropostaComercial` (`status`, `mensalidade_*`, `valor_final`/`valor_implantacao`, `wpp_enviada_em`, `created_at`, `vendedor_id`, `created_by`, `deleted_at`), `ContratoComercial` (`mensalidade`, `valor_setup_total`, `data_contrato`, `recuado_at`), `Meta` (tipo CONTRATOS) e o último `analista.relatorio.*` de `ConfiguracaoIntegracao`.
 - **Ciclo (leitura):** `ContratoComercial.proposta_comercial_id/cnpj/representante_telefone`, `PropostaComercial.created_at/data_aceite/cnpj/responsavel_telefone`, `Lead.cnpj/responsavel_telefone/telefone/created_at` e `WhatsappConversa.contato_numero/created_at`.
 - **Retomadas:** os mesmos campos de `SdrLead.dados` (`retomar_em`, `ciclo_em`); só muda a ordem e o teto por rodada.
+
+### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
+
+- **Sem mudança de banco.** `WhatsappInstancia.status` só é gravado quando a API responde de fato (ou após 15 min de falha seguida). O controle da falha fica em memória (`Map` por token em `evolution.service.ts`, regra em `lib/whatsapp-status.ts`) e zera ao reiniciar o backend.
+- Novo serviço `services/whatsapp-conexao.service.ts` (vigia de 5 min) e novo tipo `StatusInstancia` em `evolution.service.ts`.
