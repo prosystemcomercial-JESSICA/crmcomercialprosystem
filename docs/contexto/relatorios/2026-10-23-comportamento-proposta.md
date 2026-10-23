@@ -37,4 +37,7 @@ A Jessica perguntou: "Nós monitoramos as propostas? Qual o caminho do cliente, 
 - Skill sugerida: `diagnosing-bugs`, se o painel ficar vazio.
 
 ## Publicação
-(preenchido após o deploy)
+- `dcc0db2` publicado em 23/10. Antes do deploy: backup do banco (383 MB, `/root/backups-deploy/pre-proposta-visita-*.sql.gz`) e criação de `PropostaVisita` com o SQL do `prisma migrate diff` (só `CREATE TABLE`). O deploy confirmou "banco sem alterações", com a pipeline verde.
+- Teste de fora: `POST /p/naoexiste/rastro` com corpo inválido deu 400; com proposta inexistente, 404.
+- **Falha achada no teste:** `GET /propostas-comerciais-visitas` respondia sem login (devolvia vazio, porque não havia visitas ainda). Corrigido no commit seguinte com o mesmo escopo da lista de propostas (`ownerWhere`), também em `/:id/comportamento`.
+- Observação (antiga, fora desta tarefa): `GET /propostas-comerciais/:id` e `/:id/historico` não filtram pelo dono. Quem tem o id de uma proposta consegue ler esses dados sem login. Fica para a Jessica decidir a correção.
