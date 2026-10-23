@@ -75,7 +75,7 @@ Número, representante, plano, mensalidade, setup, ZapSign (`zapsign_*`, `signed
 | `assistente.caroline`, `assistente.sdr.julio`, `assistente.sdr.luiz_felipe` | JSON: `ativa`, `aprovar`, `limite`, `ativada_em`, `inicia_em`, `pausada_motivo` |
 | `assistente.avisos.<userId>` | Avisos escolhidos por pessoa |
 | `assistente.tira_duvidas`, `assistente.transcrever_auto` | Clarice |
-| `assistente.pix_chave`, `assistente.gemini_chave` | PIX e chave legada |
+| `assistente.pix_chave`, `assistente.pix_nome`, `assistente.gemini_chave` | PIX (chave e nome de quem recebe) e chave legada |
 | `whatsapp.triagem.*` | Triagem ligada e materiais de farmácia e padaria |
 | `ia.uso.<AAAA-MM-DD>` | Contagem OpenAI/Grok/Laya |
 | `envio.<chave>` | Trava contra mensagens repetidas (data do último envio) |
@@ -1826,3 +1826,9 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 
 - **Sem mudança de banco.** `WhatsappInstancia.status` só é gravado quando a API responde de fato (ou após 15 min de falha seguida). O controle da falha fica em memória (`Map` por token em `evolution.service.ts`, regra em `lib/whatsapp-status.ts`) e zera ao reiniciar o backend.
 - Novo serviço `services/whatsapp-conexao.service.ts` (vigia de 5 min) e novo tipo `StatusInstancia` em `evolution.service.ts`.
+
+### Atualização 23/10/2026: botão "Copiar chave Pix" na cobrança da entrada
+
+- **Sem mudança de esquema.** Nova chave em `ConfiguracaoIntegracao`: `assistente.pix_nome` (nome de quem recebe, até 80 caracteres), ao lado de `assistente.pix_chave`.
+- Mensagens novas em `WhatsappMensagem` (SAIDA, TEXTO): o botão é gravado como "[Botão PIX] <nome> · <chave>". A cobrança manual grava `PropostaHistorico` tipo ENVIO "Cobrança da entrada (PIX) enviada pelo WhatsApp".
+- Rota nova `POST /whatsapp/conversas/:id/cobrar-entrada`; `POST /p/:token/aceitar` aceita `via_whatsapp` no corpo (uso interno do aceite pelo botão).

@@ -88,11 +88,44 @@ export function lerBotaoProposta(botaoId: string | null | undefined): { acao: 'a
 
 export const DOCUMENTOS_CONTRATO = 'Para o contrato, confirme por aqui:\n• Nome completo e CPF de quem vai assinar\n• E-mail para receber o link de assinatura';
 
-export function textoPosAceite(p: PropostaResumo, pixChave: string): string {
+/** comBotao: a chave vai logo depois no botão "Copiar chave Pix" do WhatsApp (não repete no texto). */
+export function textoPosAceite(p: PropostaResumo, pixChave: string, comBotao = false): string {
   const base = `🎉 Proposta aceita! Muito obrigado pela confiança.\n\nJá estamos preparando o seu contrato. ${DOCUMENTOS_CONTRATO}`;
   if (!p.entrada) return `${base} Nossa equipe vai te chamar para os próximos passos.`;
   if (!pixChave.trim()) return `${base} Nosso financeiro vai te enviar a cobrança da entrada de ${brl(p.entrada)}.`;
-  return `${base}\n\nPara garantir a sua data de implantação, a entrada é de *${brl(p.entrada)}* por PIX.\nChave PIX: *${pixChave.trim()}*\nDepois é só mandar o comprovante aqui. 🙏`;
+  return `${base}\n\n${textoCobrancaEntrada(p.entrada, pixChave, comBotao)}`;
+}
+
+/** Cobrança da entrada por PIX (após o aceite ou pelo botão "Cobrar entrada" do painel). */
+export function textoCobrancaEntrada(valor: number, pixChave: string, comBotao = false): string {
+  const como = comBotao ? 'Toque em *Copiar chave Pix* logo abaixo e, depois do pagamento,' : `Chave PIX: *${pixChave.trim()}*\nDepois`;
+  return `Para garantir a sua data de implantação, a entrada é de *${brl(valor)}* por PIX.\n${como} é só mandar o comprovante aqui. 🙏`;
+}
+
+export type TipoChavePix = 'CPF' | 'CNPJ' | 'PHONE' | 'EMAIL' | 'EVP';
+
+function cpfValido(d: string): boolean {
+  if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = (n: number) => { let s = 0; for (let i = 0; i < n; i++) s += Number(d[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+}
+
+/**
+ * Tipo e valor da chave para o botão PIX do WhatsApp (UAZAPI /send/pix-button).
+ * CNPJ/CPF vão só com dígitos; telefone vai com +55. 11 dígitos = CPF se o dígito confere, senão celular.
+ */
+export function chavePixParaBotao(chave: string): { tipo: TipoChavePix; chave: string } | null {
+  const c = (chave || '').trim();
+  if (!c) return null;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) return { tipo: 'EMAIL', chave: c.toLowerCase() };
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c)) return { tipo: 'EVP', chave: c.toLowerCase() };
+  if (/[a-z]/i.test(c)) return null;
+  const d = c.replace(/\D/g, '');
+  if (d.length === 14 && !c.startsWith('+')) return { tipo: 'CNPJ', chave: d };
+  if (d.length === 11 && !c.startsWith('+') && cpfValido(d)) return { tipo: 'CPF', chave: d };
+  if (d.length === 10 || d.length === 11) return { tipo: 'PHONE', chave: `+55${d}` };
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return { tipo: 'PHONE', chave: `+${d}` };
+  return null;
 }
 
 export function textoDuvida(p: PropostaResumo): string {

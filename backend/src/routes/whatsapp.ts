@@ -1301,7 +1301,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: ps.map((p, i) => ({
       desconto_pct: desc[i]?.pct ?? 0, desconto_precisa: !!desc[i]?.precisa, desconto_status: desc[i]?.status || null, desconto_limite: desc[i]?.limite ?? null,
       id: p.id, nome: (p.nome_fantasia || p.razao_social || 'Sem nome').trim(), status: p.status, plano: p.plano_selecionado,
-      valor: p.valor_final ?? p.valor_implantacao, tem_link: !!p.public_token, enviada_wpp_em: p.wpp_enviada_em, criada_em: p.created_at,
+      valor: p.valor_final ?? p.valor_implantacao, entrada: p.entrada ?? null, tem_link: !!p.public_token, enviada_wpp_em: p.wpp_enviada_em, criada_em: p.created_at,
     })) });
   });
 
@@ -1319,6 +1319,24 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       return reply.send({ status: 'success', message: 'Proposta enviada pelo WhatsApp.' });
     } catch (e: any) {
       return reply.status(e?.codigo ? 409 : 400).send({ status: 'error', message: e?.message || 'Não foi possível enviar.', codigo: e?.codigo || null });
+    }
+  });
+
+  // Proposta aceita: cobra a entrada com o botão "Copiar chave Pix".
+  fastify.post('/whatsapp/conversas/:id/cobrar-entrada', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({ proposta_id: z.string().min(1) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: 'Escolha a proposta.' });
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const user = getUser(request)!;
+    try {
+      await assumirSeSemDono(conversa, user);
+      const { cobrarEntradaWhatsapp } = await import('@/services/assistente-proposta.service');
+      await cobrarEntradaWhatsapp(prisma, id, body.data.proposta_id, { id: user.id, nome: (user as any).nome });
+      return reply.send({ status: 'success', message: 'Cobrança da entrada enviada com o botão PIX.' });
+    } catch (e: any) {
+      return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível enviar a cobrança.' });
     }
   });
 
@@ -1342,11 +1360,12 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const eu = await prisma.usuarioCRM.findUnique({ where: { id: u.id }, select: { telefone: true } }).catch(() => null);
     const recebe = !!(eu?.telefone && acharGestor(eu.telefone, await listarGestao(prisma)));
     const pix = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_chave' } }).catch(() => null);
+    const pixNome = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_nome' } }).catch(() => null);
     const { obterConfigIa } = await import('@/services/assistente-config.service');
     const { obterConfigIaTexto } = await import('@/services/assistente-ia.service');
     return reply.send({ status: 'success', data: {
       avisos: await lerPrefsAvisos(prisma, u.id), tipos: TIPOS_AVISO.map(t => ({ id: t, nome: NOME_AVISO[t] })),
-      telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '', ia: await obterConfigIa(prisma),
+      telefone: eu?.telefone || null, recebe, pix_chave: pix?.valor || '', pix_nome: pixNome?.valor || '', ia: await obterConfigIa(prisma),
       ia_texto: await obterConfigIaTexto(prisma), // a chave em si nunca volta para a tela
       posvenda: (await (await import('@/services/assistente-posvenda.service')).obterConfigPosVenda(prisma)).ativo,
       desconto_limite: await (await import('@/services/assistente-desconto.service')).obterLimiteDesconto(prisma),
@@ -1357,7 +1376,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (!requireGestor(request, reply)) return;
     const { TIPOS_AVISO } = await import('@/lib/assistente/gestao');
     const body = z.object({
-      avisos: z.array(z.enum(TIPOS_AVISO)).optional(), pix_chave: z.string().max(140).optional(),
+      avisos: z.array(z.enum(TIPOS_AVISO)).optional(), pix_chave: z.string().max(140).optional(), pix_nome: z.string().max(80).optional(),
       ia: z.object({
         laya_triagem: z.boolean().optional(), laya_confianca: z.number().min(0.3).max(0.99).optional(),
         risco_limite: z.number().min(0.3).max(0.99).optional(), risco_so_clientes: z.boolean().optional(),
@@ -1396,6 +1415,10 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     if (body.data.pix_chave !== undefined) {
       const valor = body.data.pix_chave.trim();
       await prisma.configuracaoIntegracao.upsert({ where: { chave: 'assistente.pix_chave' }, create: { chave: 'assistente.pix_chave', valor, updated_by: u.id }, update: { valor, updated_by: u.id } });
+    }
+    if (body.data.pix_nome !== undefined) {
+      const valor = body.data.pix_nome.trim();
+      await prisma.configuracaoIntegracao.upsert({ where: { chave: 'assistente.pix_nome' }, create: { chave: 'assistente.pix_nome', valor, updated_by: u.id }, update: { valor, updated_by: u.id } });
     }
     return reply.send({ status: 'success', message: 'Salvo.' });
   });
@@ -2207,7 +2230,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         try {
           const { responderBotaoProposta } = await import('@/services/assistente-proposta.service');
           const aceitar = async (publicToken: string, plano?: string) => {
-            const r = await fastify.inject({ method: 'POST', url: `/p/${encodeURIComponent(publicToken)}/aceitar`, payload: plano ? { plano_selecionado: plano } : {} });
+            const r = await fastify.inject({ method: 'POST', url: `/p/${encodeURIComponent(publicToken)}/aceitar`, payload: { ...(plano ? { plano_selecionado: plano } : {}), via_whatsapp: true } });
             return r.statusCode < 300;
           };
           if (await responderBotaoProposta(prisma, inst.instance_token || '', conversa.id, dados.botao_id, aceitar)) return;

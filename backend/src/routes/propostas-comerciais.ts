@@ -638,6 +638,12 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
       const nome = (p.nome_fantasia || p.razao_social || 'Cliente').trim();
       import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_aceita',
         `🎉 *${nome} aceitou a proposta!*\nPlano ${planoFinal || '—'} · instalação ${inst.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · mensalidade ${mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${p.vendedor_nome ? `\nVendedora: ${p.vendedor_nome}` : ''}`)).catch(() => {});
+      // Proposta enviada pelo WhatsApp e aceita pelo link: próximos passos + botão PIX da entrada
+      // na conversa. O aceite pelo botão do WhatsApp manda isso ele mesmo (via_whatsapp).
+      if (p.wpp_conversa_id && !(request.body as any)?.via_whatsapp) {
+        import('@/services/assistente-proposta.service').then(m => m.posAceitePeloLink(prisma, p.id))
+          .catch((e: any) => request.log?.warn({ err: e }, 'aceite: falha no pós-aceite pelo WhatsApp'));
+      }
     }
     return reply.send({ status: 'success', data: { aceita: true, ja_estava: jaAceita } });
   });

@@ -1422,13 +1422,16 @@ class ApiClient {
   async enviarPropostaWhatsapp(conversaId: string, propostaId: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/enviar-proposta`, { proposta_id: propostaId });
   }
+  async cobrarEntradaWhatsapp(conversaId: string, propostaId: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/cobrar-entrada`, { proposta_id: propostaId });
+  }
 
   // Assistente no WhatsApp: avisos da pessoa logada + chave PIX.
   async getAssistenteConfig() {
     return this.client.get('/assistente/config');
   }
   async salvarAssistenteConfig(data: {
-    avisos?: string[]; pix_chave?: string;
+    avisos?: string[]; pix_chave?: string; pix_nome?: string;
     ia?: { laya_triagem?: boolean; laya_confianca?: number; risco_limite?: number; risco_so_clientes?: boolean };
     ia_texto?: { tira_duvidas?: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto?: boolean; gemini_chave?: string };
     posvenda?: boolean;
