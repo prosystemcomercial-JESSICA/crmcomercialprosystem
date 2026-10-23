@@ -728,6 +728,9 @@ export default function WhatsappPage() {
           if (sessao.id === evento.conversaId) adicionarMensagem(sessao, evento.mensagem);
           carregarConversas();
         } else if (evento.tipo === 'conversa_atualizada') {
+          // Envio pelos botões do painel (proposta, Pix, cobrança): a conversa aberta mostra na hora.
+          const sessao = sessaoRef.current;
+          if (sessao.id && sessao.id === evento.conversaId) void carregarMensagens(sessao);
           carregarConversas();
         }
       } catch { /* evento malformado — ignora */ }
@@ -1541,7 +1544,7 @@ export default function WhatsappPage() {
 
                 <ResumoIa key={`resumo:${ativa.id}`} conversaId={ativa.id} />
 
-                <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} />
+                <EnviarPropostaWpp key={ativa.id} conversaId={ativa.id} conversa={ativa} aoEnviar={() => { void carregarMensagens(sessaoAtual); }} />
 
                 <PainelLaya key={`laya:${sessaoAtual.versao}`} conversa={conversas.find(c => c.id === ativa.id) || ativa} />
 

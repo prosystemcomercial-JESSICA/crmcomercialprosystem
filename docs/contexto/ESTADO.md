@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **23/10/2026, tarde (envio pelo painel não aparecia na conversa):** a chave Pix da Jessica foi entregue (UAZAPI "Delivered") e gravada, mas a tela de conversa só atualizava a lista de conversas no evento `conversa_atualizada`. Agora a conversa aberta recarrega as mensagens nesse evento e depois de cada envio pelo painel (`aoEnviar` em `EnviarPropostaWpp`). Só frontend. Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.
+
 - **23/10/2026, tarde (botão "Enviar chave Pix"):** no painel da conversa do WhatsApp, botão que manda só o cartão "Copiar chave Pix" para qualquer contato, quando não saiu automático (`POST /whatsapp/conversas/:id/enviar-pix`, `enviarPixConversa`). Depende da chave cadastrada em Configurações › Assistente no WhatsApp (pendente da Jessica). Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.
 
 - **23/10/2026 (ZapSign: "Unexpected token 'É'" no Enviar para assinatura):** a chave está certa (`GET /docs/` em produção = 200), mas a ZapSign responde **402 "É obrigatório contratar um Plano de API para utilizá-la em modo produção."** ao criar documento. O CRM lia esse texto como JSON. Agora mostra a mensagem real (`lerRespostaZapSign`), volta o status se a ZapSign recusar e manda o telefone sem o 55 repetido (`telefoneZapSign`). O link pelo WhatsApp (`enviarLinkAssinatura`) já existia e volta a funcionar com o plano ativo. **Pendente (Jessica):** contratar o Plano de API da ZapSign ou decidir pelo envio manual do link. O botão Pix (abaixo) foi publicado (commit 7eb0d3c). Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.

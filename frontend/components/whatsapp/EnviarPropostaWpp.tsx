@@ -45,7 +45,7 @@ async function dadosParaProposta(c: ConversaProp) {
   };
 }
 
-export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId: string; conversa?: ConversaProp }) {
+export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { conversaId: string; conversa?: ConversaProp; aoEnviar?: () => void }) {
   const [aberto, setAberto] = useState(false);
   const [lista, setLista] = useState<Prop[] | null>(null);
   const [enviando, setEnviando] = useState<string | null>(null);
@@ -75,6 +75,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
     try {
       await apiClient.enviarPropostaWhatsapp(conversaId, p.id);
       setAviso({ ok: true, texto: 'Proposta enviada. O follow-up dos dias 2, 5 e 7 já está programado.' });
+      aoEnviar?.();
       setAberto(false);
     } catch (e: any) {
       setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar.' });
@@ -86,6 +87,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
     try {
       const r = await apiClient.cobrarEntradaWhatsapp(conversaId, p.id);
       setAviso({ ok: true, texto: r.data.message || 'Cobrança da entrada enviada.' });
+      aoEnviar?.();
       setAberto(false);
     } catch (e: any) {
       setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar a cobrança.' });
@@ -98,6 +100,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
     try {
       const r = await apiClient.enviarPixWhatsapp(conversaId);
       setAviso({ ok: true, texto: r.data.message || 'Chave Pix enviada.' });
+      aoEnviar?.();
     } catch (e: any) {
       setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar a chave Pix.' });
     } finally { setEnviandoPix(false); }
