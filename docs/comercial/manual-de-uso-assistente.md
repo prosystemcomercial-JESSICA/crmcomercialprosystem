@@ -141,6 +141,9 @@ O **Thiago** recebe só o resumo das 18h e os novos contratos assinados.
 - **Tenho dúvidas:** a conversa vira prioridade crítica.
 
 **Contrato e assinatura (ZapSign):**
+
+> **Atenção (23/10/2026):** a conta da ZapSign ainda não tem o **Plano de API**. Sem ele, "Enviar para assinatura" mostra "A ZapSign recusou… precisa do Plano de API". Enquanto isso, use **Baixar PDF** + **Painel ZapSign** e mande o link de assinatura ao cliente pelo WhatsApp.
+
 1. Depois do aceite, o cliente manda **nome completo, CPF e e-mail** de quem vai assinar no WhatsApp. O CRM lê a resposta, preenche o contrato e, se faltar algo, pede só o que falta.
 2. Com os dados completos, você recebe **"📄 Contrato pronto para conferir"**.
 3. Em **Contratos**, confira e clique em **✍️ Enviar para assinatura** (e em **Confirmar: enviar agora**). O contrato é o **mesmo PDF de sempre**; o link vai para o **WhatsApp** e o **e-mail** do cliente.

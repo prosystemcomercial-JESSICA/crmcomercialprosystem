@@ -44,3 +44,14 @@
 - Ver no banco se `assistente.pix_chave` e `assistente.pix_nome` estão preenchidas (script de leitura, como no LEIA-PRIMEIRO).
 - Se houve aceite: procurar na conversa a mensagem "[Botão PIX]" e, no log de erro, `[PROPOSTA-WPP] botão PIX`.
 - Skill sugerida: `diagnosing-bugs` se o botão não chegar.
+
+---
+
+## Continuação no mesmo dia: erro da ZapSign no "Enviar para assinatura"
+
+1. **Pedido:** "Está dando erro na chave API do ZapSign, consegue verificar? Preciso enviar o link de assinatura, além de por e-mail, também através do WhatsApp." Erro na tela: `Unexpected token 'É', "É obrigató"... is not valid JSON`.
+2. **Feito:** `lerRespostaZapSign` e `telefoneZapSign` em `backend/src/routes/contratos-comerciais.ts`; uso em `enviar-zapsign`, `gerar-e-enviar` e `services/implantacao-termo.service.ts`; teste `backend/tests/zapsign-resposta.test.ts`. Detalhes: ESTADO.md e "Correção 23/10/2026" nos docs de produto.
+3. **Verificado:** em produção, a chave lê documentos (`GET /docs/` = 200). O `POST /docs/` sem arquivo responde 402 "É obrigatório contratar um Plano de API para utilizá-la em modo produção." O PDF do contrato 55/2026 é gerado normalmente (64 KB). E-mail e telefone do signatário estão em formato válido. 4 de 4 testes passaram. O deploy do botão Pix (7eb0d3c) terminou com build ok e frontend e backend no ar.
+4. **Decisões:** não troquei para o sandbox, porque documento de teste não vale como assinatura. O envio do link pelo WhatsApp não mudou, porque já existia e depende de a ZapSign criar o documento.
+5. **Pendente (Jessica):** contratar o Plano de API da ZapSign, ou pedir o envio manual (colar o link do Painel ZapSign e o CRM mandar pelo WhatsApp).
+6. **Próxima sessão:** com o plano ativo, clicar em "Enviar para assinatura" no 55/2026 e conferir `zapsign_signing_url` e a mensagem do link na conversa da proposta.

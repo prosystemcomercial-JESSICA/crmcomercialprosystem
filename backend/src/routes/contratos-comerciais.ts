@@ -292,6 +292,28 @@ export const ZAPSIGN_BASE = {
   production: 'https://api.zapsign.com.br/api/v1',
 };
 
+/**
+ * Resposta da ZapSign: nem sempre é JSON (ex.: 402 "É obrigatório contratar um Plano de API...").
+ * Devolve o corpo lido e, em erro, uma mensagem legível para a tela.
+ */
+export async function lerRespostaZapSign(response: Response): Promise<{ ok: boolean; dados: any; erro?: string }> {
+  const texto = await response.text();
+  let dados: any = null;
+  try { dados = texto ? JSON.parse(texto) : null; } catch { dados = null; }
+  if (response.ok && dados) return { ok: true, dados };
+  const detalhe = (dados && (dados.detail || dados.message || dados.error)) || (dados ? JSON.stringify(dados) : texto.trim()) || `HTTP ${response.status}`;
+  const erro = response.status === 402
+    ? `A ZapSign recusou: ${detalhe} A chave está certa, mas a conta precisa do Plano de API para criar documentos. Use Baixar PDF + Painel ZapSign enquanto isso.`
+    : `ZapSign (${response.status}): ${String(detalhe).slice(0, 300)}`;
+  return { ok: false, dados, erro };
+}
+
+/** Celular no formato da ZapSign: só o número nacional (o 55 vai em phone_country). */
+export const telefoneZapSign = (tel: string | null | undefined) => {
+  const d = (tel || '').replace(/\D/g, '');
+  return d.length >= 12 && d.startsWith('55') ? d.slice(2) : d;
+};
+
 // ── Schemas Zod ───────────────────────────────────────────────────────────────
 
 const CreateContratoSchema = z.object({
@@ -1137,7 +1159,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         name: c.representante_nome,
         email: c.representante_email || '',
         phone_country: '55',
-        phone_number: (c.representante_telefone || '').replace(/\D/g, ''),
+        phone_number: telefoneZapSign(c.representante_telefone),
         auth_mode: 'assinaturaTela',
         send_automatic_email: !!(c.representante_email),
         send_automatic_whatsapp: !!(c.representante_telefone),
@@ -1182,10 +1204,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         },
         body: JSON.stringify(zapBody),
       });
-      zapRes = await response.json();
-      if (!response.ok) {
-        return reply.status(400).send({ status: 'error', message: `ZapSign: ${JSON.stringify(zapRes)}` });
-      }
+      const lido = await lerRespostaZapSign(response);
+      if (!lido.ok) return reply.status(400).send({ status: 'error', message: lido.erro });
+      zapRes = lido.dados;
     } catch (e: any) {
       return reply.status(500).send({ status: 'error', message: `Erro ao chamar ZapSign: ${e.message}` });
     }
@@ -1265,7 +1286,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       name: c.representante_nome,
       email: c.representante_email || '',
       phone_country: '55',
-      phone_number: (c.representante_telefone || '').replace(/\D/g, ''),
+      phone_number: telefoneZapSign(c.representante_telefone),
       auth_mode: 'assinaturaTela',
       send_automatic_email: !!c.representante_email,
       send_automatic_whatsapp: false, // o link vai pelo WhatsApp da empresa (CRM), sem custo na ZapSign
@@ -1279,10 +1300,13 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
         headers: { 'Authorization': `Bearer ${zap.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: docName, base64_pdf: base64Pdf, signers }),
       });
-      zapRes = await response.json();
-      if (!response.ok) {
-        return reply.status(400).send({ status: 'error', message: `ZapSign: ${JSON.stringify(zapRes)}` });
+      const lido = await lerRespostaZapSign(response);
+      if (!lido.ok) {
+        // O PDF foi gerado, mas não saiu para assinatura: volta para "a gerar" para não parecer enviado.
+        await prisma.contratoComercial.update({ where: { id }, data: { status: c.status } }).catch(() => {});
+        return reply.status(400).send({ status: 'error', message: lido.erro });
       }
+      zapRes = lido.dados;
     } catch (e: any) {
       return reply.status(500).send({ status: 'error', message: `Erro ao chamar ZapSign: ${e.message}` });
     }

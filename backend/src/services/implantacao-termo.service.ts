@@ -68,14 +68,16 @@ export async function enviarTermoAceite(prisma: PrismaClient, implantacaoId: str
   if (!pdf) return { ok: false, motivo: 'Não foi possível gerar o termo.' };
   const signer: any = { name: quem.nome, auth_mode: 'assinaturaTela', send_automatic_email: !!quem.email, send_automatic_whatsapp: !!quem.telefone };
   if (quem.email) signer.email = quem.email;
-  if (quem.telefone) { signer.phone_country = '55'; signer.phone_number = quem.telefone; }
+  if (quem.telefone) { signer.phone_country = '55'; signer.phone_number = (await import('@/routes/contratos-comerciais')).telefoneZapSign(quem.telefone); }
   try {
     const r = await fetch(`${ZAPSIGN_BASE[zap.env]}/docs/`, {
       method: 'POST', headers: { Authorization: `Bearer ${zap.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: `Termo de aceite – ${i.cliente_razao_social}`, base64_pdf: pdf.toString('base64'), signers: [signer], external_id: `implantacao:${i.id}`, lang: 'pt-br' }),
     });
-    const j: any = await r.json();
-    if (!r.ok) return { ok: false, motivo: `ZapSign recusou: ${JSON.stringify(j).slice(0, 200)}` };
+    const { lerRespostaZapSign } = await import('@/routes/contratos-comerciais');
+    const lido = await lerRespostaZapSign(r);
+    if (!lido.ok) return { ok: false, motivo: lido.erro || 'ZapSign recusou.' };
+    const j: any = lido.dados;
     await prisma.implantacao.update({ where: { id: i.id }, data: { aceite_status: 'ENVIADO', aceite_doc_token: String(j.token || j.open_id || ''), aceite_sign_url: j.signers?.[0]?.sign_url || null, aceite_enviado_em: new Date() } });
     await prisma.implantacaoAtividade.create({ data: { implantacao_id: i.id, tipo: 'NOTA', descricao: `✍️ Termo de aceite enviado para ${quem.nome} assinar (ZapSign${quem.telefone ? ', WhatsApp' : ''}${quem.email ? ', e-mail' : ''})`, autor_nome: 'Sistema' } }).catch(() => null);
     return { ok: true };

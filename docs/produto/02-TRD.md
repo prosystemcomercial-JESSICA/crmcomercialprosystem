@@ -1848,3 +1848,12 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
 - `POST /p/:token/aceitar`: no primeiro aceite, se a proposta tem `wpp_conversa_id` e o corpo não traz `via_whatsapp`, chama `posAceitePeloLink` em segundo plano. O aceite pelo botão do WhatsApp (`fastify.inject` em `routes/whatsapp.ts`) manda `via_whatsapp: true` para não duplicar.
 - Rota nova `POST /whatsapp/conversas/:id/cobrar-entrada` `{ proposta_id }` (escopo do dono; assume a conversa sem dono). `GET /whatsapp/conversas/:id/propostas` devolve `entrada`. `GET/PUT /assistente/config` ganharam `pix_nome` (até 80).
 - Testes: `tests/assistente-proposta.test.ts` (texto com botão e tipos de chave).
+
+### Correção 23/10/2026: erro "Unexpected token 'É'" ao enviar contrato para a ZapSign
+
+- **Caso:** "Enviar para assinatura" do contrato 55/2026 (Ronaira) mostrava "Erro ao chamar ZapSign: Unexpected token 'É', "É obrigató"... is not valid JSON". A ZapSign respondeu **402 "É obrigatório contratar um Plano de API para utilizá-la em modo produção."** em texto puro, e o CRM tentou ler como JSON.
+- **Conferido em produção:** a chave (`ZAPSIGN_API_TOKEN` do `.env`, ambiente production) é válida: `GET /docs/` responde 200 (157 documentos). O que falta é o **Plano de API** da conta ZapSign para criar documentos (contrato e termo de aceite da implantação).
+- **Correção:** `lerRespostaZapSign(response)` em `routes/contratos-comerciais.ts` lê o corpo como texto, tenta JSON e devolve uma mensagem legível (402 explica o Plano de API e indica Baixar PDF + Painel ZapSign). Usada em `enviar-zapsign`, `gerar-e-enviar` e `implantacao-termo.service`. Em `gerar-e-enviar`, se a ZapSign recusar, o status volta ao anterior (não fica "GERADO" sem ter saído).
+- **Correção:** `telefoneZapSign` manda `phone_number` sem o 55 (o país vai em `phone_country`); antes ia 55 duas vezes.
+- **WhatsApp:** com a ZapSign aceitando o documento, o link de assinatura já vai pelo WhatsApp da empresa na conversa da proposta (`enviarLinkAssinatura`) e pelo e-mail da ZapSign. Isso volta a funcionar assim que o Plano de API estiver ativo.
+- Testes: `tests/zapsign-resposta.test.ts` (4).
