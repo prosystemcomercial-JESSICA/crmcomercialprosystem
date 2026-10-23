@@ -440,13 +440,19 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
 
   fastify.get('/propostas-comerciais/:id/comportamento', async (request, reply) => {
     const { id } = request.params as { id: string };
+    // Mesmo escopo da lista: vendedora só as próprias, gestão todas, sem login nada.
+    const permitida = await prisma.propostaComercial.findFirst({ where: { id, ...ownerWhere(request, 'PropostaComercial') }, select: { id: true } });
+    if (!permitida) return reply.status(404).send({ status: 'error', message: 'Proposta não encontrada' });
     const visitas = await prisma.propostaVisita.findMany({ where: { proposta_id: id }, orderBy: { inicio: 'asc' } });
     return reply.send({ status: 'success', data: resumirVisitas(visitas) });
   });
 
   // Resumo curto para a lista (aberturas, tempo e se foi direto aos valores), por proposta.
-  fastify.get('/propostas-comerciais-visitas', async (_request, reply) => {
+  fastify.get('/propostas-comerciais-visitas', async (request, reply) => {
+    const ids = (await prisma.propostaComercial.findMany({ where: { ...ownerWhere(request, 'PropostaComercial'), deleted_at: null }, select: { id: true } })).map(p => p.id);
+    if (!ids.length) return reply.send({ status: 'success', data: {} });
     const visitas = await prisma.propostaVisita.findMany({
+      where: { proposta_id: { in: ids } },
       select: { proposta_id: true, inicio: true, ultimo_sinal: true, segundos: true, origem: true, versao: true, dispositivo: true, telas: true, caminho: true, eventos: true },
     });
     const porProposta = new Map<string, typeof visitas>();
