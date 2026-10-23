@@ -1830,3 +1830,9 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
 - **Tela:** no painel da conversa, abaixo de "Criar proposta" e "Enviar / reenviar", o botão **Enviar chave Pix** (largura toda, borda verde-azulada, 32px). Manda só o cartão nativo "Copiar chave Pix" (nome de quem recebe + chave de Configurações › Assistente no WhatsApp), sem valor e sem depender de proposta. Mensagem na tela: "Chave Pix enviada." ou o motivo (ex.: chave não cadastrada).
 - **Backend:** `POST /whatsapp/conversas/:id/enviar-pix` (escopo do dono; assume a conversa sem dono) → `assistente-proposta.service › enviarPixConversa` → `enviarChavePix` (botão `/send/pix-button`; se falhar, chave em texto). Grava a mensagem "[Botão PIX] …" na conversa e tira a conversa do prazo de resposta. Sem mudança de banco.
 - A cobrança com valor continua em "Enviar / reenviar › Cobrar entrada (Pix)" nas propostas aceitas.
+
+### Correção 23/10/2026: envio pelo painel aparece na hora na conversa aberta
+
+- **Caso:** a Jessica mandou a chave Pix pelo botão do painel. O cartão foi entregue (UAZAPI: status "Delivered") e gravado na conversa, mas a tela de conversa do CRM não mostrou; no WhatsApp Web apareceu.
+- **Causa:** os envios pelo painel (proposta, Cobrar entrada, Enviar chave Pix) gravam a mensagem no servidor e emitem `conversa_atualizada`. A tela (`app/whatsapp/page.tsx`) só recarregava a lista de conversas nesse evento; as mensagens da conversa aberta esperavam a checagem de 20 s.
+- **Correção:** no evento `conversa_atualizada` da conversa aberta, a tela recarrega as mensagens (`carregarMensagens`). E `EnviarPropostaWpp` ganhou `aoEnviar`, chamado depois de cada envio bem-sucedido, que recarrega a conversa mesmo sem a conexão ao vivo (SSE). Só frontend; sem mudança de banco.

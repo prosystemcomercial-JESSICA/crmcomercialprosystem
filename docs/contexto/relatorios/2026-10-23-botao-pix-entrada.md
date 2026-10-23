@@ -66,3 +66,14 @@
 4. **Decisões:** o botão fica fora da lista de propostas e manda só o cartão, sem valor, para servir a qualquer contato. A cobrança com valor continua em "Cobrar entrada (Pix)".
 5. **Pendente (Jessica):** cadastrar a chave e o nome em Configurações › Assistente no WhatsApp.
 6. **Próxima sessão:** depois do cadastro, testar o botão numa conversa interna e conferir a mensagem "[Botão PIX]" na conversa.
+
+---
+
+## Continuação: chave Pix enviada não aparecia na conversa do CRM
+
+1. **Pedido:** "Enviei a chave Pix, mas não apareceu na conversa." Depois: "Na conversa do CRM; no WhatsApp Web apareceu."
+2. **Feito:** `frontend/app/whatsapp/page.tsx`: o evento `conversa_atualizada` recarrega as mensagens da conversa aberta. `frontend/components/whatsapp/EnviarPropostaWpp.tsx`: `aoEnviar` depois de cada envio bem-sucedido.
+3. **Verificado:** em produção, a chave e o nome foram salvos pela Jessica às 11h16. O envio das 11h32 para a conversa da Ronaira foi gravado ("[Botão PIX] …"), e a UAZAPI (`/message/find`) mostra `NativeFlowMessage` `payment_info` com chave CNPJ e nome "Solution Desenvolvimento", status **Delivered**. Checagem de tipos do frontend sem erro. **Não verificado:** a tela atualizando na hora depois do deploy, que depende de um novo envio.
+4. **Decisões:** recarregar só a conversa aberta, não todas, para não pesar a tela.
+5. **Pendente:** nada novo.
+6. **Próxima sessão:** num próximo envio pelo painel, conferir que a mensagem aparece sem recarregar a página.
