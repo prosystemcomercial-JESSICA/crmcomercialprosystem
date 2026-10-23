@@ -1838,6 +1838,15 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Ciclo de Vendas (`/ciclo-vendas`):** antes olhava os 1.000 leads mais novos e só contava "fechado" quem tinha data de fechamento no lead. Agora parte dos 23 contratos desde junho/2026 e liga cada um à proposta e à entrada do lead ou da conversa. Os contratos lançados no mesmo dia da venda (18) ficam separados, sem histórico. Ciclo típico em 21/10: 31 dias da entrada ao contrato (5 contratos medidos). As 18 propostas abertas estão paradas há 80 dias (mediana).
 - **Meta de outubro:** a meta de contratos está cadastrada como 7.500 (parece valor em reais). A Previsão ignora e avisa; a Jessica precisa corrigir em Metas (pendente).
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- O link do cliente (`?modo=cliente`, nas versões completa e simplificada, e `?modo=express`) registra cada abertura: data e hora, aparelho (celular ou computador), versão, tempo total, tempo em cada tela, caminho na ordem e cliques (aceitar, escolher plano, abrir módulo etc.).
+- Aberturas da equipe (navegador com login no CRM) e o modo apresentador não contam.
+- No CRM: selo "👁 3× · 8 min" na lista e no quadro de propostas (💲 = foi direto aos valores) e o painel "Comportamento do cliente" na janela da proposta, com uma leitura pronta, o tempo por grupo (apresentação, módulos, valores, fechamento), o tempo por tela, as telas não vistas, cada abertura com o caminho e os cliques.
+- Aviso novo para a gestão, "Cliente voltou à proposta": quando o cliente abre de novo depois de 30 min, exceto se a proposta já foi aceita, recusada ou perdida. Ligado por padrão; quem já personalizou os avisos precisa marcar o novo.
+- Propostas abertas antes de 23/10/2026 não têm esse histórico.
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.

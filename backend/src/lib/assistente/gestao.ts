@@ -2,11 +2,12 @@
 // número da empresa e o CRM responde com números. Puro: casamento de telefone,
 // leitura do comando e textos das respostas/avisos.
 
-export const TIPOS_AVISO = ['lead_qualificado', 'proposta_aberta', 'proposta_aceita', 'sla_estourado', 'risco_cancelar', 'resumo_diario', 'pesquisa_satisfacao', 'pesquisa_setor', 'contrato_assinado', 'laya_confirmacoes', 'contrato_pronto'] as const;
+export const TIPOS_AVISO = ['lead_qualificado', 'proposta_aberta', 'proposta_voltou', 'proposta_aceita', 'sla_estourado', 'risco_cancelar', 'resumo_diario', 'pesquisa_satisfacao', 'pesquisa_setor', 'contrato_assinado', 'laya_confirmacoes', 'contrato_pronto'] as const;
 export type TipoAviso = typeof TIPOS_AVISO[number];
 export const NOME_AVISO: Record<TipoAviso, string> = {
   lead_qualificado: 'Lead qualificado pela triagem',
   proposta_aberta: 'Cliente abriu a proposta',
+  proposta_voltou: 'Cliente voltou à proposta (abriu de novo)',
   proposta_aceita: 'Proposta aceita',
   sla_estourado: 'Conversa passou do prazo de resposta',
   risco_cancelar: 'Cliente com risco de cancelar',

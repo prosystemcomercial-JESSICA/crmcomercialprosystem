@@ -1253,6 +1253,15 @@ class ApiClient {
 
   // Métricas do gerador (produção, fechamento, segmentos e tempos/SLA).
   // Respeita os mesmos filtros da tela; os tempos vêm do histórico de status.
+  // Comportamento do cliente no link da proposta (23/10/2026).
+  async getComportamentoProposta(id: string) {
+    return this.client.get(`/propostas-comerciais/${id}/comportamento`);
+  }
+
+  async getVisitasPropostas() {
+    return this.client.get('/propostas-comerciais-visitas');
+  }
+
   async getMetricasPropostas(params?: { mes?: string; de?: string; ate?: string; status?: string; segmento?: string; vendedor?: string }) {
     return this.client.get('/propostas-comerciais/metricas', { params });
   }

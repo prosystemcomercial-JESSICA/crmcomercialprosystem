@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **23/10/2026 (comportamento do cliente na proposta):** a Jessica pediu para acompanhar se o cliente vê tudo ou vai direto aos valores, quantas vezes abre e quanto tempo fica. O link do cliente (`?modo=cliente` e `express`) grava cada abertura em `PropostaVisita` (**tabela nova**, criada em produção antes do deploy), com tempo por tela, caminho e cliques; a equipe logada não conta. No CRM: selo 👁 em Propostas, painel "Comportamento do cliente" na janela da proposta e aviso novo "Cliente voltou à proposta" (`proposta_voltou`). Código: `frontend/lib/proposta-rastro.ts`, `backend/src/lib/proposta-visitas.ts` e rotas em `propostas-comerciais.ts`. Relatório: `relatorios/2026-10-23-comportamento-proposta.md`.
+
 - **23/10/2026, manhã (de novo "Caiu a conexão": causa real achada):**
   - **Causa:** a atualização automática do Ubuntu (`unattended-upgrades`) religa o PM2 (`pm2 resurrect`): às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurava a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusa os tokens da nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". **O diagnóstico de 22/10 ("instabilidade da UAZAPI") estava errado**: o deploy das 10h37 (`--update-env`) é que tinha consertado.
   - **Produção:** foto antiga copiada para `/root/backups-deploy/pm2-dump-antes-20261023.pm2`; `comercial-backend` religado com `--update-env` (processo conferido com o endereço `prosystemnet`) e `pm2 save`.

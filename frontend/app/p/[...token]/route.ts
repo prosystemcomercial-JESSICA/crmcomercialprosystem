@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { scriptRastro } from '@/lib/proposta-rastro';
 
 // Garante que o Route Handler nunca seja cacheado pelo Next.js em produção.
 // Sem isso, o Next.js 14 pode servir o HTML gerado do cache mesmo após edição da proposta.
@@ -2576,7 +2577,12 @@ function generateHTML(data: any, images: Record<string, string> = {}, token = ''
     }
   }
   init();
+  // Rastro do cliente (23/10/2026): tela atual, versão escolhida e se é o link do cliente (lib/proposta-rastro).
+  window.__rastroAtivo = function () { return modeLocked; };
+  window.__rastroTela = function () { var ov = document.getElementById('escolha-overlay'); return (ov && ov.style.display === 'flex') ? -1 : currentSlide; };
+  window.__rastroVersao = function () { return document.body.classList.contains('versao-simples') ? 'simples' : 'completa'; };
 </script>
+<script>${scriptRastro(apiUrl, token, 'cliente')}</script>
 </body>
 </html>`;
 }
@@ -2743,7 +2749,7 @@ function generateExpressHTML(data: any, images: Record<string, string>, token: s
     'cta.onclick=function(){if(!plano||enviado)return;enviado=true;cta.disabled=true;cta.textContent="Enviando...";' +
       'fetch(API+"/p/"+TK+"/aceitar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plano_selecionado:plano})})' +
       '.then(function(){}).catch(function(){}).finally(function(){document.getElementById("ok").style.display="flex";});};' +
-    '</script></body></html>';
+    '</script><script>' + scriptRastro(apiUrl, token, 'express') + '</script></body></html>';
 }
 
 export async function GET(

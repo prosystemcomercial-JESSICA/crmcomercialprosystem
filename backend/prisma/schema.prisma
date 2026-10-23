@@ -2031,6 +2031,27 @@ model PropostaComercial {
   @@index([deleted_at])
 }
 
+// Uma abertura do link do cliente (pedido da Jessica, 23/10/2026): tempo por tela, caminho e cliques.
+// Gravada pelo POST /p/:token/rastro; a equipe logada no CRM não entra. Ver lib/proposta-visitas.ts.
+model PropostaVisita {
+  id           String   @id @default(cuid())
+  proposta_id  String
+  sessao       String   @db.VarChar(40)
+  origem       String   @db.VarChar(20) // cliente | express
+  versao       String?  @db.VarChar(20) // completa | simples
+  dispositivo  String?  @db.VarChar(20) // celular | computador
+  inicio       DateTime @default(now())
+  ultimo_sinal DateTime @default(now())
+  segundos     Int      @default(0)
+  telas        Json // { "<tela>": segundos }
+  caminho      Json // [tela, tela, ...] na ordem em que passou
+  eventos      Json // [{ s, t, a }] cliques: segundo da visita, tela, rótulo
+
+  @@unique([proposta_id, sessao])
+  @@index([proposta_id])
+  @@index([inicio])
+}
+
 model PropostaHistorico {
   id          String            @id @default(cuid())
   proposta_id String

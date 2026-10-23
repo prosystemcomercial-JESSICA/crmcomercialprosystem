@@ -1322,6 +1322,15 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Ciclo de Vendas:** mostra quanto tempo vai da entrada do lead até a proposta e até o contrato, nos contratos assinados desde junho. Para o número ficar preciso, crie a proposta no CRM quando enviar ao cliente e o contrato no dia da assinatura.
 - **Retomadas dos agentes:** havia leads com retorno combinado que nunca eram chamados. Agora todos entram na vez, do mais atrasado ao menos. Como as retomadas passam pela sua aprovação, você deve ver mais mensagens em **Para você aprovar** nos próximos dias.
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Agora o CRM mostra o que o cliente faz com a proposta: quantas vezes abriu, quanto tempo ficou, por quais telas passou e se foi direto aos valores.
+- Na tela **Propostas**, o selo roxo "👁 3× · 8 min" mostra as aberturas e o tempo. O "💲" quer dizer que ele foi direto aos valores.
+- Abra a proposta para ver o painel **Comportamento do cliente**: um resumo em frases, onde o tempo foi gasto e, em "Tempo por tela, cada abertura e cliques", o caminho completo de cada abertura.
+- Quando o cliente volta à proposta depois de um tempo, chega o aviso "voltou à proposta" no seu WhatsApp e no celular. É a melhor hora para chamar. Se você já tinha escolhido quais avisos receber, marque esse novo nas suas preferências.
+- Só contam as aberturas do cliente. Quando você ou alguém da equipe abre o link no navegador com o CRM logado, não conta.
+- Propostas abertas antes de 23/10 não têm esse histórico.
+
 ### Correção 23/10/2026: por que os números "caíram" em 22 e 23/10
 
 - O problema não era a UAZAPI. De madrugada, o servidor instala sozinho atualizações de segurança e religa os programas. Ao religar, o CRM voltava a usar o endereço da conta antiga da UAZAPI (de antes de 19/10), que não reconhece os números novos. Por isso aparecia "Caiu a conexão" com tudo conectado no painel.

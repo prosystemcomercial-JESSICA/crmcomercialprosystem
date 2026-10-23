@@ -1817,6 +1817,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - [ ] Conferir em 22/10 se os retornos atrasados caíram no relatório do Analista ("Gerar agora").
 - [ ] Opcional: `/dashboard/forecast` (Painel do CEO e Análise Comercial) ainda usa a fórmula antiga pelo kanban; avaliar trocar pela mesma base.
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- Feito: tabela `PropostaVisita`, rastro no link do cliente (deck e express), rotas de rastro e de comportamento, selo na lista e no quadro, painel na janela da proposta, aviso "voltou à proposta" e testes.
+- Próximos passos possíveis: juntar o comportamento ao Analista de Resultados (propostas com muita leitura de valores e sem retorno) e mandar o aviso também para a vendedora da proposta.
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
