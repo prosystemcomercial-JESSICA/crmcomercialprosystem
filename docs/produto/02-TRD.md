@@ -1815,6 +1815,14 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
 - **Ciclo:** `GET /leads/ciclo-vendas?data_inicio=` agora chama `calcularCicloVendas`. Ele parte de `ContratoComercial` (desde 01/06/2026, `recuado_at` nulo) e da proposta (`proposta_comercial_id`). A entrada é a mais antiga entre o lead achado por CNPJ ou pelos 8 últimos dígitos do telefone e a primeira `WhatsappConversa` desse telefone. `semHistorico`: entrada → contrato = 0, ou sem entrada e proposta → contrato = 0. Saída: mediana, média, mín. e máx., `tempo_medio_por_etapa` (entrada → proposta, proposta → aceite, proposta → contrato, com mediana), idade das propostas abertas e a lista de contratos.
 - **Testes:** `tests/previsao-fechamento.test.ts`.
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- `src/carregar-env.ts` é o primeiro import do `server.ts`: relê `backend/.env` (`lib/env-arquivo.ts › lerEnv`, mesma leitura do `ecosystem.config.js`) e sobrescreve `process.env` (`aplicarEnv`). Se algo vinha diferente, loga `[BOOT] .env: N variável(is) vinham diferentes do PM2 e foram corrigidas: <nomes>` (só nomes, nunca valores). Sem `.env`, não faz nada.
+- `scripts/deploy-vps.sh` faz `pm2 save` depois do `pm2 restart --update-env`, para a foto do PM2 acompanhar o `.env`.
+- Produção em 23/10: foto antiga copiada para `/root/backups-deploy/pm2-dump-antes-20261023.pm2`, backend religado com `--update-env` e `pm2 save`.
+- Testes: `tests/env-arquivo.test.ts` (2).
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - `evolution.service.ts › obterStatus(token, { esperaMs?, agora? })` devolve `StatusInstancia` (`status`, `numero?`, `falhaApi?: true`). Na UAZAPI, `consultarStatusUazapi` faz até 2 tentativas (espera de 2 s) com tempo limite de 20 s (`call(..., timeoutMs)`). Na API gratuita, `whatsapp-gratis.service › status` devolve `{ falhou: true }` no erro.

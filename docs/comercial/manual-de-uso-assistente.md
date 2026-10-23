@@ -1322,6 +1322,12 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Ciclo de Vendas:** mostra quanto tempo vai da entrada do lead até a proposta e até o contrato, nos contratos assinados desde junho. Para o número ficar preciso, crie a proposta no CRM quando enviar ao cliente e o contrato no dia da assinatura.
 - **Retomadas dos agentes:** havia leads com retorno combinado que nunca eram chamados. Agora todos entram na vez, do mais atrasado ao menos. Como as retomadas passam pela sua aprovação, você deve ver mais mensagens em **Para você aprovar** nos próximos dias.
 
+### Correção 23/10/2026: por que os números "caíram" em 22 e 23/10
+
+- O problema não era a UAZAPI. De madrugada, o servidor instala sozinho atualizações de segurança e religa os programas. Ao religar, o CRM voltava a usar o endereço da conta antiga da UAZAPI (de antes de 19/10), que não reconhece os números novos. Por isso aparecia "Caiu a conexão" com tudo conectado no painel.
+- Corrigido: o CRM agora sempre usa o endereço certo ao ligar, mesmo quando o servidor religa sozinho.
+- Se mesmo assim aparecer "Caiu a conexão" com o painel da UAZAPI em "connected", avise: não é para acontecer mais.
+
 ### Correção 22/10/2026: número aparecendo "Caiu a conexão" sem ter caído
 
 - Em 22/10, das 10h06 às 10h17, a UAZAPI recusou por alguns minutos os acessos do CRM, mesmo com os números conectados no painel dela. O CRM entendeu que os números tinham caído: mostrou "Caiu a conexão", segurou mensagens e não mandou alguns avisos.
