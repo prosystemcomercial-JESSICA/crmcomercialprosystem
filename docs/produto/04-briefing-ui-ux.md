@@ -1792,6 +1792,13 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
   - tabela dos contratos, com os lançados no dia da venda em opacidade reduzida;
   - botão de exportar mantido.
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- Selo roxo "👁 N× · tempo" (fundo #ede9fe, texto #6d28d9) abaixo do nome na lista e entre os selos do cartão; o "💲" indica que o cliente foi direto aos valores. A dica ao passar o mouse mostra a última abertura.
+- Painel "Comportamento do cliente" na janela da proposta, acima de "Alterar status": três números (aberturas, tempo total, última vez), leitura em tópicos, barra empilhada por grupo (azul = apresentação, ciano = módulos, laranja = valores, verde = fechamento, cinza = escolha) e o detalhe recolhível. A janela agora rola (máximo de 92% da altura da tela).
+- Nada muda na proposta que o cliente vê.
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.

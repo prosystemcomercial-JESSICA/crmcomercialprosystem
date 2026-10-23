@@ -1810,6 +1810,13 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Ciclo (leitura):** `ContratoComercial.proposta_comercial_id/cnpj/representante_telefone`, `PropostaComercial.created_at/data_aceite/cnpj/responsavel_telefone`, `Lead.cnpj/responsavel_telefone/telefone/created_at` e `WhatsappConversa.contato_numero/created_at`.
 - **Retomadas:** os mesmos campos de `SdrLead.dados` (`retomar_em`, `ciclo_em`); só muda a ordem e o teto por rodada.
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- Tabela nova `PropostaVisita` (criada em produção em 23/10, antes do deploy): `id`, `proposta_id` (sem FK), `sessao` VARCHAR(40), `origem` (cliente/express), `versao` (completa/simples), `dispositivo` (celular/computador), `inicio`, `ultimo_sinal`, `segundos`, `telas` JSON `{ "<tela>": s }`, `caminho` JSON `[tela…]`, `eventos` JSON `[{ s, t, a }]`. Únicos/índices: `(proposta_id, sessao)`, `proposta_id`, `inicio`.
+- Mapa das telas: `lib/proposta-visitas.ts › NOMES_TELAS` (índices do deck). Se o deck ganhar ou mudar telas, atualize também esse mapa, `grupoDaTela` e `ORDEM_COMPLETA`.
+- Aviso novo em `TIPOS_AVISO`: `proposta_voltou`.
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.

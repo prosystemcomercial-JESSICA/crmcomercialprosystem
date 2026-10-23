@@ -1815,6 +1815,15 @@ useMenuGroups usa useSyncExternalStore com estado em memória por documento/aba,
 - **Ciclo:** `GET /leads/ciclo-vendas?data_inicio=` agora chama `calcularCicloVendas`. Ele parte de `ContratoComercial` (desde 01/06/2026, `recuado_at` nulo) e da proposta (`proposta_comercial_id`). A entrada é a mais antiga entre o lead achado por CNPJ ou pelos 8 últimos dígitos do telefone e a primeira `WhatsappConversa` desse telefone. `semHistorico`: entrada → contrato = 0, ou sem entrada e proposta → contrato = 0. Saída: mediana, média, mín. e máx., `tempo_medio_por_etapa` (entrada → proposta, proposta → aceite, proposta → contrato, com mediana), idade das propostas abertas e a lista de contratos.
 - **Testes:** `tests/previsao-fechamento.test.ts`.
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- Navegador: `frontend/lib/proposta-rastro.ts › scriptRastro(apiUrl, token, origem)`, injetado em `app/p/[...token]/route.ts` no deck (`origem: cliente`) e no express (`origem: express`). A cada 1 s, com a aba visível e `window.__rastroAtivo()` verdadeiro (no deck, `modeLocked`, ou seja, link do cliente), soma 1 s à tela de `window.__rastroTela()` (`currentSlide`, ou -1 com a escolha da versão aberta; express = 100). Envia o acumulado a cada 15 s e no `visibilitychange`/`pagehide` (`sendBeacon`, `text/plain`). Uma aba escondida por mais de 30 min começa visita nova. Com `localStorage.accessToken`, não roda.
+- Backend: `POST /p/:token/rastro` (sem login): `lib/proposta-visitas.ts › lerRastro` valida (sessão `[a-z0-9]{6,40}`, telas -1..30 ou 100, até 300 passos e 200 cliques de 60 caracteres). Faz upsert por `(proposta_id, sessao)` e só atualiza se `segundos` não diminuiu; teto de 500 visitas por proposta. Visita nova com a anterior parada há mais de 30 min → `enviarAvisoGestao('proposta_voltou', textoAvisoVolta(...))`, exceto nos status ACEITA, CONTRATO_*, RECUSADA e PERDIDA.
+- `GET /propostas-comerciais/:id/comportamento` → `resumirVisitas` (aberturas, tempo total, grupos, telas, não vistas da ordem completa, leitura em frases, cliques e visitas). `GET /propostas-comerciais-visitas` → mapa `{ propostaId: { aberturas, segundos, ultima, direto_valores } }` para a lista.
+- "Foi direto aos valores": a primeira visita foi na versão simplificada ou no express, ou a primeira tela com 3 s ou mais é do grupo valores (17–20).
+- Testes: `tests/proposta-visitas.test.ts` (6).
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.

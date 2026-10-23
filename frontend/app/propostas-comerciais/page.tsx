@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
+import ComportamentoCliente, { SeloVisitas, type ResumoVisitas } from '@/components/propostas/ComportamentoCliente';
 import { showToast } from '@/components/ui/Toast';
 import {
   ClipboardList, Plus, Search, Eye, Trash2, Edit3, Send, CheckCircle,
@@ -393,6 +394,8 @@ export default function PropostasComerciais() {
   const [periodoFim, setPeriodoFim] = useState('');
 
   const [previewProposta, setPreviewProposta] = useState<PropostaComercial | null>(null);
+  // Comportamento do cliente no link (23/10/2026): aberturas e tempo por proposta.
+  const [visitas, setVisitas] = useState<Record<string, ResumoVisitas>>({});
   const [copied, setCopied] = useState(false);
 
   // Métricas do período (SLA e tempos). Os tempos vêm do backend porque dependem do
@@ -438,6 +441,7 @@ export default function PropostasComerciais() {
         limit: 1000,
       });
       setPropostas(res.data.data.propostas || []);
+      apiClient.getVisitasPropostas().then(r => setVisitas(r.data?.data || {})).catch(() => {});
     } catch {
       // ignore
     } finally {
@@ -1157,6 +1161,7 @@ export default function PropostasComerciais() {
                           {p.razao_social}
                         </div>
                         {p.nome_fantasia && <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{p.nome_fantasia}</div>}
+                        {visitas[p.id] && <div style={{ marginTop: 3 }}><SeloVisitas r={visitas[p.id]} /></div>}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-muted)' }}>{p.segmento || '—'}</td>
                       <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t-text-primary)', fontWeight: 600 }}>{p.plano_selecionado || '—'}</td>
@@ -1293,6 +1298,7 @@ export default function PropostasComerciais() {
 
                         {/* Segmento + plano */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                          <SeloVisitas r={visitas[p.id]} />
                           {p.segmento && (
                             <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>
                               {p.segmento}
@@ -1988,7 +1994,7 @@ export default function PropostasComerciais() {
           }}>
             <div style={{
               background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 560,
-              boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.25)', maxHeight: '92vh', overflowY: 'auto',
             }}>
               {/* header */}
               <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -2044,6 +2050,8 @@ export default function PropostasComerciais() {
                     )}
                   </div>
                 </div>
+
+                <ComportamentoCliente propostaId={previewProposta.id} />
 
                 {/* Status actions */}
                 <div className="mb-4">

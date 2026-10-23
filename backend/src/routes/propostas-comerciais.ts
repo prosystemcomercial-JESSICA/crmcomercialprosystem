@@ -9,6 +9,7 @@ import { ownerWhere, scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarIdPropostaUnico } from '@/lib/ids';
 import { criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { segmentoDe, SEGMENTOS_ORDEM } from '@/lib/segmento';
+import { lerRastro, resumirVisitas, textoAvisoVolta } from '@/lib/proposta-visitas';
 
 // ── Métricas do gerador ────────────────────────────────────────────────────
 // "Fechada" inclui os estados de contrato: o aceite do cliente já move a proposta
@@ -400,6 +401,62 @@ export async function propostasComerciais(fastify: FastifyInstance, options: { p
         `👀 *${nome} abriu a proposta*${proposta!.vendedor_nome ? `\nVendedora: ${proposta!.vendedor_nome}` : ''}\nÓtima hora para chamar no WhatsApp.`)).catch(() => {});
     }
     return reply.send({ status: 'success', data: proposta });
+  });
+
+  // ===== COMPORTAMENTO DO CLIENTE (23/10/2026) — sem auth =====
+  // O link do cliente manda a cada 15 s (e ao fechar) o acumulado da visita: tempo por tela,
+  // caminho e cliques (lib/proposta-visitas). Abertura nova depois de 30 min parada = cliente
+  // voltou: avisa a gestão (tipo proposta_voltou), exceto se já aceitou.
+  fastify.post('/p/:token/rastro', { config: { skipAuth: true } }, async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const r = lerRastro(request.body);
+    if (!r) return reply.status(400).send({ status: 'error' });
+    const proposta = await prisma.propostaComercial.findUnique({
+      where: { public_token: token },
+      select: { id: true, status: true, nome_fantasia: true, razao_social: true, vendedor_nome: true, deleted_at: true },
+    });
+    if (!proposta || proposta.deleted_at) return reply.status(404).send({ status: 'error' });
+    const chave = { proposta_id_sessao: { proposta_id: proposta.id, sessao: r.sessao } };
+    const dados = { origem: r.origem, versao: r.versao, dispositivo: r.dispositivo, segundos: r.segundos, telas: r.telas, caminho: r.caminho, eventos: r.eventos, ultimo_sinal: new Date() };
+    const existente = await prisma.propostaVisita.findUnique({ where: chave, select: { segundos: true } });
+    if (existente) {
+      // O navegador manda o acumulado; um envio atrasado (menor) não apaga o mais novo.
+      if (r.segundos >= existente.segundos) await prisma.propostaVisita.update({ where: chave, data: dados });
+      return reply.send({ status: 'success' });
+    }
+    const anteriores = await prisma.propostaVisita.findMany({ where: { proposta_id: proposta.id }, orderBy: { inicio: 'asc' } });
+    if (anteriores.length >= 500) return reply.send({ status: 'success' }); // link público: teto contra abuso
+    await prisma.propostaVisita.create({ data: { proposta_id: proposta.id, sessao: r.sessao, ...dados } }).catch((e: any) => {
+      if (e?.code !== 'P2002') throw e; // dois envios da mesma visita ao mesmo tempo
+    });
+    const ultima = anteriores.reduce((m, v) => Math.max(m, +v.ultimo_sinal), 0);
+    if (anteriores.length && Date.now() - ultima > 30 * 60 * 1000 && !['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO', 'RECUSADA', 'PERDIDA'].includes(proposta.status)) {
+      const nome = (proposta.nome_fantasia || proposta.razao_social || 'Cliente').trim();
+      import('@/services/assistente-gestao.service').then(m => m.enviarAvisoGestao(prisma, 'proposta_voltou',
+        textoAvisoVolta(nome, anteriores.length + 1, anteriores, proposta.vendedor_nome), { url: '/propostas-comerciais' })).catch(() => {});
+    }
+    return reply.send({ status: 'success' });
+  });
+
+  fastify.get('/propostas-comerciais/:id/comportamento', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const visitas = await prisma.propostaVisita.findMany({ where: { proposta_id: id }, orderBy: { inicio: 'asc' } });
+    return reply.send({ status: 'success', data: resumirVisitas(visitas) });
+  });
+
+  // Resumo curto para a lista (aberturas, tempo e se foi direto aos valores), por proposta.
+  fastify.get('/propostas-comerciais-visitas', async (_request, reply) => {
+    const visitas = await prisma.propostaVisita.findMany({
+      select: { proposta_id: true, inicio: true, ultimo_sinal: true, segundos: true, origem: true, versao: true, dispositivo: true, telas: true, caminho: true, eventos: true },
+    });
+    const porProposta = new Map<string, typeof visitas>();
+    for (const v of visitas) porProposta.set(v.proposta_id, [...(porProposta.get(v.proposta_id) || []), v]);
+    const data: Record<string, { aberturas: number; segundos: number; ultima: Date | null; direto_valores: boolean }> = {};
+    for (const [pid, vs] of porProposta) {
+      const r = resumirVisitas(vs);
+      data[pid] = { aberturas: r.aberturas, segundos: r.segundos_total, ultima: r.ultima_atividade, direto_valores: r.foi_direto_aos_valores };
+    }
+    return reply.send({ status: 'success', data });
   });
 
   // ===== ACEITE PÚBLICO (cliente clica em "Aceitar") — sem auth =====

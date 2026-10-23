@@ -1822,6 +1822,13 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 2. `/previsao`: a tela chama `GET /leads/previsao` e mostra a meta de contratos do mês, os três cenários e as oportunidades. O link de cada uma abre as propostas ou a conversa.
 3. `/ciclo-vendas`: a tela chama `GET /leads/ciclo-vendas` e mostra o ciclo típico, o tempo por etapa, as propostas abertas e cada contrato medido (com exportação).
 
+### Novidade 23/10/2026: comportamento do cliente na proposta
+
+- Pedido da Jessica: "monitorar para entender se o cliente vê tudo ou se ele vai direto para os valores; quantas vezes abre e fecha, quanto tempo fica".
+- Fluxo do cliente: abre o link → (escolha da versão) → telas. O navegador grava em segundo plano, sem nada visível. Ao sair ou trocar de aba, envia o que falta.
+- Fluxo da gestão: Propostas → selo 👁 na linha ou no cartão → abrir a proposta → painel "Comportamento do cliente" → "Tempo por tela, cada abertura e cliques" para o detalhe.
+- Cliente voltou depois de 30 min → aviso "voltou à proposta" no WhatsApp e no celular (preferência "Cliente voltou à proposta").
+
 ### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
 
 - Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
