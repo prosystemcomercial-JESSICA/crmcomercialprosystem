@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 // Painel da conversa: envia uma proposta aberta deste contato pelo WhatsApp, com
@@ -70,7 +70,11 @@ export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { 
     } finally { setEnviando(null); }
   };
 
+  // Trava contra clique duplo: a proposta sai uma vez só, mesmo antes de a tela redesenhar o "Enviando…".
+  const travaEnvio = useRef(false);
   const enviar = async (p: Prop) => {
+    if (travaEnvio.current) return;
+    travaEnvio.current = true;
     setEnviando(p.id); setAviso(null);
     try {
       await apiClient.enviarPropostaWhatsapp(conversaId, p.id);
@@ -79,7 +83,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { 
       setAberto(false);
     } catch (e: any) {
       setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar.' });
-    } finally { setEnviando(null); }
+    } finally { setEnviando(null); travaEnvio.current = false; }
   };
 
   const cobrarEntrada = async (p: Prop) => {
@@ -133,7 +137,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { 
         )}
         <button onClick={abrir}
           className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-md h-9" style={{ background: '#2E6EAB' }}>
-          Enviar / reenviar
+          {aberto ? 'Fechar propostas' : 'Propostas do contato'}
         </button>
       </div>
       <button onClick={enviarPix} disabled={enviandoPix}
@@ -146,6 +150,9 @@ export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { 
           {lista === null && <p className="text-xs text-gray-400">Buscando propostas deste contato…</p>}
           {lista?.length === 0 && (
             <p className="text-xs text-gray-500">Nenhuma proposta aberta com o CNPJ ou o telefone deste contato. Clique em Criar proposta.</p>
+          )}
+          {!!lista?.length && (
+            <p className="text-[11px] text-gray-500">Clique em <strong>Enviar para o cliente</strong> na proposta: o texto, o link e os botões de aceite saem uma vez pelo WhatsApp.</p>
           )}
           {lista?.map(p => (
             <div key={p.id} className="border border-gray-200 rounded-md p-2">
@@ -175,8 +182,8 @@ export default function EnviarPropostaWpp({ conversaId, conversa, aoEnviar }: { 
               )}
               <button disabled={!p.tem_link || enviando === p.id || p.desconto_precisa} onClick={() => enviar(p)}
                 title={p.tem_link ? '' : 'Gere o link público da proposta antes de enviar'}
-                className="mt-1.5 w-full text-[11px] font-semibold rounded-md py-1.5 border border-teal-700 text-teal-800 hover:bg-teal-50 disabled:opacity-40">
-                {enviando === p.id ? 'Enviando…' : p.enviada_wpp_em ? 'Reenviar' : 'Enviar'}
+                className="mt-1.5 w-full text-xs font-semibold rounded-md py-2 text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-40">
+                {enviando === p.id ? 'Enviando…' : p.enviada_wpp_em ? 'Reenviar para o cliente' : 'Enviar para o cliente'}
               </button>
               </>}
             </div>

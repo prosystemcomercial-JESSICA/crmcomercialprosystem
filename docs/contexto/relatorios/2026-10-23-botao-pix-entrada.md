@@ -77,3 +77,14 @@
 4. **Decisões:** recarregar só a conversa aberta, não todas, para não pesar a tela.
 5. **Pendente:** nada novo.
 6. **Próxima sessão:** num próximo envio pelo painel, conferir que a mensagem aparece sem recarregar a página.
+
+---
+
+## Continuação: "Enviar / reenviar" não mandava a proposta
+
+1. **Pedido:** "Ao clicar em enviar/reenviar a proposta, não aparece o link nem o texto para o cliente…" (contato de teste Mauro Cesar). "Cliquei várias vezes, mas quero enviar uma única vez."
+2. **Feito:** `frontend/components/whatsapp/EnviarPropostaWpp.tsx`: botões renomeados e destacados, dica e trava `useRef`. `backend/src/services/assistente-proposta.service.ts`: recusa o reenvio da mesma proposta para a mesma conversa em menos de 60 s.
+3. **Verificado:** nos logs de produção, às 11h53 só houve `GET .../propostas` da conversa do Mauro, sem nenhum `POST enviar-proposta`. A lista tinha "Papel Picote Toys" (ENVIADA, link ok, desconto aprovado, nunca enviada pelo WhatsApp). Testes (12) e tipos ok. **Não verificado:** o envio real ao Mauro, que deve ser feito pela Jessica.
+4. **Decisões:** não enviar ao clicar no botão de cima, porque o contato pode ter mais de uma proposta. Janela de 60 s contra duplicidade, mantendo o reenvio de propósito.
+5. **Pendente:** a Jessica testar com o Mauro.
+6. **Próxima sessão:** conferir nos logs o `POST enviar-proposta` e as 2 mensagens na conversa do Mauro.

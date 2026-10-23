@@ -54,6 +54,10 @@ export async function enviarPropostaWhatsapp(prisma: PrismaClient, conversaId: s
   if (!conversa || !p) throw new Error('Conversa ou proposta não encontrada.');
   if (!p.public_token) throw new Error('A proposta ainda não tem link público. Abra a proposta e gere o link antes de enviar.');
   if (!ABERTAS.includes(p.status)) throw new Error('Esta proposta não está mais aberta.');
+  // Clique repetido: a proposta sai uma vez só (reenviar de propósito continua valendo depois de 1 minuto).
+  if (p.wpp_enviada_em && p.wpp_conversa_id === conversa.id && Date.now() - p.wpp_enviada_em.getTime() < 60_000) {
+    throw new Error('Esta proposta acabou de ser enviada para este contato.');
+  }
   // Desconto acima do limite: só sai depois da aprovação da gestão (ideia 23).
   const { situacaoDesconto } = await import('./assistente-desconto.service');
   const sd = await situacaoDesconto(prisma, p.id);

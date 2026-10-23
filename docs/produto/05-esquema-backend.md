@@ -1854,3 +1854,9 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Caso:** a Jessica mandou a chave Pix pelo botão do painel. O cartão foi entregue (UAZAPI: status "Delivered") e gravado na conversa, mas a tela de conversa do CRM não mostrou; no WhatsApp Web apareceu.
 - **Causa:** os envios pelo painel (proposta, Cobrar entrada, Enviar chave Pix) gravam a mensagem no servidor e emitem `conversa_atualizada`. A tela (`app/whatsapp/page.tsx`) só recarregava a lista de conversas nesse evento; as mensagens da conversa aberta esperavam a checagem de 20 s.
 - **Correção:** no evento `conversa_atualizada` da conversa aberta, a tela recarrega as mensagens (`carregarMensagens`). E `EnviarPropostaWpp` ganhou `aoEnviar`, chamado depois de cada envio bem-sucedido, que recarrega a conversa mesmo sem a conexão ao vivo (SSE). Só frontend; sem mudança de banco.
+
+### Ajuste 23/10/2026: envio da proposta pelo painel, uma vez só
+
+- **Caso:** no contato Mauro Cesar (proposta Papel Picote Toys, link gerado e desconto aprovado), a Jessica clicou várias vezes em "Enviar / reenviar" e nada saiu. Esse botão só abria e fechava a lista; o envio era o botão pequeno "Enviar" dentro do cartão, que não foi clicado (o servidor não recebeu nenhum `enviar-proposta`).
+- **Tela (`EnviarPropostaWpp`):** o botão de cima passou a se chamar **Propostas do contato** (aberto: **Fechar propostas**). Com propostas na lista aparece a dica "Clique em Enviar para o cliente na proposta…". O botão do cartão ficou cheio (verde-azulado, branco, 12px): **Enviar para o cliente** / **Reenviar para o cliente**.
+- **Uma vez só:** trava na tela (`useRef`) contra clique duplo antes de redesenhar, e no servidor (`enviarPropostaWhatsapp`) recusa o envio da mesma proposta para a mesma conversa em menos de 1 minuto ("Esta proposta acabou de ser enviada para este contato."). Reenviar de propósito continua valendo depois disso.
