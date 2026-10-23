@@ -92,6 +92,17 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
     } finally { setEnviando(null); }
   };
 
+  const [enviandoPix, setEnviandoPix] = useState(false);
+  const enviarPix = async () => {
+    setEnviandoPix(true); setAviso(null);
+    try {
+      const r = await apiClient.enviarPixWhatsapp(conversaId);
+      setAviso({ ok: true, texto: r.data.message || 'Chave Pix enviada.' });
+    } catch (e: any) {
+      setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar a chave Pix.' });
+    } finally { setEnviandoPix(false); }
+  };
+
   // Criar proposta: abre a tela de proposta em outra aba já preenchida com os dados deste contato.
   // Os dados são buscados antes do clique: a aba nova abre na hora (o navegador não bloqueia).
   const [preenchimento, setPreenchimento] = useState<any>(null);
@@ -122,6 +133,11 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
           Enviar / reenviar
         </button>
       </div>
+      <button onClick={enviarPix} disabled={enviandoPix}
+        title="Manda o cartão com o botão Copiar chave Pix da empresa"
+        className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-semibold rounded-md h-8 border border-teal-700 text-teal-800 bg-white hover:bg-teal-50 disabled:opacity-40">
+        {enviandoPix ? 'Enviando…' : 'Enviar chave Pix'}
+      </button>
       {aberto && (
         <div className="mt-2 space-y-1.5">
           {lista === null && <p className="text-xs text-gray-400">Buscando propostas deste contato…</p>}

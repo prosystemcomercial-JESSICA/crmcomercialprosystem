@@ -55,3 +55,14 @@
 4. **Decisões:** não troquei para o sandbox, porque documento de teste não vale como assinatura. O envio do link pelo WhatsApp não mudou, porque já existia e depende de a ZapSign criar o documento.
 5. **Pendente (Jessica):** contratar o Plano de API da ZapSign, ou pedir o envio manual (colar o link do Painel ZapSign e o CRM mandar pelo WhatsApp).
 6. **Próxima sessão:** com o plano ativo, clicar em "Enviar para assinatura" no 55/2026 e conferir `zapsign_signing_url` e a mensagem do link na conversa da proposta.
+
+---
+
+## Continuação (tarde): botão "Enviar chave Pix"
+
+1. **Pedido:** "Quero um botão no WhatsApp para enviar a chave Pix quando não é enviado automático."
+2. **Feito:** botão **Enviar chave Pix** no painel da conversa (`frontend/components/whatsapp/EnviarPropostaWpp.tsx`); rota `POST /whatsapp/conversas/:id/enviar-pix` (`backend/src/routes/whatsapp.ts`) e `enviarPixConversa` (`backend/src/services/assistente-proposta.service.ts`), que reusa `enviarChavePix`.
+3. **Verificado:** checagem de tipos sem erro novo (backend e frontend). Deploy: ver o commit seguinte no ESTADO.md. **Não verificado:** o envio real, que depende da chave cadastrada.
+4. **Decisões:** o botão fica fora da lista de propostas e manda só o cartão, sem valor, para servir a qualquer contato. A cobrança com valor continua em "Cobrar entrada (Pix)".
+5. **Pendente (Jessica):** cadastrar a chave e o nome em Configurações › Assistente no WhatsApp.
+6. **Próxima sessão:** depois do cadastro, testar o botão numa conversa interna e conferir a mensagem "[Botão PIX]" na conversa.

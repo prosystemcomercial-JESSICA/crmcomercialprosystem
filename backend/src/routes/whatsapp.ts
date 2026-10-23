@@ -1322,6 +1322,22 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     }
   });
 
+  // Qualquer conversa: manda só o cartão "Copiar chave Pix" (quando não saiu automático).
+  fastify.post('/whatsapp/conversas/:id/enviar-pix', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    const user = getUser(request)!;
+    try {
+      await assumirSeSemDono(conversa, user);
+      const { enviarPixConversa } = await import('@/services/assistente-proposta.service');
+      await enviarPixConversa(prisma, id, { id: user.id });
+      return reply.send({ status: 'success', message: 'Chave Pix enviada.' });
+    } catch (e: any) {
+      return reply.status(400).send({ status: 'error', message: e?.message || 'Não foi possível enviar a chave Pix.' });
+    }
+  });
+
   // Proposta aceita: cobra a entrada com o botão "Copiar chave Pix".
   fastify.post('/whatsapp/conversas/:id/cobrar-entrada', async (request, reply) => {
     const { id } = request.params as { id: string };

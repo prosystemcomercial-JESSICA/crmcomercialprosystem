@@ -175,6 +175,19 @@ export async function posAceitePeloLink(prisma: PrismaClient, propostaId: string
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
 }
 
+/** Botão "Enviar chave Pix" do painel da conversa: só o cartão "Copiar chave Pix", para qualquer contato. */
+export async function enviarPixConversa(prisma: PrismaClient, conversaId: string, user: { id: string }) {
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst?.instance_token) throw new Error('WhatsApp da empresa não está conectado.');
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, contato_numero: true, dono_id: true } });
+  if (!conversa) throw new Error('Conversa não encontrada.');
+  const pix = await lerPix(prisma);
+  if (!pix.chave) throw new Error('Cadastre a chave PIX da empresa em Configurações > Assistente no WhatsApp.');
+  await enviarChavePix(prisma, inst.instance_token, conversa, pix, user.id);
+  await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { sla_prazo_em: null } }).catch(() => {});
+  emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
+}
+
 /** Botão "Cobrar entrada (PIX)" do painel da conversa: proposta aceita → texto com o valor + botão PIX. */
 export async function cobrarEntradaWhatsapp(prisma: PrismaClient, conversaId: string, propostaId: string, user: { id: string; nome?: string }) {
   const inst = await obterInstanciaEmpresa(prisma);
