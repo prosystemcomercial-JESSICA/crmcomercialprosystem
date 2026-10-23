@@ -1422,6 +1422,9 @@ class ApiClient {
   async enviarPropostaWhatsapp(conversaId: string, propostaId: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/enviar-proposta`, { proposta_id: propostaId });
   }
+  async enviarPixWhatsapp(conversaId: string) {
+    return this.client.post(`/whatsapp/conversas/${conversaId}/enviar-pix`);
+  }
   async cobrarEntradaWhatsapp(conversaId: string, propostaId: string) {
     return this.client.post(`/whatsapp/conversas/${conversaId}/cobrar-entrada`, { proposta_id: propostaId });
   }

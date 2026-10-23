@@ -1866,3 +1866,10 @@ flowchart TD
 - **Correção:** `telefoneZapSign` manda `phone_number` sem o 55 (o país vai em `phone_country`); antes ia 55 duas vezes.
 - **WhatsApp:** com a ZapSign aceitando o documento, o link de assinatura já vai pelo WhatsApp da empresa na conversa da proposta (`enviarLinkAssinatura`) e pelo e-mail da ZapSign. Isso volta a funcionar assim que o Plano de API estiver ativo.
 - Testes: `tests/zapsign-resposta.test.ts` (4).
+
+### Atualização 23/10/2026 (tarde): botão "Enviar chave Pix" em qualquer conversa
+
+- **Pedido da Jessica:** um botão no WhatsApp para mandar a chave Pix quando ela não sai automática.
+- **Tela:** no painel da conversa, abaixo de "Criar proposta" e "Enviar / reenviar", o botão **Enviar chave Pix** (largura toda, borda verde-azulada, 32px). Manda só o cartão nativo "Copiar chave Pix" (nome de quem recebe + chave de Configurações › Assistente no WhatsApp), sem valor e sem depender de proposta. Mensagem na tela: "Chave Pix enviada." ou o motivo (ex.: chave não cadastrada).
+- **Backend:** `POST /whatsapp/conversas/:id/enviar-pix` (escopo do dono; assume a conversa sem dono) → `assistente-proposta.service › enviarPixConversa` → `enviarChavePix` (botão `/send/pix-button`; se falhar, chave em texto). Grava a mensagem "[Botão PIX] …" na conversa e tira a conversa do prazo de resposta. Sem mudança de banco.
+- A cobrança com valor continua em "Enviar / reenviar › Cobrar entrada (Pix)" nas propostas aceitas.
