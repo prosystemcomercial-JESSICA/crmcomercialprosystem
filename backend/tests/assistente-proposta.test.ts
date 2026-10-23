@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  textoResumoProposta, menuAceite, lerBotaoProposta, opcoesPlanos, mensalidadeDe, textoPosAceite, decidirFollowup, textoFollowup, segmentoChave, linkProposta,
+  textoResumoProposta, menuAceite, lerBotaoProposta, opcoesPlanos, mensalidadeDe, textoPosAceite, decidirFollowup, textoFollowup, segmentoChave, linkProposta, chavePixParaBotao,
   type PropostaResumo,
 } from '../src/lib/assistente/proposta';
 
@@ -33,6 +33,22 @@ describe('proposta pelo WhatsApp', () => {
     expect(textoPosAceite(p, 'pix@prosystem.com')).toContain('Chave PIX: *pix@prosystem.com*');
     expect(textoPosAceite(p, '')).toContain('financeiro vai te enviar a cobrança da entrada');
     expect(textoPosAceite({ ...p, entrada: null }, 'x')).toContain('próximos passos');
+  });
+  it('após aceite com o botão PIX: não repete a chave e aponta para o botão', () => {
+    const t = textoPosAceite(p, '09.559.678/0001-83', true);
+    expect(t).toMatch(/\*R\$\s400,00\* por PIX/);
+    expect(t).toContain('Copiar chave Pix');
+    expect(t).not.toContain('09.559.678');
+  });
+  it('tipo da chave para o botão PIX', () => {
+    expect(chavePixParaBotao('09.559.678/0001-83')).toEqual({ tipo: 'CNPJ', chave: '09559678000183' });
+    expect(chavePixParaBotao('529.982.247-25')).toEqual({ tipo: 'CPF', chave: '52998224725' });
+    expect(chavePixParaBotao('(27) 99752-1370')).toEqual({ tipo: 'PHONE', chave: '+5527997521370' });
+    expect(chavePixParaBotao('+55 27 99752-1370')).toEqual({ tipo: 'PHONE', chave: '+5527997521370' });
+    expect(chavePixParaBotao('Financeiro@Prosystem.com.br')).toEqual({ tipo: 'EMAIL', chave: 'financeiro@prosystem.com.br' });
+    expect(chavePixParaBotao('123E4567-e89b-12d3-a456-426614174000')).toEqual({ tipo: 'EVP', chave: '123e4567-e89b-12d3-a456-426614174000' });
+    expect(chavePixParaBotao('')).toBeNull();
+    expect(chavePixParaBotao('chave qualquer')).toBeNull();
   });
   it('link público', () => {
     expect(linkProposta('https://crm.com/', 'abc')).toBe('https://crm.com/p/abc?modo=cliente');

@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api-client';
 
 type Ia = { laya_triagem: boolean; laya_confianca: number; risco_limite: number; risco_so_clientes: boolean };
 type IaTexto = { tira_duvidas: 'desligado' | 'fora_do_horario' | 'sempre'; transcrever_auto: boolean; tem_chave: boolean };
-type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string; ia: Ia; ia_texto: IaTexto; posvenda: boolean; desconto_limite: number };
+type Cfg = { avisos: string[]; tipos: { id: string; nome: string }[]; telefone: string | null; recebe: boolean; pix_chave: string; pix_nome: string; ia: Ia; ia_texto: IaTexto; posvenda: boolean; desconto_limite: number };
 const PCT = [0.6, 0.7, 0.8, 0.9];
 
 const card: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 12, overflow: 'hidden' };
@@ -32,7 +32,7 @@ export default function AssistenteWhatsapp() {
     setSalvando(true); setMsg(null);
     try {
       await apiClient.salvarAssistenteConfig({
-        avisos: cfg.avisos, pix_chave: cfg.pix_chave, ia: cfg.ia, posvenda: cfg.posvenda, desconto_limite: cfg.desconto_limite,
+        avisos: cfg.avisos, pix_chave: cfg.pix_chave, pix_nome: cfg.pix_nome, ia: cfg.ia, posvenda: cfg.posvenda, desconto_limite: cfg.desconto_limite,
         ia_texto: { tira_duvidas: cfg.ia_texto.tira_duvidas, transcrever_auto: cfg.ia_texto.transcrever_auto, ...(novaChave.trim() ? { gemini_chave: novaChave.trim() } : {}) },
       });
       if (novaChave.trim()) { setCfg(c => c && ({ ...c, ia_texto: { ...c.ia_texto, tem_chave: true } })); setNovaChave(''); }
@@ -75,8 +75,11 @@ export default function AssistenteWhatsapp() {
           <label htmlFor="pix-chave" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', marginBottom: 6 }}>Chave PIX da empresa</label>
           <input id="pix-chave" style={input} value={cfg.pix_chave} placeholder="CNPJ, e-mail, telefone ou chave aleatória"
             onChange={e => setCfg(c => c && ({ ...c, pix_chave: e.target.value }))} />
+          <label htmlFor="pix-nome" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', margin: '10px 0 6px' }}>Nome de quem recebe</label>
+          <input id="pix-nome" style={input} value={cfg.pix_nome ?? ''} placeholder="Ex.: Solution Desenvolvimento"
+            onChange={e => setCfg(c => c && ({ ...c, pix_nome: e.target.value }))} />
           <p style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 4 }}>
-            Enviada ao cliente depois que ele aceita a proposta pelo WhatsApp. Sem chave, ele recebe &quot;o financeiro vai te enviar a cobrança da entrada&quot;.
+            Quando o cliente aceita a proposta (pelo botão do WhatsApp ou pelo link), ele recebe o valor da entrada e o botão &quot;Copiar chave Pix&quot; com este nome e esta chave. No painel da conversa, o botão &quot;Cobrar entrada (Pix)&quot; manda de novo. Sem chave, ele recebe &quot;o financeiro vai te enviar a cobrança da entrada&quot;.
           </p>
         </div>
         <div style={{ borderTop: '1px solid var(--t-card-border)', paddingTop: 14, display: 'grid', gap: 10 }}>

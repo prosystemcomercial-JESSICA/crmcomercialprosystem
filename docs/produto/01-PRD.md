@@ -1857,3 +1857,11 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Caso:** em 22/10, das 10h06 às 10h17 (Brasília), a UAZAPI respondeu 401 "Invalid token" para os tokens certos do principal (Comercial 1) e do Número 2 (Comercial 2), que seguiam conectados no painel. O CRM marcou os dois como desconectados, bloqueou o envio aos contatos desses números (regra "contato preso ao número"), tirou-os do rodízio e não mandou os avisos de lead qualificado. O Número 2 só voltaria quando alguém abrisse Configurações.
 - **Requisito:** falha da API (erro de rede, 401, 5xx, demora) não é celular desconectado. O CRM tenta de novo, mantém o último status conhecido e só considera desconectado depois de 15 minutos seguidos de falha. Desconexão informada pela própria API (o celular caiu de verdade) continua valendo na hora.
 - **Requisito:** o status de todos os números é conferido sozinho a cada 5 minutos, sem depender de alguém abrir uma tela.
+
+### Atualização 23/10/2026: botão "Copiar chave Pix" na cobrança da entrada
+
+- **Pedido da Jessica:** depois do aceite, cobrar a entrada com o botão de Pix do WhatsApp (cartão com o nome de quem recebe, a chave e "Copiar chave Pix"), e não só com a chave escrita no texto.
+- **Requisito:** aceite pelo botão do WhatsApp **ou pelo link** de uma proposta enviada pelo WhatsApp → o cliente recebe na mesma conversa os próximos passos, o valor da entrada e o botão "Copiar chave Pix" (nome e chave de Configurações › Assistente no WhatsApp). Antes, o aceite pelo link não mandava nada ao cliente.
+- **Requisito:** no painel da conversa, a proposta aceita aparece em "Enviar / reenviar" com o botão **Cobrar entrada (Pix)**, para mandar a cobrança de novo quando a vendedora quiser. Fica registrado no histórico da proposta.
+- **Requisito:** se o botão não puder sair (chave em formato que o WhatsApp não aceita, número da API gratuita, erro da UAZAPI), a chave vai em texto. Sem chave cadastrada, continua "o financeiro vai te enviar a cobrança da entrada".
+- **Configuração em produção:** a chave estava vazia em 23/10. A Jessica cadastra em Configurações › Assistente no WhatsApp: recebedor **Solution Desenvolvimento**, chave CNPJ 09.559.678/0001-83.

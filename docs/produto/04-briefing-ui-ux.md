@@ -1808,3 +1808,9 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
 
 - Nenhuma tela nova. As bolinhas do WhatsApp e Configurações › Números deixam de mostrar "Caiu a conexão" por uma instabilidade curta da UAZAPI: o estado só muda quando a API responde ou quando a falha passa de 15 minutos.
 - Nova mensagem na conexão por token, para não culpar o token quando a UAZAPI não respondeu: "A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos."
+
+### Atualização 23/10/2026: botão "Copiar chave Pix" na cobrança da entrada
+
+- **Painel da conversa › Enviar / reenviar:** a lista mostra também as propostas aceitas ("aceita", "aceita · contrato em geração", "aceita · contrato enviado", "contrato assinado"). Nelas, no lugar de Enviar e do pedido de desconto, aparece o botão **Cobrar entrada (Pix) · R$ X** (mesmo estilo verde-azulado do Enviar, texto 11px). Ao enviar, a lista fecha e aparece "Cobrança da entrada enviada com o botão PIX."
+- **Configurações › Assistente no WhatsApp:** abaixo de "Chave PIX da empresa", o campo novo **Nome de quem recebe** (exemplo "Solution Desenvolvimento"). O texto de ajuda explica que o cliente recebe o botão "Copiar chave Pix" no aceite e que o painel pode mandar de novo.
+- **No WhatsApp do cliente:** cartão nativo com o nome de quem recebe, "CNPJ: …" e o botão **Copiar chave Pix**, logo depois do texto com o valor da entrada.

@@ -4,6 +4,13 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **23/10/2026 (botão "Copiar chave Pix" na entrada + caso do desconto da Ronaira):**
+  - **Caso:** a proposta de 64.163.743 Ronaira (desconto de 42,1%, acima do limite de 30%) ficou travada porque o "Aprovar" foi tocado na conversa do **WhatsApp da empresa**, e não no celular da Jessica (final 8093). Esse clique chega como mensagem da própria empresa e é ignorado de propósito. Ela aprovou pelo celular às 10h16 (Brasília) e a proposta saiu às 10h17. Sem mudança de código para isso.
+  - **Pedido:** cobrar a entrada da proposta aceita com o botão de Pix do WhatsApp. UAZAPI `POST /send/pix-button` (`enviarBotaoPix`). O tipo da chave sai sozinho (`chavePixParaBotao`). Aceite pelo botão do WhatsApp **ou pelo link** de proposta enviada pelo WhatsApp → texto com o valor da entrada + botão; se o botão falhar, a chave vai em texto. Antes, o aceite pelo link não mandava nada ao cliente. Painel da conversa: propostas aceitas com **Cobrar entrada (Pix)** (`POST /whatsapp/conversas/:id/cobrar-entrada`). Configurações › Assistente: campo novo "Nome de quem recebe" (`assistente.pix_nome`). Sem mudança de esquema.
+  - **Produção:** a chave PIX estava **vazia** (por isso o aceite dizia "o financeiro vai te enviar a cobrança"). A gravação direta no banco foi bloqueada pela permissão do Claude.
+  - **Pendente (Jessica):** em Configurações › Assistente no WhatsApp, preencher Chave PIX `09.559.678/0001-83` e Nome de quem recebe `Solution Desenvolvimento` e salvar. Depois, conferir no primeiro aceite real se o cartão chegou certo no celular do cliente.
+  - Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.
+
 - **23/10/2026 (comportamento do cliente na proposta):** a Jessica pediu para acompanhar se o cliente vê tudo ou vai direto aos valores, quantas vezes abre e quanto tempo fica. O link do cliente (`?modo=cliente` e `express`) grava cada abertura em `PropostaVisita` (**tabela nova**, criada em produção antes do deploy), com tempo por tela, caminho e cliques; a equipe logada não conta. No CRM: selo 👁 em Propostas, painel "Comportamento do cliente" na janela da proposta e aviso novo "Cliente voltou à proposta" (`proposta_voltou`). Código: `frontend/lib/proposta-rastro.ts`, `backend/src/lib/proposta-visitas.ts` e rotas em `propostas-comerciais.ts`. Relatório: `relatorios/2026-10-23-comportamento-proposta.md`.
 
 - **23/10/2026, manhã (de novo "Caiu a conexão": causa real achada):**

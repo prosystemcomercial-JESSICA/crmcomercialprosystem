@@ -6,6 +6,7 @@ import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { ultimos8 } from '@/lib/assistente/gestao';
 import {
   textoResumoProposta, menuAceite, opcoesPlanos, lerBotaoProposta, textoPosAceite, textoDuvida, decidirFollowup, textoFollowup, linkProposta,
+  textoCobrancaEntrada, chavePixParaBotao,
   type PropostaResumo,
 } from '@/lib/assistente/proposta';
 
@@ -13,6 +14,7 @@ import {
 // dúvidas, resposta aos botões e follow-up nos dias 2, 5 e 7.
 
 const ABERTAS = ['RASCUNHO', 'ENVIADA', 'VISUALIZADA', 'EM_NEGOCIACAO'];
+const ACEITAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 const SELECT_RESUMO = {
   id: true, razao_social: true, nome_fantasia: true, responsavel_nome: true, plano_selecionado: true,
   mensalidade_basic: true, mensalidade_pro: true, mensalidade_plus: true, valor_final: true, valor_implantacao: true,
@@ -31,7 +33,7 @@ async function gravarSaida(prisma: PrismaClient, conversaId: string, conteudo: s
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ultima_mensagem: conteudo.slice(0, 200), ultima_em: new Date() } }).catch(() => {});
 }
 
-/** Propostas abertas que casam com a conversa: mesmo CNPJ (conversa/lead) ou mesmo telefone do responsável. */
+/** Propostas abertas (e as já aceitas, para cobrar a entrada) que casam com a conversa: mesmo CNPJ (conversa/lead) ou mesmo telefone do responsável. */
 export async function propostasDaConversa(prisma: PrismaClient, conversaId: string) {
   const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_numero: true, bot_dados: true, lead_id: true } });
   if (!c) return [];
@@ -39,7 +41,7 @@ export async function propostasDaConversa(prisma: PrismaClient, conversaId: stri
   const cnpjs = [digitos((c.bot_dados as any)?.cnpj), digitos(lead?.cnpj)].filter(x => x.length === 14);
   const tel = ultimos8(c.contato_numero);
   const ps = await prisma.propostaComercial.findMany({
-    where: { deleted_at: null, status: { in: ABERTAS } }, select: SELECT_RESUMO, orderBy: { created_at: 'desc' }, take: 300,
+    where: { deleted_at: null, status: { in: [...ABERTAS, ...ACEITAS] } }, select: SELECT_RESUMO, orderBy: { created_at: 'desc' }, take: 300,
   });
   return ps.filter(p => cnpjs.includes(digitos(p.cnpj)) || (tel.length === 8 && ultimos8(p.responsavel_telefone) === tel)).slice(0, 10);
 }
@@ -110,14 +112,12 @@ export async function responderBotaoProposta(
   if (b.acao === 'aceitar') {
     // Botão de um plano (Pro/Plus): o aceite grava esse plano e os valores dele.
     const ok = p.public_token ? await aceitarPorToken(p.public_token, b.plano) : false;
-    if (!ok) texto = 'Recebemos o seu aceite! Nossa equipe vai confirmar e já te chama. 🙏';
-    else {
-      const pix = await prisma.configuracaoIntegracao.findUnique({ where: { chave: 'assistente.pix_chave' } }).catch(() => null);
-      const escolhido = b.plano ? opcoesPlanos(p as PropostaResumo).find(o => o.plano === b.plano) : null;
-      texto = (escolhido ? `✅ Plano escolhido: *${escolhido.nome}*.
-
-` : '') + textoPosAceite(p as PropostaResumo, pix?.valor || '');
+    if (ok) {
+      await enviarPosAceite(prisma, token, conversa, p as PropostaResumo, b.plano);
+      emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
+      return true;
     }
+    texto = 'Recebemos o seu aceite! Nossa equipe vai confirmar e já te chama. 🙏';
   } else {
     texto = textoDuvida(p as PropostaResumo);
     await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { prioridade: 'CRITICA', sla_prazo_em: calcularSlaPrazo('CRITICA') } }).catch(() => {});
@@ -126,6 +126,77 @@ export async function responderBotaoProposta(
   await gravarSaida(prisma, conversa.id, texto, r.externo_id, 'bot');
   emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
   return true;
+}
+
+/** Chave PIX da empresa e nome de quem recebe (Configurações > Assistente no WhatsApp). */
+async function lerPix(prisma: PrismaClient): Promise<{ chave: string; nome: string }> {
+  const rs = await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: ['assistente.pix_chave', 'assistente.pix_nome'] } } }).catch(() => []);
+  const v = (k: string) => (rs.find(r => r.chave === k)?.valor || '').trim();
+  return { chave: v('assistente.pix_chave'), nome: v('assistente.pix_nome') };
+}
+
+/** Botão "Copiar chave Pix"; se não der (formato da chave, número gratuito, erro da API), manda a chave em texto. */
+async function enviarChavePix(prisma: PrismaClient, token: string, conversa: { id: string; contato_numero: string }, pix: { chave: string; nome: string }, enviadaPor: string) {
+  const b = chavePixParaBotao(pix.chave);
+  if (b) {
+    try {
+      const r = await evo.enviarBotaoPix(token, conversa.contato_numero, { ...b, nome: pix.nome });
+      await gravarSaida(prisma, conversa.id, `[Botão PIX] ${pix.nome || 'Pix'} · ${pix.chave}`, r.externo_id, enviadaPor);
+      return;
+    } catch (e: any) { console.error('[PROPOSTA-WPP] botão PIX:', e?.message); }
+  }
+  const t = `Chave PIX${pix.nome ? ` (${pix.nome})` : ''}: *${pix.chave}*`;
+  const r = await evo.enviarTexto(token, conversa.contato_numero, t).catch((e: any) => { console.error('[PROPOSTA-WPP] chave PIX:', e?.message); return {} as any; });
+  await gravarSaida(prisma, conversa.id, t, r.externo_id, enviadaPor);
+}
+
+/** Mensagem após o aceite: próximos passos + cobrança da entrada com o botão PIX. */
+async function enviarPosAceite(prisma: PrismaClient, token: string, conversa: { id: string; contato_numero: string }, p: PropostaResumo, plano?: string | null) {
+  const pix = await lerPix(prisma);
+  const cobra = !!(p.entrada && pix.chave);
+  const escolhido = plano ? opcoesPlanos(p).find(o => o.plano === plano) : null;
+  const texto = (escolhido ? `✅ Plano escolhido: *${escolhido.nome}*.\n\n` : '') + textoPosAceite(p, pix.chave, cobra);
+  const r = await evo.enviarTexto(token, conversa.contato_numero, texto).catch((e: any) => { console.error('[PROPOSTA-WPP] pós-aceite:', e?.message); return {} as any; });
+  await gravarSaida(prisma, conversa.id, texto, r.externo_id, 'bot');
+  if (cobra) await enviarChavePix(prisma, token, conversa, pix, 'bot');
+}
+
+/**
+ * Aceite pelo link público de uma proposta enviada pelo WhatsApp: o cliente recebe na
+ * mesma conversa os próximos passos e o botão PIX da entrada (igual ao aceite pelo botão).
+ */
+export async function posAceitePeloLink(prisma: PrismaClient, propostaId: string): Promise<void> {
+  const p = await prisma.propostaComercial.findUnique({ where: { id: propostaId }, select: SELECT_RESUMO });
+  if (!p?.wpp_conversa_id) return;
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: p.wpp_conversa_id }, select: { id: true, contato_numero: true, dono_id: true } });
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!conversa || !inst?.instance_token) return;
+  await enviarPosAceite(prisma, inst.instance_token, conversa, p as PropostaResumo, null);
+  emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
+}
+
+/** Botão "Cobrar entrada (PIX)" do painel da conversa: proposta aceita → texto com o valor + botão PIX. */
+export async function cobrarEntradaWhatsapp(prisma: PrismaClient, conversaId: string, propostaId: string, user: { id: string; nome?: string }) {
+  const inst = await obterInstanciaEmpresa(prisma);
+  if (!inst?.instance_token) throw new Error('WhatsApp da empresa não está conectado.');
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { id: true, contato_numero: true, dono_id: true } });
+  const p = await prisma.propostaComercial.findUnique({ where: { id: propostaId }, select: SELECT_RESUMO });
+  if (!conversa || !p) throw new Error('Conversa ou proposta não encontrada.');
+  if (!ACEITAS.includes(p.status)) throw new Error('A cobrança da entrada é para proposta aceita.');
+  const valor = p.entrada || p.valor_final || p.valor_implantacao;
+  if (!valor) throw new Error('A proposta não tem valor de entrada.');
+  const pix = await lerPix(prisma);
+  if (!pix.chave) throw new Error('Cadastre a chave PIX da empresa em Configurações > Assistente no WhatsApp.');
+
+  const texto = textoCobrancaEntrada(valor, pix.chave, !!chavePixParaBotao(pix.chave));
+  const r = await evo.enviarTexto(inst.instance_token, conversa.contato_numero, texto);
+  await gravarSaida(prisma, conversa.id, texto, r.externo_id, user.id);
+  await enviarChavePix(prisma, inst.instance_token, conversa, pix, user.id);
+  await prisma.whatsappConversa.update({ where: { id: conversa.id }, data: { sla_prazo_em: null } }).catch(() => {});
+  await prisma.propostaHistorico.create({
+    data: { proposta_id: p.id, tipo: 'ENVIO', valor_novo: 'Cobrança da entrada (PIX) enviada pelo WhatsApp', feito_por_id: user.id, feito_por_nome: user.nome || 'Equipe' } as any,
+  }).catch((e: any) => console.error('[PROPOSTA-WPP] histórico:', e?.message));
+  emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: conversa.id });
 }
 
 /** Follow-up das propostas enviadas pelo WhatsApp (dias 2, 5 e 7). Devolve quantas mensagens saíram. */

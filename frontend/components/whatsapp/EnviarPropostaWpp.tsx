@@ -5,12 +5,17 @@ import { apiClient } from '@/lib/api-client';
 
 // Painel da conversa: envia uma proposta aberta deste contato pelo WhatsApp, com
 // os botões Aceitar / Tenho dúvidas e o follow-up automático (dias 2, 5 e 7).
+// Proposta já aceita: cobra a entrada com o botão "Copiar chave Pix".
 
 type Prop = {
-  id: string; nome: string; status: string; plano: string | null; valor: number | null; tem_link: boolean; enviada_wpp_em: string | null;
+  id: string; nome: string; status: string; plano: string | null; valor: number | null; entrada: number | null; tem_link: boolean; enviada_wpp_em: string | null;
   desconto_pct: number; desconto_precisa: boolean; desconto_status: string | null; desconto_limite: number | null;
 };
-const STATUS: Record<string, string> = { RASCUNHO: 'rascunho', ENVIADA: 'enviada', VISUALIZADA: 'visualizada', EM_NEGOCIACAO: 'em negociação' };
+const STATUS: Record<string, string> = {
+  RASCUNHO: 'rascunho', ENVIADA: 'enviada', VISUALIZADA: 'visualizada', EM_NEGOCIACAO: 'em negociação',
+  ACEITA: 'aceita', CONTRATO_EM_GERACAO: 'aceita · contrato em geração', CONTRATO_ENVIADO: 'aceita · contrato enviado', CONTRATO_ASSINADO: 'contrato assinado',
+};
+const ACEITAS = ['ACEITA', 'CONTRATO_EM_GERACAO', 'CONTRATO_ENVIADO', 'CONTRATO_ASSINADO'];
 const brl = (n: number | null) => n == null ? '' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 type ConversaProp = { lead_id?: string | null; contato_nome?: string | null; contato_numero: string; bot_dados?: any };
@@ -76,6 +81,17 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
     } finally { setEnviando(null); }
   };
 
+  const cobrarEntrada = async (p: Prop) => {
+    setEnviando(p.id); setAviso(null);
+    try {
+      const r = await apiClient.cobrarEntradaWhatsapp(conversaId, p.id);
+      setAviso({ ok: true, texto: r.data.message || 'Cobrança da entrada enviada.' });
+      setAberto(false);
+    } catch (e: any) {
+      setAviso({ ok: false, texto: e?.response?.data?.message || 'Não foi possível enviar a cobrança.' });
+    } finally { setEnviando(null); }
+  };
+
   // Criar proposta: abre a tela de proposta em outra aba já preenchida com os dados deste contato.
   // Os dados são buscados antes do clique: a aba nova abre na hora (o navegador não bloqueia).
   const [preenchimento, setPreenchimento] = useState<any>(null);
@@ -119,6 +135,13 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
                 {[p.plano, brl(p.valor), STATUS[p.status] || p.status].filter(Boolean).join(' · ')}
                 {p.enviada_wpp_em ? ' · já enviada pelo WhatsApp' : ''}
               </p>
+              {ACEITAS.includes(p.status) ? (
+                <button disabled={enviando === p.id} onClick={() => cobrarEntrada(p)}
+                  title="Manda o valor da entrada e o botão Copiar chave Pix"
+                  className="mt-1.5 w-full text-[11px] font-semibold rounded-md py-1.5 border border-teal-700 text-teal-800 hover:bg-teal-50 disabled:opacity-40">
+                  {enviando === p.id ? 'Enviando…' : `Cobrar entrada (Pix)${p.entrada ? ` · ${brl(p.entrada)}` : ''}`}
+                </button>
+              ) : <>
               {p.desconto_precisa && (
                 <p className="text-[11px] mt-1 text-amber-700">
                   Desconto de {p.desconto_pct.toLocaleString('pt-BR')}% passa do limite de {p.desconto_limite}%.
@@ -136,6 +159,7 @@ export default function EnviarPropostaWpp({ conversaId, conversa }: { conversaId
                 className="mt-1.5 w-full text-[11px] font-semibold rounded-md py-1.5 border border-teal-700 text-teal-800 hover:bg-teal-50 disabled:opacity-40">
                 {enviando === p.id ? 'Enviando…' : p.enviada_wpp_em ? 'Reenviar' : 'Enviar'}
               </button>
+              </>}
             </div>
           ))}
         </div>

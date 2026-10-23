@@ -35,7 +35,7 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 ### Fase B: fechar pendências de configuração
 | Item | Depende de |
 |---|---|
-| Chave PIX no aceite (texto e botão PIX nativo) | Chave PIX |
+| ~~Chave PIX no aceite (texto e botão PIX nativo)~~ feito em 23/10 | — |
 | Grok nas tarefas simples | Chave da xAI |
 | E-mails para clientes (domínio no Resend) | Acesso ao DNS |
 | Ligar a Helena (pós-venda) | Decisão |
@@ -1837,3 +1837,14 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - [x] Mensagem própria para UAZAPI instável na conexão por token.
 - [x] Testes `tests/whatsapp-status-falha.test.ts`.
 - [ ] Pendente da Jessica (desde 19/10): o Número 4 (API gratuita) tem o mesmo celular do Número 2 (final 8103) e está desconectado de verdade; decidir se as conversas dele passam para o Número 2 e se a vaga é liberada.
+
+### Atualização 23/10/2026: botão "Copiar chave Pix" na cobrança da entrada
+
+- [x] `enviarBotaoPix` (UAZAPI `/send/pix-button`) e `chavePixParaBotao` com testes.
+- [x] Aceite pelo botão do WhatsApp: texto + botão PIX (chave em texto se o botão falhar).
+- [x] Aceite pelo link de proposta enviada pelo WhatsApp: mesma mensagem na conversa (antes não mandava nada).
+- [x] Painel da conversa: propostas aceitas com "Cobrar entrada (Pix)".
+- [x] Configurações: campo "Nome de quem recebe".
+- [ ] Produção: a Jessica cadastra a chave CNPJ 09.559.678/0001-83 e o recebedor "Solution Desenvolvimento" em Configurações (a gravação direta no banco foi bloqueada pela permissão do Claude).
+- [x] Item "Chave PIX no aceite (texto e botão PIX nativo)" da Fase B.
+- [ ] Conferir com a Jessica, no primeiro aceite real, se o cartão chegou certo no celular do cliente.

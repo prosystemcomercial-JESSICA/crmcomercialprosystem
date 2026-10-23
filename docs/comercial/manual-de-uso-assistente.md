@@ -131,10 +131,13 @@ O **Thiago** recebe só o resumo das 18h e os novos contratos assinados.
 **Na conversa, dois botões:**
 - **➕ Criar proposta:** abre a tela de proposta **numa aba nova**, já preenchida com os dados do lead, da Receita e do contato.
 - **📄 Enviar / reenviar:** lista as propostas abertas do contato. A proposta precisa ter o **link público** gerado.
+  - As propostas **já aceitas** aparecem com o botão **Cobrar entrada (Pix)**: manda o valor da entrada e o botão **Copiar chave Pix** (Solution Desenvolvimento, CNPJ 09.559.678/0001-83). Use quando o cliente pedir a chave de novo ou ainda não tiver pago. Fica registrado no histórico da proposta.
 
 **O que o cliente recebe:**
 - Quando a proposta tem **mais de um plano** (Pro e Plus), a mensagem mostra **as opções com a mensalidade de cada uma** e marca o recomendado. Os botões são **Aceitar Farma Pro**, **Aceitar Farma Plus** e **Tenho dúvidas**. Com um plano só, o botão é **Aceitar proposta**.
-- **Aceitar:** grava o plano escolhido com o valor certo, gera o contrato, fecha o lead e manda a entrada por **PIX** (ou o aviso do financeiro, se a chave PIX não estiver configurada). Também pede o nome, o CPF e o e-mail de quem vai assinar.
+- **Aceitar:** grava o plano escolhido com o valor certo, gera o contrato, fecha o lead e manda o valor da entrada com o botão **Copiar chave Pix** (ou o aviso do financeiro, se a chave PIX não estiver configurada). Também pede o nome, o CPF e o e-mail de quem vai assinar.
+  - Se o cliente aceitar **pelo link** de uma proposta que foi pelo WhatsApp, ele recebe a mesma mensagem na conversa.
+  - A chave e o **nome de quem recebe** ficam em Configurações → Assistente no WhatsApp. Se o botão não puder sair, a chave vai escrita.
 - **Tenho dúvidas:** a conversa vira prioridade crítica.
 
 **Contrato e assinatura (ZapSign):**

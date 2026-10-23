@@ -1839,3 +1839,21 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 - **Antes:** tela ou webhook de conexão consulta a UAZAPI → erro 401/rede → grava DESCONECTADO → envio aos contatos do número bloqueado, número fora do rodízio, bolinha "Caiu a conexão" → só a tela Configurações › Números consultava de novo o Número 2.
 - **Agora:** consulta → erro → nova tentativa após 2 s → ainda erro → mantém o último status conhecido (nada muda para quem usa). A cada 5 min o vigia confere todos os números e corrige o banco. Só depois de 15 min seguidos de erro o número passa a desconectado.
 - Ao colar um token em Configurações com a UAZAPI instável, a mensagem é "A UAZAPI não respondeu direito agora (o token pode estar certo). Tente de novo em alguns minutos."
+
+### Atualização 23/10/2026: botão "Copiar chave Pix" na cobrança da entrada
+
+```mermaid
+flowchart TD
+  A[Cliente aceita] --> B{Por onde?}
+  B -- Botão Aceitar no WhatsApp --> C[Aceite + texto dos próximos passos]
+  B -- Link da proposta enviada pelo WhatsApp --> C
+  B -- Link de proposta que não foi pelo WhatsApp --> Z[Só o aviso para a gestão]
+  C --> D{Tem entrada e chave PIX?}
+  D -- Sim --> E[Botão Copiar chave Pix]
+  E -- Falhou --> F[Chave em texto]
+  D -- Sem chave --> G[Financeiro vai enviar a cobrança]
+  H[Vendedora: Enviar / reenviar → Cobrar entrada Pix] --> I[Texto com o valor + botão Copiar chave Pix]
+```
+
+- O valor cobrado no botão manual é a entrada da proposta; sem entrada, o valor final (ou a implantação).
+- Tudo o que sai fica na conversa ("[Botão PIX] Solution Desenvolvimento · chave") e a cobrança manual vai para o histórico da proposta.

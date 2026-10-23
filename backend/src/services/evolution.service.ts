@@ -380,6 +380,22 @@ export type MenuWhatsapp =
   | { modo: 'button'; texto: string; opcoes: OpcaoMenu[]; rodape?: string }
   | { modo: 'list'; texto: string; opcoes: OpcaoMenu[]; botaoLista: string; secao: string; rodape?: string };
 
+/**
+ * Botão nativo "Copiar chave Pix" (UAZAPI POST /send/pix-button): cartão com o nome
+ * de quem recebe e a chave. A API gratuita (Evolution) não tem: lança erro e quem
+ * chama manda a chave em texto.
+ */
+export async function enviarBotaoPix(
+  instanceToken: string, numero: string, pix: { tipo: 'CPF' | 'CNPJ' | 'PHONE' | 'EMAIL' | 'EVP'; chave: string; nome?: string },
+): Promise<{ externo_id?: string }> {
+  instanceToken = await rotear(instanceToken, numero);
+  if (gratis.ehTokenGratis(instanceToken)) throw new Error('Botão PIX indisponível neste número.');
+  const data = await call('/send/pix-button', 'POST', instanceToken, {
+    number: normalizarNumero(numero), pixType: pix.tipo, pixKey: pix.chave, ...(pix.nome?.trim() ? { pixName: pix.nome.trim() } : {}),
+  });
+  return { externo_id: idDaMensagemEnviada(data) };
+}
+
 /** Menu interativo via POST /send/menu: botões (até 3) ou lista (4+ opções). */
 export async function enviarMenu(instanceToken: string, numero: string, menu: MenuWhatsapp): Promise<{ externo_id?: string }> {
   instanceToken = await rotear(instanceToken, numero);
