@@ -1848,3 +1848,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - [ ] Produção: a Jessica cadastra a chave CNPJ 09.559.678/0001-83 e o recebedor "Solution Desenvolvimento" em Configurações (a gravação direta no banco foi bloqueada pela permissão do Claude).
 - [x] Item "Chave PIX no aceite (texto e botão PIX nativo)" da Fase B.
 - [ ] Conferir com a Jessica, no primeiro aceite real, se o cartão chegou certo no celular do cliente.
+
+### Correção 23/10/2026: erro "Unexpected token 'É'" ao enviar contrato para a ZapSign
+
+- **Caso:** "Enviar para assinatura" do contrato 55/2026 (Ronaira) mostrava "Erro ao chamar ZapSign: Unexpected token 'É', "É obrigató"... is not valid JSON". A ZapSign respondeu **402 "É obrigatório contratar um Plano de API para utilizá-la em modo produção."** em texto puro, e o CRM tentou ler como JSON.
+- **Conferido em produção:** a chave (`ZAPSIGN_API_TOKEN` do `.env`, ambiente production) é válida: `GET /docs/` responde 200 (157 documentos). O que falta é o **Plano de API** da conta ZapSign para criar documentos (contrato e termo de aceite da implantação).
+- **Correção:** `lerRespostaZapSign(response)` em `routes/contratos-comerciais.ts` lê o corpo como texto, tenta JSON e devolve uma mensagem legível (402 explica o Plano de API e indica Baixar PDF + Painel ZapSign). Usada em `enviar-zapsign`, `gerar-e-enviar` e `implantacao-termo.service`. Em `gerar-e-enviar`, se a ZapSign recusar, o status volta ao anterior (não fica "GERADO" sem ter saído).
+- **Correção:** `telefoneZapSign` manda `phone_number` sem o 55 (o país vai em `phone_country`); antes ia 55 duas vezes.
+- **WhatsApp:** com a ZapSign aceitando o documento, o link de assinatura já vai pelo WhatsApp da empresa na conversa da proposta (`enviarLinkAssinatura`) e pelo e-mail da ZapSign. Isso volta a funcionar assim que o Plano de API estiver ativo.
+- Testes: `tests/zapsign-resposta.test.ts` (4).
