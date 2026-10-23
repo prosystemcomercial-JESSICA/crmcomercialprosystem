@@ -4,6 +4,12 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **23/10/2026, manhã (de novo "Caiu a conexão": causa real achada):**
+  - **Causa:** a atualização automática do Ubuntu (`unattended-upgrades`) religa o PM2 (`pm2 resurrect`): às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurava a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusa os tokens da nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". **O diagnóstico de 22/10 ("instabilidade da UAZAPI") estava errado**: o deploy das 10h37 (`--update-env`) é que tinha consertado.
+  - **Produção:** foto antiga copiada para `/root/backups-deploy/pm2-dump-antes-20261023.pm2`; `comercial-backend` religado com `--update-env` (processo conferido com o endereço `prosystemnet`) e `pm2 save`.
+  - **Código:** `src/carregar-env.ts` (primeiro import do `server.ts`) relê o `.env` e prevalece sobre o PM2, com log dos nomes corrigidos; `deploy-vps.sh` faz `pm2 save` após o restart. Teste `tests/env-arquivo.test.ts`. Sem mudança de banco.
+  - **Efeito do período:** de 03h38 até a correção, envios pelo principal e pelo Número 2 recusados (inclusive avisos de lead qualificado para a Jessica). Mensagens recebidas continuaram entrando.
+
 - **22/10/2026, manhã (números "Caiu a conexão" com a UAZAPI conectada):**
   - **Causa:** das 10h06 às 10h17 (Brasília), a UAZAPI (`prosystemnet.uazapi.com`) respondeu 401 "Invalid token" ao `GET /instance/status` e ao `/send/text` com os tokens certos do principal e do Número 2. Às 10h25 os mesmos tokens já respondiam "connected" (o `/status` da conta mostrava 3 de 3 conectadas). O `obterStatus` tratava qualquer erro como DESCONECTADO e gravava no banco. Efeito: envio aos contatos desses números bloqueado (`decidirInstanciaEnvio`), números fora do rodízio, avisos de lead qualificado para a Jessica perdidos (401). O Número 2 só se acertava se alguém abrisse Configurações › Números.
   - **Correção:** `obterStatus` faz nova tentativa (2 s), tempo limite de 20 s e devolve `falhaApi` por até 15 min de falha seguida (`lib/whatsapp-status.ts`). Rotas e webhook de conexão mantêm o último status nesse caso. Vigia novo a cada 5 min (`services/whatsapp-conexao.service.ts`) confere e corrige todos os números. Validação de token com a UAZAPI instável responde "não respondeu direito agora" em vez de "token inválido". Testes em `tests/whatsapp-status-falha.test.ts`. Sem mudança de banco.

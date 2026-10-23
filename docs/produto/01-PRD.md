@@ -1838,6 +1838,11 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Ciclo de Vendas (`/ciclo-vendas`):** antes olhava os 1.000 leads mais novos e só contava "fechado" quem tinha data de fechamento no lead. Agora parte dos 23 contratos desde junho/2026 e liga cada um à proposta e à entrada do lead ou da conversa. Os contratos lançados no mesmo dia da venda (18) ficam separados, sem histórico. Ciclo típico em 21/10: 31 dias da entrada ao contrato (5 contratos medidos). As 18 propostas abertas estão paradas há 80 dias (mediana).
 - **Meta de outubro:** a meta de contratos está cadastrada como 7.500 (parece valor em reais). A Previsão ignora e avisa; a Jessica precisa corrigir em Metas (pendente).
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- Requisito: o endereço e as chaves do `.env` valem sempre, mesmo quando o servidor religa sozinho. Nenhuma atualização do sistema operacional pode fazer o CRM falar com a conta errada da UAZAPI.
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - **Caso:** em 22/10, das 10h06 às 10h17 (Brasília), a UAZAPI respondeu 401 "Invalid token" para os tokens certos do principal (Comercial 1) e do Número 2 (Comercial 2), que seguiam conectados no painel. O CRM marcou os dois como desconectados, bloqueou o envio aos contatos desses números (regra "contato preso ao número"), tirou-os do rodízio e não mandou os avisos de lead qualificado. O Número 2 só voltaria quando alguém abrisse Configurações.

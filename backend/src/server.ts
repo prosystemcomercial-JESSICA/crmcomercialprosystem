@@ -18,6 +18,7 @@ process.on('unhandledRejection', (reason: any) => {
 console.log('[BOOT] server.ts carregado — Node', process.version, '— NODE_ENV=', process.env.NODE_ENV);
 console.log('[BOOT] build rev: dashboard-bigint-fix-2026-05-29');
 
+import './carregar-env';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';

@@ -59,7 +59,8 @@ echo "banco sem alterações"
 # Build falhou (16/10/2026: fonte do Google não baixou e o cache do Turbopack ficou corrompido)? Limpa o .next e tenta
 # uma vez mais; se falhar de novo, para SEM reiniciar (o site segue na versão em memória; rode de novo antes de reiniciar).
 cd ../frontend && { npm run build > /tmp/build-front-$TS.log 2>&1 || { echo "build falhou: limpando o cache e tentando de novo"; rm -rf .next; npm run build > /tmp/build-front-$TS.log 2>&1; }; } && echo "build ok" || { echo "BUILD FALHOU (o frontend NÃO foi reiniciado)"; tail -30 /tmp/build-front-$TS.log; exit 1; }
-cd .. && pm2 restart ecosystem.config.js --only comercial-backend,comercial-frontend --update-env >/dev/null && echo "pm2 reiniciado"
+# pm2 save: a foto que o PM2 usa ao religar sozinho (atualização do Ubuntu) precisa ter o .env atual (caso de 22-23/10/2026).
+cd .. && pm2 restart ecosystem.config.js --only comercial-backend,comercial-frontend --update-env >/dev/null && pm2 save >/dev/null && echo "pm2 reiniciado e salvo"
 for i in $(seq 1 20); do
   if curl -fsS -o /dev/null https://comercial.prosystemnet.com/escritorio; then echo "frontend ok"; break; fi; sleep 3
 done

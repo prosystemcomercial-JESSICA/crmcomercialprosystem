@@ -1,5 +1,7 @@
 # 22/10/2026: números "Caiu a conexão" com a UAZAPI conectada
 
+> **Correção em 23/10/2026:** a causa abaixo estava errada. Não foi instabilidade da UAZAPI: o PM2 tinha sido religado às 03h25 pela atualização automática do Ubuntu com o endereço da conta antiga. Veja `2026-10-23-whatsapp-causa-raiz-pm2.md`.
+
 ## Pedido
 A Jessica mandou dois prints: o painel da UAZAPI mostrava "Comercial 1" (principal, final 1370) e "Comercial 2" (Número 2, final 8103) como `connected`, mas a tela do WhatsApp do CRM dizia "1 de 4 conectados" e "O WhatsApp da empresa está desconectado". Pedido: "investigue o que está acontecendo agora, e corrija para que não aconteça novamente". Ela também pediu os horários em Brasília.
 

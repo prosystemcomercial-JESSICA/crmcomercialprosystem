@@ -1822,6 +1822,11 @@ Abrir/recarregar CRM → grupos fechados. Expandir um grupo ou todos afeta somen
 2. `/previsao`: a tela chama `GET /leads/previsao` e mostra a meta de contratos do mês, os três cenários e as oportunidades. O link de cada uma abre as propostas ou a conversa.
 3. `/ciclo-vendas`: a tela chama `GET /leads/ciclo-vendas` e mostra o ciclo típico, o tempo por etapa, as propostas abertas e cada contrato medido (com exportação).
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- Fluxo ao ligar o backend: `carregar-env` relê o `.env` → corrige variáveis diferentes → sobe o resto. Fluxo de deploy: restart com `--update-env` → `pm2 save`. Nenhuma tela mudou.
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - **Antes:** tela ou webhook de conexão consulta a UAZAPI → erro 401/rede → grava DESCONECTADO → envio aos contatos do número bloqueado, número fora do rodízio, bolinha "Caiu a conexão" → só a tela Configurações › Números consultava de novo o Número 2.

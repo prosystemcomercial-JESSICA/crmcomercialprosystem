@@ -1810,6 +1810,11 @@ Nenhuma mudança no banco, APIs ou permissões. Estado dos grupos agora só em m
 - **Ciclo (leitura):** `ContratoComercial.proposta_comercial_id/cnpj/representante_telefone`, `PropostaComercial.created_at/data_aceite/cnpj/responsavel_telefone`, `Lead.cnpj/responsavel_telefone/telefone/created_at` e `WhatsappConversa.contato_numero/created_at`.
 - **Retomadas:** os mesmos campos de `SdrLead.dados` (`retomar_em`, `ciclo_em`); só muda a ordem e o teto por rodada.
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- Sem mudança de banco. Novos arquivos: `src/carregar-env.ts` (efeito ao importar) e `src/lib/env-arquivo.ts` (`lerEnv`, `aplicarEnv`). O `.env` do backend passa a ser a fonte única das variáveis, mesmo quando o processo vem do `pm2 resurrect`.
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - **Sem mudança de banco.** `WhatsappInstancia.status` só é gravado quando a API responde de fato (ou após 15 min de falha seguida). O controle da falha fica em memória (`Map` por token em `evolution.service.ts`, regra em `lib/whatsapp-status.ts`) e zera ao reiniciar o backend.

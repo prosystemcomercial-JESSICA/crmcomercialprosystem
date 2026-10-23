@@ -1817,6 +1817,12 @@ Validação local: cinco testes focados aprovados (34,1 s), com todas as APIs si
 - [ ] Conferir em 22/10 se os retornos atrasados caíram no relatório do Analista ("Gerar agora").
 - [ ] Opcional: `/dashboard/forecast` (Painel do CEO e Análise Comercial) ainda usa a fórmula antiga pelo kanban; avaliar trocar pela mesma base.
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- Feito: `carregar-env` no boot, `pm2 save` no deploy, teste `tests/env-arquivo.test.ts`, produção religada com o `.env` atual e foto do PM2 salva.
+- Lição: a correção de 22/10 (tolerância de 15 min e vigia) continua útil, mas tratava o sintoma. Erro 401 que não passa em minutos aponta para endereço ou token errados, não para instabilidade.
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - [x] `obterStatus` com nova tentativa, tempo limite e `falhaApi` (UAZAPI e API gratuita).

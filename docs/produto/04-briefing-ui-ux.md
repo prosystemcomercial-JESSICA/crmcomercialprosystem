@@ -1792,6 +1792,11 @@ Mantidas dimensões compactas do menu. Estado inicial recolhido, sem exibir prev
   - tabela dos contratos, com os lançados no dia da venda em opacidade reduzida;
   - botão de exportar mantido.
 
+### Correção 23/10/2026: a causa real do "Caiu a conexão" (22 e 23/10)
+
+- Causa real (23/10/2026): a atualização automática do Ubuntu religou o PM2 (`pm2 resurrect`) às 03h25 de 22/10 e às 03h38 de 23/10. O PM2 restaurou a foto `~/.pm2/dump.pm2` de 17/10, com o `EVOLUTION_API_URL` da conta UAZAPI antiga (`advleticiabarros`). A conta antiga recusava os tokens da conta nova (`prosystemnet`, desde 19/10) com 401 "Invalid token". Em 22/10 não foi instabilidade da UAZAPI: o deploy das 10h37 (`--update-env`) é que consertou.
+- Nenhuma tela mudou. O aviso "Caiu a conexão" continua o mesmo; o que muda é que ele não aparece mais por causa de religamento do servidor.
+
 ### Correção 22/10/2026: número aparecia "Caiu a conexão" com a UAZAPI conectada
 
 - Nenhuma tela nova. As bolinhas do WhatsApp e Configurações › Números deixam de mostrar "Caiu a conexão" por uma instabilidade curta da UAZAPI: o estado só muda quando a API responde ou quando a falha passa de 15 minutos.
