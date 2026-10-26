@@ -1533,6 +1533,7 @@ class ApiClient {
   async rafaelDocs(agente?: 'mila') { return this.client.get('/especialista/docs', { params: agente ? { agente } : {} }); }
   async rafaelEstudar(tema?: string | null) { return this.client.post('/especialista/estudar', { tema }); }
   async rafaelRevisar() { return this.client.post('/especialista/revisar', {}); }
+  async rafaelAnalisarConversa(conversaId: string, pedido?: string | null) { return this.client.post('/especialista/analisar-conversa', { conversaId, pedido }); }
   async oliviaConcorrentes(foco?: string | null) { return this.client.post('/especialista/concorrentes', { foco }); }
   async rafaelAbordagem() { return this.client.post('/especialista/abordagem', {}); }
   async rafaelTreinar(agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') { return this.client.post('/especialista/treinar', { agente }); }

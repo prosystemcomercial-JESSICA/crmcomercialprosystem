@@ -535,6 +535,17 @@ export default function WhatsappPage() {
     } catch (e: any) { console.error('Falha ao excluir', e); }
   };
   // Desvincular a conversa do funil (não conta como lead no dashboard).
+  // Pedir ao Rafael a análise desta conversa (26/10/2026): ele aponta os erros do agente e corrige para não repetir.
+  const pedirAnaliseRafael = async () => {
+    if (!ativa) return;
+    const pedido = prompt('O que o Rafael deve olhar nesta conversa? (opcional)', '');
+    if (pedido === null) return;
+    try {
+      const r = await apiClient.rafaelAnalisarConversa(ativa.id, pedido.trim() || null);
+      alert(r.data?.message || 'O Rafael está analisando a conversa.');
+    } catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível pedir a análise agora.'); }
+  };
+
   const desvincularFunil = async () => {
     if (!ativa) return;
     if (!confirm('Desvincular esta conversa do funil? Ela deixa de contar como lead no dashboard.')) return;
@@ -1216,6 +1227,7 @@ export default function WhatsappPage() {
                           { t: 'Prioridade', f: () => setMenuPrioridade(true), ver: true },
                           { t: 'Etiquetar', f: () => setMenuEtiqueta(true), ver: true },
                           { t: 'Desvincular do funil', f: desvincularFunil, ver: !!ativa.lead_id },
+                          { t: 'Pedir análise ao Rafael', f: pedirAnaliseRafael, ver: podeTransferir },
                         ].filter(b => b.ver).map(b => (
                           <button key={b.t} onClick={() => { setMenuMais(false); b.f(); }} className="w-full text-left px-2.5 h-9 rounded text-sm text-gray-700 hover:bg-gray-50">{b.t}</button>
                         ))}
@@ -1242,6 +1254,7 @@ export default function WhatsappPage() {
                                 acao('Vincular a cliente da base', abrirVincCliente),
                                 podeTransferir && acao('Transferir vendedor', () => { abrirTransferir(); setMenuEtiqueta(false); }),
                                 ativa.lead_id && acao('Desvincular do funil', desvincularFunil),
+                                podeTransferir && acao('Pedir análise ao Rafael', pedirAnaliseRafael),
                                 acao('Excluir conversa', () => excluirConversa(ativa.id), true),
                               ];
                             })()}

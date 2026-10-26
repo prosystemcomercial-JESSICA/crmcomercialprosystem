@@ -613,6 +613,64 @@ export async function orientarAgente(prisma: PrismaClient, agente: string, conve
   return r;
 }
 
+/**
+ * Análise de UMA conversa pedida pela Jessica (26/10/2026: "peça para o Rafael analisar essa conversa e mostrar como
+ * a Caroline está errada e não deixar que ela repita"). O Rafael lê a conversa inteira, aponta cada erro pelo
+ * playbook, escreve como deveria ter sido e grava: documento ALERTA (painel do Rafael), correção para o agente na
+ * conversa, lição para o time (mural) e o papo Rafael → agente no Escritório. Nunca fala com o cliente.
+ */
+export async function analisarConversa(prisma: PrismaClient, conversaId: string, pedido: string | null = null) {
+  const conv = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { contato_nome: true, contato_numero: true } });
+  if (!conv) throw new Error('Conversa não encontrada');
+  const ms = (await prisma.whatsappMensagem.findMany({ where: { conversaId }, orderBy: { created_at: 'desc' }, take: 60, select: { direcao: true, enviada_por: true, conteudo: true, transcricao: true, tipo: true, created_at: true } })).reverse();
+  if (!ms.length) throw new Error('Conversa sem mensagens');
+  const sdr = await prisma.sdrLead.findFirst({ where: { conversaId }, orderBy: { updated_at: 'desc' }, select: { agente: true, dados: true } });
+  const agente = sdr?.agente || 'caroline';
+  const nomeAg = NOME_AGENTE[agente] || agente;
+  const d: any = sdr?.dados || {};
+  const tipoContato = d.prospeccao ? 'contato ativo: nós chamamos a loja (prospecção)' : d.indicacao ? 'contato ativo: decisor indicado por alguém' : 'o lead nos procurou';
+  const hora = (x: Date) => x.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  const texto = ms.map(m => `[${hora(m.created_at)}] ${m.direcao === 'ENTRADA' ? 'Cliente' : AUTOMATICOS.includes(m.enviada_por || '') ? `${NOME_AGENTE[m.enviada_por || ''] || 'Automático'}` : 'Equipe'}: ${((m.tipo === 'AUDIO' ? `(áudio) ${m.transcricao || ''}` : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 500)}`).join('\n');
+  const nome = conv.contato_nome || conv.contato_numero;
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const r = lerJsonIa<{ resumo: string; erros: { quando: string; o_que_fez: string; por_que_errado: string; certo: string }[]; fluxo_certo: string[]; regra: string; licao_time: string; mensagem_agora: string }>(await chamarGemini(prisma, {
+    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    partes: [{ text: [
+      `A Jessica pediu que você analise esta conversa do agente ${nomeAg} e mostre onde ele errou, para não repetir.${pedido ? ` Pedido dela: "${pedido}"` : ''}`,
+      `Tipo de contato: ${tipoContato}. Leia a conversa INTEIRA. Julgue pelo playbook (começo, meio e fim; entender antes de oferecer; uma pergunta por vez; próximo passo combinado).`,
+      'Em "erros", siga a ordem da conversa: o horário/mensagem, o que o agente fez, por que estava errado e o que deveria ter escrito (frase pronta, curta, sem travessão).',
+      'Em "fluxo_certo", reescreva a conversa como deveria ter sido, passo a passo (3 a 6 passos, cada um com a mensagem do agente).',
+      'Em "regra", UMA regra curta e permanente para o agente, no formato "Quando X, faça Y". Em "licao_time", a mesma ideia para o time inteiro.',
+      'Em "mensagem_agora", a próxima mensagem que o agente deve mandar nesta conversa (vazia se a conversa já foi assumida por uma pessoa ou se não cabe mensagem).',
+      'Responda APENAS com JSON: {"resumo": string, "erros": [{"quando": string, "o_que_fez": string, "por_que_errado": string, "certo": string}], "fluxo_certo": [string], "regra": string, "licao_time": string, "mensagem_agora": string}',
+      '', `### Conversa: ${nome}`, texto,
+    ].join('\n') }],
+    json: true, temperatura: 0.2, timeoutMs: 150_000,
+  }));
+  if (!r?.resumo) throw new Error('O Rafael não conseguiu montar a análise agora');
+  const dia = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const md = [
+    `# Análise da conversa de ${nome} (${nomeAg}) · ${dia}`, '', r.resumo, '',
+    `Abrir a conversa: ${baseFrontend()}/whatsapp?conversa=${conversaId}`, '',
+    `## Onde ${agente === 'caroline' ? 'a' : 'o'} ${nomeAg} errou`,
+    ...(r.erros || []).map((e, i) => `${i + 1}. **${e.quando}**: ${e.o_que_fez}\n   - Por que está errado: ${e.por_que_errado}\n   - O certo: ${e.certo}`),
+    '', '## Como deveria ter sido', ...(r.fluxo_certo || []).map((p, i) => `${i + 1}. ${p}`),
+    '', '## Regra para não repetir', r.regra || '',
+    ...(r.mensagem_agora ? ['', '## Próxima mensagem sugerida nesta conversa', r.mensagem_agora] : []),
+  ].join('\n');
+  const doc = await gravarDoc(prisma, { tipo: 'ALERTA', titulo: `Análise da conversa · ${nome} · ${dia}`, conteudo: md, agente_alvo: agente }, 'analise_conversa');
+  const { anotar, EQUIPE } = await import('./equipe.service');
+  await anotar(prisma, { de: 'rafael', para: agente, tipo: 'ORIENTACAO', assunto: `Correção na conversa de ${nome}`, texto: `${r.regra || r.resumo}${r.mensagem_agora ? ` Mensagem sugerida: "${r.mensagem_agora}"` : ''}`.slice(0, 900), ref: conversaId }).catch(() => {});
+  if (r.licao_time) await anotar(prisma, { de: 'rafael', para: EQUIPE, tipo: 'ORIENTACAO', assunto: `Lição da conversa de ${nome}`, texto: r.licao_time.slice(0, 600) }).catch(() => {});
+  import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('rafael', agente, `Correção: ${nome}`, [
+    { quem: 'rafael', texto: `${nomeAg}, analisei a conversa de ${nome}. ${r.resumo}` },
+    { quem: 'rafael', texto: r.regra || '' },
+    { quem: agente, texto: 'Entendi, Rafael. Não vou repetir.' },
+  ])).catch(() => {});
+  registrarAcaoAgente('rafael', `analisou a conversa de ${nome} a pedido da Jessica e corrigiu ${agente === 'caroline' ? 'a' : 'o'} ${nomeAg}`);
+  return doc;
+}
+
 export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(agora);
   const dia = partes.find(p => p.type === 'weekday')?.value || '';

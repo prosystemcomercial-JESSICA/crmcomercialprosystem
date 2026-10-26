@@ -8,7 +8,7 @@ import { campanhaVigente } from '@/lib/assistente/negociacao';
 import { ehPedidoDeSaida, ultimos8 } from '@/lib/assistente/campanhas';
 import { ehRespostaAutomatica, ehEncerramentoAutomatico, soRoboDaLoja, fichaDoLead, sinaisDeNaoLoja, compromissoDeHorario, ehAdiamento, intervaloRetomadaAssumida, retornoDaEquipe, linhaDadosProposta } from '@/lib/assistente/sdr';
 import { lerDataUrl } from '@/lib/assistente/ia-texto';
-import { regraRepeticao, tentativasDeSocorro, SOCORRO_MAX } from '@/lib/assistente/sdr';
+import { regraRepeticao, tentativasDeSocorro, SOCORRO_MAX, demoSemFluxo } from '@/lib/assistente/sdr';
 // Cliente adiou e não disse quando: retomada daqui a 3 dias úteis (às 9h30), nunca no mesmo dia
 // (pedido da Jessica, 06/10/2026: 3 a 4 dias depois, mandando a apresentação do segmento).
 const DIAS_RETOMADA_ADIOU = 3;
@@ -1116,6 +1116,18 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (r && r.acao === 'sem_interesse' && r.dados.interlocutor === 'atendente' && !(sdr.dados as any)?.pediu_decisor_em) {
     const nova = await gerarResposta(prisma, sdr, fase, 'Quem respondeu é atendente ou balconista, não quem decide. NÃO encerre e NÃO use "sem_interesse": agradeça com gentileza e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). acao "continuar", dados.interlocutor "atendente".');
     if (nova && nova.acao !== 'sem_interesse') { r = nova; registrarAcaoAgente(agenteDe(sdr), `não desistiu de ${sdr.nome || 'um lead'}: quem recusou foi o atendente, pediu o contato de quem decide`); }
+  }
+  // Trava: no contato ativo, demonstração só depois de uma dor ou de a pessoa pedir/aceitar ver o sistema
+  // (caso Farmácia Preço Baixo, 26/10/2026: "sim, é a loja" virou lista de horários).
+  if (r && r.acao === 'oferecer_demo') {
+    const dS: any = sdr.dados || {};
+    const contatoAtivo = !!(dS.prospeccao || dS.indicacao);
+    const falas = contatoAtivo ? (await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, take: 8, select: { conteudo: true, transcricao: true } })).map(m => m.transcricao || m.conteudo || '') : [];
+    if (demoSemFluxo({ contatoAtivo, acao: r.acao, dor: r.dor_principal || dS.dor_principal, falasCliente: falas })) {
+      const nova = await gerarResposta(prisma, sdr, fase, 'Fomos nós que chamamos esta loja e a pessoa ainda NÃO contou nenhuma dor nem pediu para ver o sistema. NÃO ofereça demonstração, NÃO fale em horários e NÃO liste recursos. Responda ao que ela acabou de escrever e siga o fluxo: se ela perguntou quem é você, apresente-se de novo por inteiro e diga por que chamou a loja; depois faça UMA pergunta fácil sobre a loja (ex.: qual sistema usam hoje ou o que mais toma tempo no dia a dia). acao "continuar".');
+      if (nova && nova.acao !== 'oferecer_demo') { r = nova; registrarAcaoAgente(agenteDe(sdr), `segurou a demonstração para ${sdr.nome || 'um lead'}: ainda não sabia a dor`); }
+      else r = null;
+    }
   }
   if (!r) {
     console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável');

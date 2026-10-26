@@ -1361,3 +1361,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - O CRM também confere sozinho todos os números a cada 5 minutos. Não precisa abrir Configurações para o status voltar ao certo.
 - Se aparecer "Caiu a conexão", confira no painel da UAZAPI. Se lá estiver "connected", espere até 5 minutos que o CRM se acerta sozinho.
 - O **Número 4 (API gratuita)** continua desconectado de verdade: o celular dele (final 8103) agora está no Número 2. Falta você decidir se as conversas dele passam para o Número 2.
+
+### Novidade 26/10/2026: pedir ao Rafael a análise de uma conversa
+
+- Na conversa do WhatsApp, abra o menu **…** › **Pedir análise ao Rafael**. Se quiser, escreva o que ele deve olhar (ex.: "não houve fluxo de conversa").
+- Em 1 a 2 minutos a análise aparece em **Escritório › Rafael**: onde o agente errou, mensagem por mensagem, como deveria ter sido e a regra para não repetir. A correção vai na hora para o agente e a lição para o time.
+- **Regra nova dos agentes no contato ativo (lojas que nós chamamos):** primeiro se apresentam e entendem a loja; a demonstração só é oferecida depois que a pessoa conta uma dificuldade ou pede para ver o sistema. Confirmar o nome da loja não é interesse. Se perguntarem "com quem estou falando?", o agente se apresenta de novo, sem mandar horários.

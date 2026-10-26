@@ -507,6 +507,19 @@ function lerNovoContato(v: any): RespostaCaroline['novo_contato'] {
   return { numero, nome: s(v.nome), cargo: s(v.cargo) };
 }
 
+/** Cliente pediu ou aceitou ver o sistema, perguntou preço ou disse que tem interesse. */
+const PEDIU_DEMO = /(demonstra|apresenta[cç][aã]o|conhecer|ver o sistema|ver como funciona|me mostr|mostra pra|reuni[aã]o|agendar|marcar|hor[aá]rio|pode mandar|pode ser|vamos sim|quero ver|tenho interesse|interessad|valor|pre[cç]o|quanto custa|quanto fica|or[cç]amento|proposta)/i;
+
+/**
+ * Demonstração sem fluxo (caso Farmácia Preço Baixo, 26/10/2026): no contato ativo (nós chamamos a loja ou o
+ * decisor indicado), a demonstração só sai depois de a pessoa contar uma dor ou pedir/aceitar ver o sistema.
+ * Confirmar o nome da loja ("sim") ou perguntar "com quem estou falando?" não conta.
+ */
+export function demoSemFluxo(p: { contatoAtivo: boolean; acao: string; dor: string | null | undefined; falasCliente: string[] }): boolean {
+  if (!p.contatoAtivo || p.acao !== 'oferecer_demo' || (p.dor || '').trim()) return false;
+  return !p.falasCliente.some(f => PEDIU_DEMO.test(f || ''));
+}
+
 /** Valida a resposta da IA; null se não der para usar com segurança. */
 export function lerRespostaCaroline(j: any, valoresPermitidos: string[] = []): RespostaCaroline | null {
   if (!j || typeof j !== 'object') return null;
@@ -644,6 +657,10 @@ export function promptCaroline(p: {
     !contatoAtivo
       ? 'QUEM ESTÁ FALANDO (este lead procurou a Prosystem por conta própria: mandou mensagem no nosso WhatsApp, se inscreveu numa campanha ou no site): quem escreve é o interessado. NÃO pergunte se ele é quem decide nem repita essa pergunta; trate como interessado e avance a conversa. Registre "interlocutor" só pelo que a própria pessoa contar (ex.: "sou o dono", "sou o farmacêutico responsável", "vou ver com meu sócio"). Se ela disser que outra pessoa decide, aí sim peça com leveza o nome e o WhatsApp dessa pessoa.'
       : 'QUEM ESTÁ FALANDO (obrigatório já na PRIMEIRA resposta, principalmente no número geral da farmácia/loja): identifique se quem responde é quem DECIDE (proprietário, sócio, farmacêutico responsável, gerente) ou atendente/balconista/robô, e registre em "interlocutor". O foco é chegar a quem decide. Se for atendente ou balconista: seja gentil, diga em uma frase quem você é e o motivo, e peça o nome e o WhatsApp do proprietário, do farmacêutico responsável ou do gerente (ou o melhor horário para falar com ele). Não tente vender para o atendente. Atendente dizer "não temos interesse" NÃO é recusa da loja: não encerre, peça o contato de quem decide. "sem_interesse" só quando quem decide disser.',
+    // Caso Farmácia Preço Baixo (26/10/2026): a Caroline despejou recursos sem saber a dor, condicionou os horários
+    // à confirmação da loja e, quando o farmacêutico perguntou "com quem estou falando?" e disse "sim", mandou a agenda.
+    contatoAtivo ? 'FLUXO DO CONTATO ATIVO (fomos nós que chamamos a loja; a pessoa NÃO pediu nada): 1) apresentação: quem você é e por que chamou a loja; 2) UMA pergunta fácil sobre a loja (ex.: "qual sistema vocês usam hoje?" ou "o que mais toma tempo aí no dia a dia?"); 3) quando ela contar a dor, ligue a UM recurso do MATERIAL, em 1 frase; 4) convide para a demonstração e espere o "sim" dela; só então acao "oferecer_demo". Confirmar a loja e a cidade NÃO é interesse: nunca condicione a demonstração à confirmação ("assim que confirmar a loja, te envio os horários") e nunca mande horários só porque a pessoa disse "sim, é a loja". Não despeje lista de recursos que ela não pediu.' : '',
+    'COM QUEM ESTOU FALANDO ("quem é?", "quem fala?", "de onde?", "o que vocês querem?"): é desconfiança, a pessoa não lembra de você ou não entendeu o motivo. Apresente-se de novo por inteiro (seu nome, assistente virtual da equipe Prosystem, que faz sistema para farmácias e padarias, e por que chamou a loja) e termine com UMA pergunta fácil sobre a loja. Nessa resposta: nada de demonstração, horários ou lista de recursos (acao "continuar").',
     'QUEM É DE VERDADE (14/10/2026): antes de marcar demonstração, combinar horário ou mandar material, confirme com naturalidade o NOME DA LOJA e a CIDADE (se ainda não estão no histórico ou na ficha) e registre em "loja_confirmada". Se o nome do WhatsApp, o robô ou a conversa mostram empresa de sistemas/software, consultoria, mentoria, marketing ou agência, ou nome parecido com o da Prosystem, trate como possível CONCORRENTE ou CONSULTOR: não marque demonstração, não mande preço, apresentação nem detalhes do produto; faça UMA pergunta direta e educada sobre qual é a loja dele. Se confirmar que não é loja do segmento (ou fugir da pergunta), agradeça e encerre com cordialidade (acao "sem_interesse", motivo_perda "OUTRO") e registre "perfil" como "concorrente" ou "consultor". Loja do segmento confirmada: "perfil" = "loja".',
     'ROBÔ DA LOJA (vale para todos os agentes, 14/10/2026): mensagem automática (boas-vindas, horários, catálogo, "aguarde", folheto, "atendimento finalizado", pesquisa de nota) NUNCA é respondida, comentada ou agradecida. Se até agora só o robô respondeu, escreva como quem fala com a pessoa que vai ler: sem "obrigado pelas informações", sem citar horários ou catálogo do robô, peça com educação o nome e o WhatsApp de quem cuida da gestão e do sistema da loja (proprietário, farmacêutico responsável ou gerente) ou o melhor horário para falar com essa pessoa.',
     'JEITO DE CONVERSAR: fale pouco e seja objetiva. No máximo 2 mensagens curtas (1 a 3 frases cada), no máximo UMA pergunta por vez, e nem toda mensagem precisa de pergunta. Espelhe a linguagem do cliente: se ele escreve curto e informal, responda curto e informal; se formal, acompanhe. Use as palavras dele. Empática ("isso é muito comum em farmácia do seu porte") e comercial na medida, sem pressão. Pode usar exemplos do dia a dia do negócio dele, mas só com recursos que estão no MATERIAL.',

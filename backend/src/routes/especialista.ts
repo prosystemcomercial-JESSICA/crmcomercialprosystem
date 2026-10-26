@@ -41,6 +41,16 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', message: ok ? 'O Rafael está revisando as conversas das últimas 48 h (1 a 2 minutos).' : 'A revisão já está em andamento.' });
   });
 
+  // Análise de uma conversa sob demanda (26/10/2026): o resultado aparece no painel do Rafael em 1 a 2 minutos.
+  fastify.post('/especialista/analisar-conversa', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const b = z.object({ conversaId: z.string().min(1).max(64), pedido: z.string().max(600).optional().nullable() }).safeParse(request.body || {});
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Conversa não informada' });
+    const { analisarConversa } = await import('../services/especialista.service');
+    const ok = emSegundoPlano(`analise:${b.data.conversaId}`, () => analisarConversa(prisma, b.data.conversaId, b.data.pedido || null));
+    return reply.send({ status: 'success', message: ok ? 'O Rafael está analisando a conversa. A análise aparece no Escritório › Rafael em 1 a 2 minutos, e a correção já vai para o agente.' : 'O Rafael já está analisando esta conversa.' });
+  });
+
   fastify.post('/especialista/abordagem', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const { proporAbordagem } = await import('../services/especialista.service');
