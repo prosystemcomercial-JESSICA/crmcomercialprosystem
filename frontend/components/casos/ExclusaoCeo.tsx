@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import TrilhaCancelamento from './TrilhaCancelamento';
 
 // Churn → CEO (pedido da Jessica, 15/10/2026): selecionar clientes perdidos e enviar ao CEO para
 // retirar o cadastro do suporte e suspender as cobranças. O CEO marca as duas confirmações aqui.
@@ -34,6 +35,7 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
   const [aviso, setAviso] = useState('');
   const [salvando, setSalvando] = useState<string | null>(null);
   const [verConcluidos, setVerConcluidos] = useState(false);
+  const [trilha, setTrilha] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true); setErro('');
@@ -106,7 +108,7 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
     try {
       const r = await apiClient.marcarExclusaoChurn(i.id, campo, feito);
       const d = r.data?.data;
-      setItens(lista => lista.map(x => x.id === i.id ? { ...x, situacao: d.situacao, registro: d.registro } : x));
+      setItens(lista => lista.map(x => x.id === i.id ? { ...x, situacao: d.situacao, registro: d.registro, status: d.status || x.status } : x));
     } catch (e: any) { setErro(e?.response?.data?.message || 'Não foi possível salvar.'); }
     finally { setSalvando(null); }
   }
@@ -251,16 +253,26 @@ export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: 
           </button>
           {verConcluidos && (
             <ul className="divide-y mt-2" style={{ borderColor: 'var(--t-card-border)' }}>
+              {/* Concluído é definitivo (26/10/2026): sem caixinhas para não desmarcar; o card mostra a trilha inteira. */}
               {concluidos.map(i => (
-                <li key={i.id} className="py-2.5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <Cliente i={i} />
-                  <Confirmacoes i={i} />
+                <li key={i.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="min-w-0">
+                    <Cliente i={i} />
+                    <p className="text-xs mt-0.5" style={muted}>
+                      ✅ Retirado do suporte {data(i.registro?.suporte_em)} · Cobrança suspensa {data(i.registro?.cobranca_em)}
+                    </p>
+                  </div>
+                  <button onClick={() => setTrilha(i.id)} className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 hover:bg-gray-50 self-start sm:self-auto">
+                    📂 Abrir card
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </section>
       )}
+
+      {trilha && <TrilhaCancelamento casoId={trilha} onFechar={() => setTrilha(null)} />}
     </div>
   );
 }

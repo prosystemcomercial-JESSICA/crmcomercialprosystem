@@ -5,7 +5,7 @@ import { CasoChurnService } from '@/services/caso-churn.service';
 import { requireAuth, requireRole } from '@/middleware/auth';
 import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
-import { listarExclusao, enviarAoCeo, marcarExclusao, relatorioExclusaoPdf } from '@/services/churn-exclusao.service';
+import { listarExclusao, enviarAoCeo, marcarExclusao, relatorioExclusaoPdf, trilhaCancelamento } from '@/services/churn-exclusao.service';
 import { ROLES_EXCLUSAO, podeSelecionarExclusao } from '@/lib/churn-exclusao';
 import { STATUS_PERDA } from '@/lib/caso-churn-status';
 
@@ -481,6 +481,14 @@ export async function casosChurnRoutes(
         .header('Content-Disposition', `attachment; filename="Churn_suporte_cobrancas_${dia}.pdf"`)
         .send(pdf);
     } catch (error: any) { return erroExclusao(reply, error, 'POST /casos-churn/exclusao/relatorio'); }
+  });
+
+  // GET /casos-churn/:id/trilha — trilha completa do cancelamento (aba Exclusões › Concluídos). Só leitura.
+  fastify.get('/casos-churn/:id/trilha', { onRequest: [requireAuth, podeSelecionar] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      return reply.send({ status: 'success', data: await trilhaCancelamento(prisma, id) });
+    } catch (error: any) { return erroExclusao(reply, error, 'GET /casos-churn/:id/trilha'); }
   });
 
   // PATCH /casos-churn/:id/exclusao — marca "retirado do suporte" ou "cobrança suspensa"

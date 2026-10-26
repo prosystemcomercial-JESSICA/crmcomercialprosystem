@@ -85,6 +85,9 @@ export class CasoChurnService {
     if (filters.status) {
       where.status = filters.status;
     }
+    // Finalizado (cancelamento concluído com o CEO) só aparece na aba Exclusões › Concluídos,
+    // não no Kanban nem na lista (pedido da Jessica, 26/10/2026). Filtro explícito ainda o encontra.
+    else where.status = { not: 'FINALIZADO' };
 
     if (filters.risco_min !== undefined || filters.risco_max !== undefined) {
       where.risk_score = {};
@@ -206,7 +209,7 @@ export class CasoChurnService {
       throw new BadRequestError('Só é possível marcar "Sistema removido" a partir de um caso PERDIDO');
     }
     // AGUARDANDO_EXCLUSAO: cadastro enviado ao CEO para exclusão. Só depois da perda (ou do sistema removido).
-    if (data.status === 'AGUARDANDO_EXCLUSAO' && !['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status)) {
+    if (data.status === 'AGUARDANDO_EXCLUSAO' && !['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'].includes(caso.status)) {
       throw new BadRequestError('Só é possível enviar para exclusão de cadastro um caso PERDIDO ou com sistema removido');
     }
     // FINALIZADO: tudo resolvido depois da perda (cadastro excluído, cobrança suspensa).

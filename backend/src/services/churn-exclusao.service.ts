@@ -3,7 +3,7 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { CasoChurnService } from './caso-churn.service';
 import {
-  STATUS_LISTA_EXCLUSAO, chaveExclusao, lerRegistro, situacaoExclusao, textoAvisoCeo,
+  STATUS_LISTA_EXCLUSAO, statusAposConfirmacao, etapasDoCancelamento, chaveExclusao, lerRegistro, situacaoExclusao, textoAvisoCeo,
   type RegistroExclusao, type ItemAviso, type CanalExclusao,
 } from '@/lib/churn-exclusao';
 
@@ -113,13 +113,16 @@ export async function enviarAoCeo(prisma: PrismaClient, ids: string[], observaca
 export async function marcarExclusao(prisma: PrismaClient, casoId: string, campo: 'suporte' | 'cobranca', feito: boolean, user: Usuario) {
   const r = (await lerRegistros(prisma, [casoId])).get(casoId);
   if (!r) throw Object.assign(new Error('Este caso ainda não foi enviado ao CEO.'), { name: 'BadRequestError' });
+  // Finalizado é definitivo (pedido da Jessica, 26/10/2026): as confirmações não podem mais ser desmarcadas.
+  const atual = await prisma.casoChurn.findUnique({ where: { id: casoId }, select: { status: true } });
+  if (atual?.status === 'FINALIZADO') throw Object.assign(new Error('Caso finalizado: as confirmações não podem mais ser mudadas.'), { name: 'BadRequestError' });
   const antes = situacaoExclusao(r);
   const agora = new Date().toISOString();
   const novo: RegistroExclusao = campo === 'suporte'
     ? { ...r, suporte_em: feito ? (r.suporte_em || agora) : null, suporte_por_nome: feito ? (r.suporte_por_nome || user.nome) : null }
     : { ...r, cobranca_em: feito ? (r.cobranca_em || agora) : null, cobranca_por_nome: feito ? (r.cobranca_por_nome || user.nome) : null };
   await salvarRegistro(prisma, casoId, novo, user.id);
-  const caso = await prisma.casoChurn.findUnique({ where: { id: casoId }, select: { clienteId: true, cliente: { select: { codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true } } } });
+  const caso = await prisma.casoChurn.findUnique({ where: { id: casoId }, select: { status: true, clienteId: true, cliente: { select: { codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true } } } });
   const oQue = campo === 'suporte' ? 'retirado do suporte' : 'cobranças suspensas';
   await (prisma as any).atualizacaoCaso.create({
     data: { caso_churn_id: casoId, tipo: 'SISTEMA', texto: feito ? `✅ ${user.nome} confirmou: ${oQue}` : `↩️ ${user.nome} desmarcou: ${oQue}`, feito_por: user.id, feito_por_nome: user.nome },
@@ -139,7 +142,60 @@ export async function marcarExclusao(prisma: PrismaClient, casoId: string, campo
     const { enviarPush } = await import('./push.service');
     await enviarPush(prisma, [r.enviado_por], { titulo: 'Churn concluído', corpo: txt.replace(/\*/g, '').slice(0, 180), url: '/casos?aba=exclusao', tag: 'churn_exclusao' }).catch(() => 0);
   }
-  return { situacao: situacaoExclusao(novo), registro: novo };
+  // Os dois feitos: caso FINALIZADO (concluído de vez).
+  // Mesmo fluxo do Kanban (evento na ficha do cliente e linha do tempo do caso).
+  let status = caso?.status || null;
+  const proximo = status ? statusAposConfirmacao(situacaoExclusao(novo), status) : null;
+  if (proximo) {
+    await new CasoChurnService(prisma).update(casoId, { status: proximo } as any, user.id);
+    status = proximo;
+  }
+  return { situacao: situacaoExclusao(novo), registro: novo, status };
+}
+
+/**
+ * Trilha completa do cancelamento (aba Exclusões › Concluídos, pedido da Jessica, 26/10/2026): dados do cliente,
+ * o caso, o fluxograma das etapas e a linha do tempo (atualizações do caso + eventos da ficha do cliente). Só leitura.
+ */
+export async function trilhaCancelamento(prisma: PrismaClient, casoId: string) {
+  const caso: any = await prisma.casoChurn.findUnique({
+    where: { id: casoId },
+    include: {
+      cliente: { select: { id: true, codigo: true, nome: true, empresa: true, razao_social: true, nome_fantasia: true, cnpj: true, cidade: true, estado: true, segmento: true, plano: true, grupo_tecnico: true, responsavel_nome: true, telefone: true, telefone1: true, email: true, data_entrada: true, dia_vencimento: true, mensalidade_base: true, mrr_perdido: true, valor_devido_inativacao: true, motivo_inativacao: true, inativado_em: true, sistema_removido_em: true, situacao: true } },
+      diagnosis: { select: { motivo_principal: true, created_at: true } },
+      planos: { select: { titulo: true, descricao: true, status: true, created_at: true }, orderBy: { created_at: 'asc' } },
+      acoes: { select: { titulo: true, descricao: true, tipo: true, status: true, created_at: true }, orderBy: { created_at: 'asc' } },
+    } as any,
+  });
+  if (!caso) throw Object.assign(new Error('Caso não encontrado.'), { name: 'BadRequestError' });
+  const [registro, atualizacoes, eventos] = await Promise.all([
+    lerRegistros(prisma, [casoId]).then(m => m.get(casoId) || null),
+    (prisma as any).atualizacaoCaso.findMany({ where: { caso_churn_id: casoId }, orderBy: { created_at: 'asc' }, select: { tipo: true, texto: true, canal: true, resultado: true, feito_por_nome: true, created_at: true } }).catch(() => []),
+    (prisma as any).eventoCliente.findMany({ where: { cliente_id: caso.clienteId }, orderBy: { created_at: 'asc' }, select: { tipo: true, titulo: true, descricao: true, feito_por_nome: true, created_at: true } }).catch(() => []),
+  ]);
+  const c = caso.cliente;
+  const linhaDoTempo = [
+    ...atualizacoes.map((a: any) => ({ origem: 'CASO', tipo: a.tipo, titulo: a.texto, detalhe: [a.canal, a.resultado].filter(Boolean).join(' · ') || null, por: a.feito_por_nome || null, em: a.created_at })),
+    ...eventos.map((e: any) => ({ origem: 'CLIENTE', tipo: e.tipo, titulo: e.titulo, detalhe: e.descricao || null, por: e.feito_por_nome || null, em: e.created_at })),
+  ].sort((a, b) => new Date(a.em).getTime() - new Date(b.em).getTime());
+  return {
+    caso: {
+      id: caso.id, status: caso.status, motivo: caso.motivo_principal || null, relato: caso.descricao || null,
+      aberto_em: caso.data_abertura_real || caso.created_at, perdido_em: caso.resolvido_em || c.inativado_em || null, sistema_removido_em: caso.sistema_removido_em || null,
+      fin_situacao: caso.fin_situacao || null, fin_valor_atraso: caso.fin_valor_atraso ?? null, fin_dias_atraso: caso.fin_dias_atraso ?? null, fin_observacao: caso.fin_observacao || null,
+      reneg_ativa: !!caso.reneg_ativa, reneg_resultado: caso.reneg_resultado || null, reaberto: !!caso.reaberto,
+      diagnostico: caso.diagnosis?.motivo_principal || null, planos: caso.planos || [], acoes: caso.acoes || [],
+    },
+    cliente: {
+      id: c.id, codigo: c.codigo, nome: nomeCliente(c), razao_social: c.razao_social, cnpj: c.cnpj, cidade: [c.cidade, c.estado].filter(Boolean).join('/') || null,
+      segmento: c.segmento, plano: c.plano, grupo_tecnico: c.grupo_tecnico, responsavel: c.responsavel_nome, telefone: c.telefone1 || c.telefone || null, email: c.email,
+      cliente_desde: c.data_entrada, dia_vencimento: c.dia_vencimento, mensalidade: c.mrr_perdido ?? c.mensalidade_base ?? null,
+      valor_devido: caso.fin_valor_atraso ?? c.valor_devido_inativacao ?? null, motivo_inativacao: c.motivo_inativacao, inativado_em: c.inativado_em,
+    },
+    registro,
+    etapas: etapasDoCancelamento(caso, c.inativado_em, registro),
+    linha_do_tempo: linhaDoTempo,
+  };
 }
 
 /** Relatório em PDF (identidade Prosystem) dos casos selecionados, com as observações de cada um. Não muda nada no CRM. */

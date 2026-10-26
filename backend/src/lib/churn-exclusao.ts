@@ -50,6 +50,40 @@ export function situacaoExclusao(r: RegistroExclusao | null | undefined): Situac
   return r.suporte_em && r.cobranca_em ? 'CONCLUIDO' : 'ENVIADO';
 }
 
+/**
+ * Status do caso depois de uma confirmação do CEO (pedido da Jessica, 26/10/2026): com suporte retirado e
+ * cobrança suspensa, o caso vai para FINALIZADO (concluído de vez; as confirmações ficam travadas). null = não muda.
+ */
+export function statusAposConfirmacao(situacao: SituacaoExclusao, statusAtual: string): string | null {
+  return situacao === 'CONCLUIDO' && STATUS_PODE_ENVIAR.includes(statusAtual) ? 'FINALIZADO' : null;
+}
+
+export interface EtapaCancelamento { chave: string; rotulo: string; em: string | null; por?: string | null; opcional?: boolean }
+
+type Data = Date | string | null | undefined;
+
+/**
+ * Fluxograma do cancelamento (aba Exclusões › Concluídos): do caso aberto até o finalizado.
+ * `opcional` = etapa que nem todo caso tem (sistema removido). Datas em ISO; null = não aconteceu.
+ */
+export function etapasDoCancelamento(
+  caso: { created_at: Data; data_abertura_real?: Data; resolvido_em?: Data; sistema_removido_em?: Data; status: string },
+  inativadoEm: Data,
+  r: RegistroExclusao | null | undefined,
+): EtapaCancelamento[] {
+  const iso = (d: Data) => (d ? new Date(d).toISOString() : null);
+  const ambos = r?.suporte_em && r?.cobranca_em ? (r.suporte_em > r.cobranca_em ? r.suporte_em : r.cobranca_em) : null;
+  return [
+    { chave: 'aberto', rotulo: 'Caso aberto', em: iso(caso.data_abertura_real || caso.created_at) },
+    { chave: 'perdido', rotulo: 'Cliente perdido', em: iso(caso.resolvido_em || inativadoEm) },
+    { chave: 'sistema', rotulo: 'Sistema removido', em: iso(caso.sistema_removido_em), opcional: true },
+    { chave: 'enviado', rotulo: 'Enviado ao CEO', em: r?.enviado_em || null, por: r?.enviado_por_nome || null },
+    { chave: 'suporte', rotulo: 'Retirado do suporte', em: r?.suporte_em || null, por: r?.suporte_por_nome || null },
+    { chave: 'cobranca', rotulo: 'Cobrança suspensa', em: r?.cobranca_em || null, por: r?.cobranca_por_nome || null },
+    { chave: 'finalizado', rotulo: 'Finalizado', em: caso.status === 'FINALIZADO' ? ambos : null },
+  ];
+}
+
 export function lerRegistro(valor: string | null | undefined): RegistroExclusao | null {
   if (!valor) return null;
   try { const v = JSON.parse(valor); return v && typeof v === 'object' && v.enviado_em ? v : null; } catch { return null; }

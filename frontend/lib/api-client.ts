@@ -232,6 +232,10 @@ class ApiClient {
     return this.client.patch(`/casos-churn/${id}/exclusao`, { campo, feito });
   }
 
+  async getTrilhaCancelamento(id: string) {
+    return this.client.get(`/casos-churn/${id}/trilha`);
+  }
+
   // Reabre um caso RECUPERADO (só permitido uma vez, pelo mesmo motivo original).
   async reabrirCaso(id: string, relato: string) {
     return this.client.post(`/casos-churn/${id}/reabrir`, { relato });

@@ -267,7 +267,6 @@ const COLUNAS_CASO: { k: string; rot: string; dica: string; cor: string }[] = [
   { k: 'RECUPERADO', rot: 'Recuperado', dica: 'Cliente ficou', cor: '#16a34a' },
   { k: 'PERDIDO', rot: 'Perdido', dica: 'Cliente saiu (inclui sistema removido)', cor: '#dc2626' },
   { k: 'AGUARDANDO_EXCLUSAO', rot: 'Aguardando exclusão do cadastro', dica: 'Enviado ao CEO para excluir o cadastro', cor: '#475569' },
-  { k: 'FINALIZADO', rot: 'Finalizado', dica: 'Totalmente resolvido, nada pendente', cor: '#059669' },
 ];
 const RISCO_PILL = (s: number) => s >= 85 ? { t: 'Crítico', bg: '#fee2e2', c: '#b91c1c' } : s >= 70 ? { t: 'Alto', bg: '#ffedd5', c: '#c2410c' } : s >= 40 ? { t: 'Médio', bg: '#fef3c7', c: '#a16207' } : { t: 'Baixo', bg: '#dcfce7', c: '#15803d' };
 const chip = (bg: string, c: string): React.CSSProperties => ({ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: c });
@@ -638,7 +637,7 @@ export default function CasosPage() {
     );
   }
 
-  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'];
+  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
 
   return (
     <DashboardLayout>
@@ -967,8 +966,9 @@ export default function CasosPage() {
                         >
                           {[
                             'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO',
-                            // "Sistema removido", exclusão e finalizado só valem a partir de PERDIDO (regra do backend).
-                            ...(['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'].includes(caso.status) ? ['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'] : []),
+                            // "Sistema removido" e exclusão só valem a partir de PERDIDO (regra do backend).
+                            // Finalizado não é escolhido aqui: vem das duas confirmações do CEO (aba Exclusões).
+                            ...(['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status) ? ['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'] : []),
                           ].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
@@ -1023,12 +1023,6 @@ export default function CasosPage() {
                   <button onClick={async () => { const ok = await handleUpdateStatus(dossie.id, 'SISTEMA_REMOVIDO'); if (ok) setDossie(null); }}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300">
                     🗑️ Marcar sistema removido
-                  </button>
-                )}
-                {dossie.status === 'AGUARDANDO_EXCLUSAO' && (
-                  <button onClick={async () => { const ok = await handleUpdateStatus(dossie.id, 'FINALIZADO'); if (ok) setDossie(null); }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200">
-                    ✅ Finalizar caso
                   </button>
                 )}
                 <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>
