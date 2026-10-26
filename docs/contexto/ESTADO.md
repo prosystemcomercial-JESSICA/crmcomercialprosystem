@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **26/10/2026 (protótipo da ficha da demanda confortável):** a Jessica achou a ficha da implantação compacta e difícil de usar. Feito só um **protótipo visual** (sem mudar o CRM): `docs/prototipos/ficha-demanda-confortavel.html`, artifact https://claude.ai/artifact/L9q1EGrmLXDQrDxWc3jiYF. Menu lateral no lugar das abas em 2 níveis, cabeçalho de uma linha, perguntas uma por linha com Sim/Não em botões e salvamento automático, checklist em seções com linhas grandes, painel de contatos à direita. **Pendente (Jessica):** aprovar o layout e decidir ordem das perguntas, salvamento automático, densidade padrão e instalação das skills sugeridas. Relatório: `relatorios/2026-10-26-prototipo-ficha-confortavel.md`.
+
 - **23/10/2026, tarde (proposta não saía pelo painel):** no contato Mauro Cesar, a Jessica clicou várias vezes em "Enviar / reenviar", que só abria a lista (nenhum `enviar-proposta` chegou ao servidor). O botão virou "Propostas do contato", o do cartão "Enviar para o cliente" (destacado) e há trava contra envio duplo na tela e no servidor (mesma proposta e conversa em menos de 1 min). Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.
 
 - **23/10/2026, tarde (envio pelo painel não aparecia na conversa):** a chave Pix da Jessica foi entregue (UAZAPI "Delivered") e gravada, mas a tela de conversa só atualizava a lista de conversas no evento `conversa_atualizada`. Agora a conversa aberta recarrega as mensagens nesse evento e depois de cada envio pelo painel (`aoEnviar` em `EnviarPropostaWpp`). Só frontend. Relatório: `relatorios/2026-10-23-botao-pix-entrada.md`.

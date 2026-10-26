@@ -1,0 +1,544 @@
+<title>Ficha da Demanda Confortável</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: ficha em 3 colunas (menu de seções · conteúdo · painel de contexto), cabeçalho de uma linha e rodapé fixo nos formulários. */
+:root {
+  --bg: #f3f6fa; --card: #ffffff; --border: #d3dce7; --line: #e6ecf3;
+  --fg: #26313d; --fg2: #53616f; --muted: #66768a;
+  --primary: #286397; --primary-soft: #e3edf7; --link: #286397;
+  --ok: #15803d; --ok-soft: #e8f5ec; --warn: #b45309; --warn-soft: #fdf3e4; --lock: #0369a1; --lock-soft: #e6f2fa; --bad: #dc2626;
+  --shadow: 0 1px 2px rgba(20,40,70,.06), 0 4px 16px rgba(20,40,70,.06);
+  --f: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --row: 52px; --fs: 15px; --gap: 20px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #151a21; --card: #1e2630; --border: #394655; --line: #2c3743; --fg: #edf1f5; --fg2: #c0c8d1; --muted: #a4b0be;
+  --primary: #3a7bb8; --primary-soft: #283b50; --link: #93bee6; --ok: #4ade80; --ok-soft: #173326; --warn: #f5b04a; --warn-soft: #3a2c16;
+  --lock: #7cc4ef; --lock-soft: #17303f; --bad: #f87171; --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #151a21; --card: #1e2630; --border: #394655; --line: #2c3743; --fg: #edf1f5; --fg2: #c0c8d1; --muted: #a4b0be;
+  --primary: #3a7bb8; --primary-soft: #283b50; --link: #93bee6; --ok: #4ade80; --ok-soft: #173326; --warn: #f5b04a; --warn-soft: #3a2c16;
+  --lock: #7cc4ef; --lock-soft: #17303f; --bad: #f87171; --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark }
+.compacto { --row: 40px; --fs: 13.5px; --gap: 14px; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f); font-size: var(--fs); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.pagina { padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1440px; margin: 0 auto; display: grid; gap: 16px; }
+.topo-proto { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.topo-proto h1 { margin: 0; font-size: 20px; font-weight: 650; text-wrap: balance; }
+.topo-proto p { margin: 2px 0 0; color: var(--fg2); font-size: 13.5px; max-width: 70ch; }
+.ctrl { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card); }
+.seg button { border: 0; background: transparent; padding: 7px 12px; font-size: 13px; color: var(--fg2); min-height: 34px; }
+.seg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--link); font-weight: 600; }
+
+/* Moldura que simula a gaveta do CRM em diferentes larguras */
+.palco { display: flex; justify-content: center; }
+.moldura { container-type: inline-size; width: 100%; max-width: 1280px; height: min(860px, 88vh); min-height: 560px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; transition: max-width .25s; }
+.moldura[data-larg="1024"] { max-width: 1024px; }
+.moldura[data-larg="400"] { max-width: 400px; }
+
+/* Cabeçalho de uma linha */
+.cab { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cab-id { min-width: 0; flex: 1 1 280px; }
+.cab-id .eyebrow { font-size: 12px; color: var(--link); font-weight: 600; }
+.cab-id h2 { margin: 2px 0 0; font-size: 18px; font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cab-id .meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.etapas { display: flex; align-items: center; gap: 4px; }
+.etapa { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); padding: 4px 8px; border-radius: 99px; white-space: nowrap; }
+.etapa b { width: 20px; height: 20px; border-radius: 99px; border: 1.5px solid var(--border); display: inline-grid; place-items: center; font-size: 11px; font-weight: 600; }
+.etapa.atual { background: var(--primary-soft); color: var(--link); font-weight: 600; }
+.etapa.atual b { border-color: var(--primary); background: var(--primary); color: #fff; }
+.etapa + .etapa::before { content: ""; width: 10px; height: 1px; background: var(--border); margin-right: 4px; }
+.cron { display: flex; gap: 8px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 0 14px; min-height: 40px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--card); color: var(--fg); }
+.btn.play { background: #16a34a; border-color: #16a34a; color: #fff; }
+.btn.play.rodando { background: var(--card); color: #16a34a; }
+.btn.espera { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.btn.prim { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.fantasma { border-color: transparent; background: transparent; color: var(--link); }
+.fechar { width: 40px; height: 40px; border: 0; background: transparent; border-radius: 8px; font-size: 20px; color: var(--muted); }
+.tempo { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--fg2); min-width: 64px; }
+
+/* Corpo em 3 colunas */
+.corpo { flex: 1; min-height: 0; display: grid; grid-template-columns: 236px minmax(0, 1fr) 290px; }
+.menu { border-right: 1px solid var(--line); overflow-y: auto; padding: 14px 10px; display: grid; align-content: start; gap: 2px; }
+.menu h3 { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 14px 10px 6px; }
+.menu h3:first-child { margin-top: 2px; }
+.item-menu { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 9px 10px; min-height: 40px; color: var(--fg2); font-size: 14px; }
+.item-menu:hover { background: var(--bg); }
+.item-menu[aria-current="page"] { background: var(--primary-soft); color: var(--link); font-weight: 600; }
+.item-menu .cont { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.item-menu .ponto { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; background: var(--border); }
+.ponto.ok { background: var(--ok); } .ponto.vez { background: var(--primary); } .ponto.lock { background: transparent; border: 1.5px solid var(--muted); }
+.item-menu.travado { opacity: .7; }
+.menu-sel { display: none; }
+
+.conteudo { overflow-y: auto; min-width: 0; display: flex; flex-direction: column; }
+.conteudo-in { padding: 22px 28px 28px; max-width: 780px; width: 100%; display: grid; gap: var(--gap); }
+.tit-sec { display: grid; gap: 6px; }
+.tit-sec h2 { margin: 0; font-size: 21px; font-weight: 650; text-wrap: balance; }
+.tit-sec p { margin: 0; color: var(--fg2); line-height: 1.5; max-width: 65ch; }
+.barra { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 99px; background: var(--primary); transition: width .3s; }
+.barra.ok i { background: var(--ok); }
+.progresso { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--fg2); font-variant-numeric: tabular-nums; }
+.progresso .barra { flex: 1; }
+
+.aviso { display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px; background: var(--lock-soft); color: var(--fg); line-height: 1.5; border: 1px solid color-mix(in srgb, var(--lock) 30%, transparent); }
+.aviso .ic { color: var(--lock); font-size: 18px; line-height: 1.3; }
+.aviso b { display: block; }
+.aviso.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+
+/* Grupos de perguntas: uma pergunta por linha, rótulo à esquerda e resposta à direita */
+.grupo { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.grupo > header { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.grupo > header h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.grupo > header span { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.perg { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(200px, 300px); gap: 12px; align-items: center; padding: 10px 16px; min-height: var(--row); border-top: 1px solid var(--line); }
+.perg:first-of-type { border-top: 0; }
+.perg .num { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; color: var(--muted); border: 1.5px solid var(--border); font-variant-numeric: tabular-nums; }
+.perg.resp .num { background: var(--ok); border-color: var(--ok); color: #fff; }
+.perg label.rot { font-weight: 550; line-height: 1.35; }
+.perg .dica { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.perg.foco { background: var(--primary-soft); }
+.campo { width: 100%; min-height: 40px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--card); }
+.campo:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
+.numero { display: flex; gap: 6px; align-items: center; }
+.numero .campo { text-align: center; font-variant-numeric: tabular-nums; max-width: 90px; }
+.numero button { width: 40px; height: 40px; border: 1px solid var(--border); background: var(--card); border-radius: 8px; font-size: 18px; color: var(--fg2); }
+.sn { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: 100%; max-width: 200px; }
+.sn button { border: 0; min-height: 40px; background: var(--card); color: var(--fg2); font-weight: 550; }
+.sn button + button { border-left: 1px solid var(--border); }
+.sn button[aria-pressed="true"][data-v="Sim"] { background: var(--ok-soft); color: var(--ok); font-weight: 700; }
+.sn button[aria-pressed="true"][data-v="Não"] { background: var(--bg); color: var(--fg); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chips button { border: 1px solid var(--border); background: var(--card); border-radius: 99px; padding: 4px 10px; font-size: 12.5px; color: var(--fg2); min-height: 30px; }
+.chips button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--link); font-weight: 600; }
+
+/* Rodapé fixo do formulário */
+.rodape { position: sticky; bottom: 0; margin-top: auto; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(6px); padding: 12px 28px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.rodape .estado { font-size: 13px; color: var(--muted); }
+.rodape .estado.salvando { color: var(--warn); }
+.rodape .resumo { font-weight: 650; font-variant-numeric: tabular-nums; }
+.rodape .esp { flex: 1; }
+
+/* Roteiro (checklist) com linhas grandes */
+.secao { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.secao > button { width: 100%; display: flex; align-items: center; gap: 12px; border: 0; background: var(--bg); padding: 12px 16px; text-align: left; min-height: 48px; }
+.secao > button h3 { margin: 0; font-size: 14px; font-weight: 650; flex: 1; }
+.secao > button .cont { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.secao > button .seta { transition: transform .2s; color: var(--muted); }
+.secao[data-aberta="false"] > button .seta { transform: rotate(-90deg); }
+.secao[data-aberta="false"] .lista { display: none; }
+.mini { width: 60px; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.mini i { display: block; height: 100%; background: var(--primary); }
+.mini.ok i { background: var(--ok); }
+.chk { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; min-height: var(--row); border-top: 1px solid var(--line); cursor: pointer; }
+.chk:hover { background: var(--bg); }
+.chk input { width: 20px; height: 20px; accent-color: var(--ok); cursor: pointer; }
+.chk .txt { line-height: 1.4; }
+.chk.feito .txt { color: var(--muted); }
+.chk .quem { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.chk .auto { font-size: 12px; color: var(--link); border: 0; background: transparent; padding: 0; text-decoration: underline; white-space: nowrap; }
+.chk.travado { cursor: not-allowed; }
+.chk.travado input { cursor: not-allowed; }
+.filtro { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--fg2); }
+
+/* Visão geral */
+.cards4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; }
+.kpi span { font-size: 12.5px; color: var(--muted); }
+.kpi b { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* Painel da direita */
+.lateral { border-left: 1px solid var(--line); overflow-y: auto; padding: 16px; display: grid; align-content: start; gap: 14px; background: color-mix(in srgb, var(--bg) 55%, var(--card)); }
+.bloco { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
+.bloco h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.passo b { display: block; font-size: 15px; }
+.passo span { font-size: 13px; color: var(--fg2); }
+.contato { display: flex; align-items: center; gap: 10px; }
+.contato .av { width: 34px; height: 34px; border-radius: 99px; background: var(--primary-soft); color: var(--link); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.contato .dados { min-width: 0; flex: 1; }
+.contato .dados b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contato .dados span { font-size: 12.5px; color: var(--fg2); font-variant-numeric: tabular-nums; }
+.contato .dados small { display: block; font-size: 11.5px; color: var(--muted); }
+.ic-btn { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--border); background: var(--card); display: grid; place-items: center; color: var(--fg2); }
+.ic-btn svg { width: 16px; height: 16px; }
+.prazo { display: flex; justify-content: space-between; font-size: 13.5px; }
+.prazo .r { color: var(--warn); font-weight: 600; }
+.link-sem { font-size: 12.5px; color: var(--link); border: 0; background: none; padding: 0; text-align: left; }
+
+/* Notebook: painel da direita vira faixa recolhível */
+@container (max-width: 1100px) {
+  .corpo { grid-template-columns: 220px minmax(0, 1fr); }
+  .lateral { grid-column: 1 / -1; display: none; }
+  .corpo.ver-lateral .lateral { display: grid; position: absolute; }
+  .so-largo { display: none !important; }
+  .abrir-lateral { display: inline-flex !important; }
+}
+.abrir-lateral { display: none !important; }
+@container (max-width: 1100px) { .corpo { position: relative; } .corpo.ver-lateral .lateral { right: 0; top: 0; bottom: 0; width: min(300px, 90%); z-index: 3; box-shadow: -8px 0 24px rgba(0,0,0,.15); } }
+/* Celular: menu vira lista suspensa, uma coluna */
+@container (max-width: 640px) {
+  .corpo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .menu { display: none; }
+  .menu-sel { display: block; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .etapas .etapa:not(.atual) { display: none; }
+  .conteudo-in { padding: 16px; }
+  .perg { grid-template-columns: 26px minmax(0, 1fr); }
+  .perg > .resp-col { grid-column: 2; }
+  .rodape { padding: 10px 14px; }
+  .cab { padding: 10px 14px; gap: 8px; }
+  .cron .tempo { display: none; }
+}
+
+/* Aba "O que muda" */
+.mudancas { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.mud { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; gap: 8px; align-content: start; }
+.mud h3 { margin: 0; font-size: 16px; font-weight: 650; }
+.mud .antes, .mud .depois { font-size: 14px; line-height: 1.5; margin: 0; }
+.mud .antes { color: var(--fg2); }
+.mud .antes::before { content: "Hoje: "; font-weight: 700; color: var(--bad); }
+.mud .depois::before { content: "Proposta: "; font-weight: 700; color: var(--ok); }
+.decisao { background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); border-radius: 12px; padding: 18px; display: grid; gap: 8px; }
+.decisao h3 { margin: 0; font-size: 16px; }
+.decisao ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.5; }
+.skills { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; gap: 10px; }
+.skills h3 { margin: 0; font-size: 16px; }
+.skills table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.skills td, .skills th { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.skills th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-top: 0; }
+.skills code { font-size: 12.5px; background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+.tab-wrap { overflow-x: auto; }
+</style>
+
+<div class="pagina">
+  <div class="topo-proto">
+    <div>
+      <h1>Ficha da demanda · proposta de layout confortável</h1>
+      <p>Protótipo navegável com dados fictícios. Clique nas respostas, marque itens, troque a largura da tela. Nada aqui grava no CRM.</p>
+    </div>
+    <div class="ctrl">
+      <div class="seg" role="group" aria-label="Visualizar">
+        <button id="v-proto" aria-pressed="true">Protótipo</button>
+        <button id="v-muda" aria-pressed="false">O que muda e por quê</button>
+      </div>
+      <div class="seg" role="group" aria-label="Largura da tela" id="larguras">
+        <button data-l="1280" aria-pressed="true">Monitor</button>
+        <button data-l="1024" aria-pressed="false">Notebook</button>
+        <button data-l="400" aria-pressed="false">Celular</button>
+      </div>
+      <div class="seg" role="group" aria-label="Densidade" id="densidade">
+        <button data-d="conf" aria-pressed="true">Confortável</button>
+        <button data-d="comp" aria-pressed="false">Compacto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="palco" id="tela-proto">
+    <div class="moldura" id="moldura" data-larg="1280">
+      <header class="cab">
+        <div class="cab-id">
+          <div class="eyebrow">Implantação · Banco zerado · PRO</div>
+          <h2>Drogaria Exemplo Vila Velha Ltda</h2>
+          <div class="meta">12.345.678/0001-90 · Técnico Lucas Diniz</div>
+        </div>
+        <nav class="etapas so-largo-etapas" aria-label="Etapas da implantação">
+          <span class="etapa atual"><b>1</b>Primeiro contato</span>
+          <span class="etapa"><b>2</b>Coleta</span>
+          <span class="etapa"><b>3</b>Virada</span>
+          <span class="etapa"><b>4</b>Treinamento</span>
+          <span class="etapa"><b>5</b>Validação</span>
+        </nav>
+        <div class="cron">
+          <span class="tempo" id="tempo" aria-live="polite">00:00:00</span>
+          <button class="btn play" id="play">▶ Play</button>
+          <button class="btn espera" id="espera">⏳ Espera</button>
+          <button class="btn abrir-lateral" id="abrir-lateral" aria-expanded="false">Contatos</button>
+          <button class="fechar" aria-label="Fechar">×</button>
+        </div>
+      </header>
+
+      <div class="corpo" id="corpo">
+        <nav class="menu" id="menu" aria-label="Seções da ficha"></nav>
+        <div class="conteudo" id="conteudo-scroll">
+          <div class="menu-sel"><label for="sel-secao" class="sr" style="font-size:12px;color:var(--muted)">Seção</label>
+            <select id="sel-secao" class="campo"></select></div>
+          <div class="conteudo-in" id="conteudo"></div>
+          <div class="rodape" id="rodape" hidden></div>
+        </div>
+        <aside class="lateral" aria-label="Contexto da demanda">
+          <div class="bloco passo">
+            <h4>Próximo passo · com Lucas</h4>
+            <b>Primeiro contato com o cliente</b>
+            <span id="passo-sub">Responder as 15 perguntas e seguir o roteiro.</span>
+            <button class="btn prim" data-ir="perguntas">Abrir as perguntas</button>
+          </div>
+          <div class="bloco">
+            <h4>Prazo do onboarding</h4>
+            <div class="prazo"><span>Até 28/10, terça</span><span class="r">1 dia útil</span></div>
+            <div class="barra"><i style="width:55%;background:var(--warn)"></i></div>
+          </div>
+          <div class="bloco">
+            <h4>Contatos</h4>
+            <div class="contato">
+              <span class="av">MS</span>
+              <div class="dados"><small>Decisora · responsável</small><b>Mariana Souza</b><span>(27) 99999-0000</span></div>
+              <button class="ic-btn" aria-label="Ligar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
+              <button class="ic-btn" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+            </div>
+            <div class="contato">
+              <span class="av">?</span>
+              <div class="dados"><small>Contato na loja</small><b style="color:var(--muted);font-weight:500">Sem nome</b><span>(27) 98888-0000</span></div>
+              <button class="ic-btn" aria-label="Ligar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
+              <button class="ic-btn" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+            </div>
+            <button class="link-sem">+ Dar nome ao contato</button>
+          </div>
+          <div class="bloco">
+            <h4>Cliente aprova o diagnóstico</h4>
+            <span style="font-size:13px;color:var(--fg2)">Mande o link quando o roteiro estiver pronto.</span>
+            <button class="btn" id="copiar-link">Copiar link para o cliente</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div id="tela-muda" hidden>
+    <div style="display:grid;gap:16px">
+      <div class="mudancas">
+        <div class="mud"><h3>1. Cabeçalho de uma linha</h3>
+          <p class="antes">nome, dois contatos, próximo passo, etapas e Play empilhados ocupam quase metade da janela; o formulário fica espremido embaixo.</p>
+          <p class="depois">nome, etapa atual e Play/Espera numa faixa só. Contatos, prazo e próximo passo vão para o painel da direita, sempre à vista e sem empurrar o conteúdo.</p></div>
+        <div class="mud"><h3>2. Menu lateral no lugar das abas em dois níveis</h3>
+          <p class="antes">6 abas + até 7 pílulas por aba (18 telas). Para achar "Testes de conversão" é preciso saber que fica em "Execução".</p>
+          <p class="depois">todas as seções numa lista à esquerda, agrupadas por "Agora", "Execução", "Cliente" e "Registros", com contador e bolinha de situação. A seção travada aparece com cadeado.</p></div>
+        <div class="mud"><h3>3. Uma pergunta por linha</h3>
+          <p class="antes">grade de 4 colunas com rótulos de 12px; cada campo tem a largura de um quarto da tela.</p>
+          <p class="depois">pergunta à esquerda, resposta à direita, linhas de 52px. Dá para ler e responder durante a ligação sem caçar o campo.</p></div>
+        <div class="mud"><h3>4. Sim/Não com um toque</h3>
+          <p class="antes">9 das 15 perguntas são listas suspensas com "—": dois cliques por resposta.</p>
+          <p class="depois">botões Sim | Não lado a lado. Números com − e +. Campos de texto com sugestões prontas (modelos de impressora, TEF, PBMs).</p></div>
+        <div class="mud"><h3>5. Salvamento automático e rodapé fixo</h3>
+          <p class="antes">botão "Salvar respostas" no fim do bloco; quem esquece de clicar perde o que digitou.</p>
+          <p class="depois">salva sozinho a cada resposta ("Salvo às 14:32"). O rodapé fixo mostra quantas faltam e leva à próxima pergunta sem resposta.</p></div>
+        <div class="mud"><h3>6. Checklist com linhas grandes e por seção</h3>
+          <p class="antes">caixinhas pequenas, 5px de folga, tudo aberto de uma vez; quem marcou fica misturado no texto.</p>
+          <p class="depois">seções que abrem e fecham com barra de progresso, linhas de 52px (área de toque inteira), quem marcou à direita e opção "esconder feitos".</p></div>
+        <div class="mud"><h3>7. O bloqueio aparece primeiro</h3>
+          <p class="antes">o aviso "antes de qualquer ação" fica abaixo do formulário.</p>
+          <p class="depois">aviso no topo da seção, com o que falta para liberar. As seções travadas mostram o motivo em vez de botões que não funcionam.</p></div>
+        <div class="mud"><h3>8. Funciona no notebook e no celular</h3>
+          <p class="antes">gaveta fixa de 1100px; em notebook os campos quebram em colunas estreitas.</p>
+          <p class="depois">em notebook, o painel da direita vira o botão "Contatos"; no celular, o menu vira uma lista suspensa e tudo fica em uma coluna.</p></div>
+      </div>
+      <div class="decisao">
+        <h3>Para a Jessica decidir antes de aplicar</h3>
+        <ol>
+          <li><b>Ordem das 15 perguntas.</b> Hoje segue a ordem em que o técnico pergunta. No protótipo elas estão agrupadas (Estrutura da loja, Equipamentos, Módulos e regras). Manter os grupos ou voltar à ordem original?</li>
+          <li><b>Salvar sozinho</b> a cada resposta (proposto) ou manter o botão "Salvar respostas"?</li>
+          <li><b>Densidade padrão:</b> Confortável (proposto) ou Compacto. Dá para deixar a escolha para cada usuário.</li>
+          <li><b>Onde aplicar primeiro:</b> sugiro a ficha da implantação (esta tela) e, depois, o mesmo padrão nas outras janelas de preenchimento do CRM.</li>
+        </ol>
+      </div>
+      <div class="skills">
+        <h3>Skills do skills.sh que ajudam nesta refatoração</h3>
+        <div class="tab-wrap"><table>
+          <thead><tr><th>Skill</th><th>Para que serve aqui</th><th>Instalação</th></tr></thead>
+          <tbody>
+            <tr><td><b>web-design-guidelines</b> (Vercel)</td><td>Revisão de acessibilidade, formulários, foco, contraste e estados. Boa para conferir cada tela depois de mudada.</td><td><code>npx skills add vercel-labs/agent-skills</code></td></tr>
+            <tr><td><b>ui-refactor</b> (Refactoring UI)</td><td>Regras práticas de hierarquia, espaçamento e tipografia para telas que já existem. É a mais próxima do pedido.</td><td><code>npx skills add lovropodobnik/refactoring-ui-skill</code></td></tr>
+            <tr><td><b>impeccable</b></td><td>Polimento visual e consistência entre telas; útil quando o padrão for levado para o resto do CRM.</td><td><code>npx skills add pbakaus/impeccable</code></td></tr>
+            <tr><td><b>frontend-design</b> (Anthropic)</td><td>Já instalada nesta máquina. Usada para montar este protótipo.</td><td>já disponível</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const PERGUNTAS = [
+    { g: 'Estrutura da loja', k: 'maquinas', l: 'Máquinas (total)', t: 'num', d: 'Computadores que vão usar o sistema' },
+    { g: 'Estrutura da loja', k: 'caixas', l: 'Caixas (PDV)', t: 'num' },
+    { g: 'Estrutura da loja', k: 'colaboradores', l: 'Quantidade de colaboradores', t: 'num' },
+    { g: 'Estrutura da loja', k: 'faturamento', l: 'Faturamento mensal aproximado', t: 'txt', ph: 'Ex.: R$ 120 mil' },
+    { g: 'Equipamentos', k: 'impressora_nfce', l: 'Impressora NFC-e (modelo)', t: 'txt', ph: 'Modelo', sug: ['Elgin i9', 'Epson TM-T20', 'Bematech MP-4200', 'Daruma DR800'] },
+    { g: 'Equipamentos', k: 'etiquetas', l: 'Usa impressora de etiquetas?', t: 'sn' },
+    { g: 'Equipamentos', k: 'tef', l: 'TEF (qual)', t: 'txt', ph: 'Qual TEF', sug: ['Não usa', 'SiTef', 'PayGo', 'Cappta'] },
+    { g: 'Módulos e regras', k: 'pbms', l: 'PBMs utilizadas', t: 'multi', sug: ['Farmácia Popular', 'Funcional', 'ePharma', 'Vidalink', 'Nenhuma'] },
+    { g: 'Módulos e regras', k: 'financeiro', l: 'Vai usar o financeiro?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'corretor_tributario', l: 'Corretor tributário?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'gerencial', l: 'Gerencial?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'sngpc', l: 'SNGPC (controlados)?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'usa_comunicacao', l: 'Comunicação entre filiais?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'banco_unico', l: 'Banco único?', t: 'sn' },
+    { g: 'Módulos e regras', k: 'preco_unico', l: 'Preço único?', t: 'sn' },
+  ];
+  const resp = { maquinas: 4, caixas: 2, colaboradores: 9, impressora_nfce: 'Elgin i9', financeiro: 'Sim', sngpc: 'Sim' };
+  const ROTEIRO = [
+    ['Apresentação', ['Apresentar-se ao cliente como técnico responsável pela implantação', '@perguntas', 'Confirmar o contato principal (nome, telefone e e-mail) e o canal de comunicação', 'Explicar as etapas da implantação, os prazos e o que se espera do cliente']],
+    ['Diagnóstico da empresa', ['Razão social, nome fantasia e CNPJ confirmados', 'Inscrição estadual, regime tributário e endereço completo', 'Contador responsável e contato da contabilidade']],
+    ['Estrutura', ['Nº de lojas (única, matriz ou filiais), caixas, computadores e usuários', 'Responsável pela administração do sistema na loja definido']],
+    ['Infraestrutura', ['Computadores ligados, Windows atualizado e acesso de administrador', 'Rede e internet testadas (velocidade registrada)']],
+    ['Equipamentos', ['Equipamentos do caixa conferidos (leitor, impressora térmica, gaveta, Pin Pad, nobreak)', 'Outros equipamentos conferidos (impressora de etiquetas, balança, coletor)']],
+    ['Fiscal', ['Certificado digital (A1/A3), CSC, inscrição estadual e ambiente (produção/homologação)']],
+    ['Estoque e migração', ['Sistema anterior, escopo da migração e volume aproximado de produtos', 'Controle de lote, validade e medicamentos controlados definido']],
+    ['Financeiro e integrações', ['Módulos financeiros usados e formas de pagamento mapeados', 'Integrações mapeadas (TEF, PBM, Farmácia Popular, convênios, e-commerce)']],
+    ['Operação e treinamento', ['Horário de funcionamento, dias de pico e melhor janela para a implantação', 'Quem será treinado, quantas pessoas e modalidade (presencial ou remoto)']],
+    ['Fechamento', ['Pendências registradas com responsável e prazo', 'Diagnóstico aprovado pelo cliente']],
+  ];
+  const feitos = new Set(['Apresentar-se ao cliente como técnico responsável pela implantação', 'Razão social, nome fantasia e CNPJ confirmados']);
+  const abertas = new Set(['Apresentação', 'Diagnóstico da empresa']);
+  let esconderFeitos = false;
+  const INSTALACAO = ['Instalação do servidor, terminais e Caixa', 'Configurar Gerencial', 'Configurar o Copy (backup) Interno e Externo (Nuvem)', 'Testar Cadastro de Clientes', 'Teste de Cadastro de Produtos, verificar dados obrigatórios'];
+
+  const respondida = k => String(resp[k] ?? '').trim() !== '';
+  const nResp = () => PERGUNTAS.filter(p => respondida(p.k)).length;
+  const totalRoteiro = () => ROTEIRO.reduce((a, [, it]) => a + it.length, 0);
+  const itemFeito = t => t === '@perguntas' ? nResp() === PERGUNTAS.length : feitos.has(t);
+  const nRoteiro = () => ROTEIRO.reduce((a, [, it]) => a + it.filter(itemFeito).length, 0);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  const SECOES = () => [
+    ['Agora', [['perguntas', 'Perguntas do 1º contato', `${nResp()}/15`, nResp() === 15 ? 'ok' : 'vez'], ['roteiro', 'Roteiro do onboarding', `${nRoteiro()}/${totalRoteiro()}`, 'vez']]],
+    ['Execução', [['visao', 'Visão geral', '', ''], ['instalacao', 'Checklist de instalação', '0/5', 'lock'], ['testes', 'Testes de conversão', '7', 'lock'], ['virada', 'Virada e cobrança', '', 'lock'], ['treino', 'Treinamento', '', 'lock'], ['correcoes', 'Correções', '0', '']]],
+    ['Cliente', [['ficha', 'Ficha do cliente', '', ''], ['coleta', 'Ficha de coleta', '', ''], ['tarefas', 'Tarefas do cliente', '2', ''], ['inventario', 'Inventário técnico', '', ''], ['arquivos', 'Arquivos', '', ''], ['pagina', 'Página do cliente', '', '']]],
+    ['Registros', [['prints', 'Prints', '', ''], ['historico', 'Histórico do card', '', ''], ['obs', 'Observações', '', ''], ['tempos', 'Tempos', '', '']]],
+  ];
+  let atual = 'perguntas';
+  let focoK = null;
+
+  function renderMenu() {
+    const m = $('#menu'); const sel = $('#sel-secao');
+    m.innerHTML = SECOES().map(([g, its]) => `<h3>${g}</h3>` + its.map(([k, l, c, st]) =>
+      `<button class="item-menu ${st === 'lock' ? 'travado' : ''}" data-s="${k}" ${k === atual ? 'aria-current="page"' : ''}>
+        <span class="ponto ${st}"></span>${st === 'lock' ? '🔒 ' : ''}${l}<span class="cont">${c}</span></button>`).join('')).join('');
+    sel.innerHTML = SECOES().map(([g, its]) => `<optgroup label="${g}">` + its.map(([k, l, c]) => `<option value="${k}" ${k === atual ? 'selected' : ''}>${l}${c ? ` (${c})` : ''}</option>`).join('') + '</optgroup>').join('');
+  }
+
+  function campoHTML(p) {
+    const v = resp[p.k] ?? '';
+    if (p.t === 'sn') return `<div class="sn" role="group" aria-label="${esc(p.l)}">${['Sim', 'Não'].map(o => `<button data-k="${p.k}" data-v="${o}" aria-pressed="${v === o}">${o}</button>`).join('')}</div>`;
+    if (p.t === 'num') return `<div class="numero"><button data-menos="${p.k}" aria-label="Diminuir">−</button><input class="campo" id="pc-${p.k}" inputmode="numeric" data-k="${p.k}" value="${esc(v)}" placeholder="0"><button data-mais="${p.k}" aria-label="Aumentar">+</button></div>`;
+    if (p.t === 'multi') { const sel = String(v).split(', ').filter(Boolean); return `<div class="chips" style="margin:0">${p.sug.map(o => `<button data-multi="${p.k}" data-v="${esc(o)}" aria-pressed="${sel.includes(o)}">${esc(o)}</button>`).join('')}</div>`; }
+    return `<input class="campo" id="pc-${p.k}" data-k="${p.k}" value="${esc(v)}" placeholder="${esc(p.ph || '')}">` + (p.sug ? `<div class="chips">${p.sug.map(o => `<button data-sug="${p.k}" data-v="${esc(o)}" aria-pressed="${v === o}">${esc(o)}</button>`).join('')}</div>` : '');
+  }
+
+  function telaPerguntas() {
+    const grupos = [...new Set(PERGUNTAS.map(p => p.g))];
+    let n = 0;
+    return `<div class="aviso"><span class="ic">🔒</span><div><b>Primeiro contato com o cliente, antes de qualquer ação</b>Até 2 dias úteis após a designação. Instalação, conversão, quadro e virada ficam travados até o roteiro terminar. Dê Play para contar o tempo.</div></div>
+      <div class="tit-sec"><h2>Perguntas principais do primeiro contato</h2>
+        <p>Pergunte durante a ligação. Cada resposta é salva na hora. Com as 15 respondidas, o item do roteiro se marca sozinho.</p></div>
+      ${grupos.map(g => { const ps = PERGUNTAS.filter(p => p.g === g); return `<section class="grupo"><header><h3>${g}</h3><span>${ps.filter(p => respondida(p.k)).length} de ${ps.length}</span></header>
+        ${ps.map(p => { n++; return `<div class="perg ${respondida(p.k) ? 'resp' : ''} ${focoK === p.k ? 'foco' : ''}" id="row-${p.k}"><span class="num" data-n="${n}">${respondida(p.k) ? '✓' : n}</span>
+          <label class="rot" for="pc-${p.k}">${esc(p.l)}${p.d ? `<span class="dica">${esc(p.d)}</span>` : ''}</label><div class="resp-col">${campoHTML(p)}</div></div>`; }).join('')}</section>`; }).join('')}`;
+  }
+
+  function telaRoteiro() {
+    const total = totalRoteiro(), f = nRoteiro();
+    return `<div class="tit-sec"><h2>Roteiro do onboarding técnico</h2>
+        <p>O que o técnico confirma com o cliente no primeiro contato. O último item é a aprovação do cliente pelo link.</p></div>
+      <div class="progresso"><span><b>${f}</b> de ${total} itens</span><div class="barra"><i style="width:${(f / total) * 100}%"></i></div>
+        <label class="filtro"><input type="checkbox" id="esconder" ${esconderFeitos ? 'checked' : ''}> Esconder feitos</label></div>
+      ${ROTEIRO.map(([s, its]) => { const fs = its.filter(itemFeito).length; const ok = fs === its.length;
+        return `<section class="secao" data-aberta="${abertas.has(s)}"><button data-sec="${esc(s)}" aria-expanded="${abertas.has(s)}"><span class="seta">▾</span><h3>${s}</h3>
+          <span class="mini ${ok ? 'ok' : ''}"><i style="width:${(fs / its.length) * 100}%"></i></span><span class="cont">${fs}/${its.length}</span></button>
+          <div class="lista">${its.filter(t => !(esconderFeitos && itemFeito(t))).map(t => {
+            if (t === '@perguntas') { const okP = itemFeito(t); return `<div class="chk ${okP ? 'feito' : ''}"><input type="checkbox" disabled ${okP ? 'checked' : ''} aria-label="Perguntas respondidas"><span class="txt">Perguntas principais do primeiro contato respondidas</span><button class="auto" data-ir="perguntas">${nResp()}/15 · responder</button></div>`; }
+            const fe = feitos.has(t); return `<label class="chk ${fe ? 'feito' : ''}"><input type="checkbox" data-chk="${esc(t)}" ${fe ? 'checked' : ''}><span class="txt">${esc(t)}</span><span class="quem">${fe ? 'Lucas · 25/10 14:10' : ''}</span></label>`; }).join('')}</div></section>`; }).join('')}`;
+  }
+
+  function telaInstalacao() {
+    return `<div class="aviso"><span class="ic">🔒</span><div><b>Liberado quando o onboarding técnico terminar</b>Faltam ${totalRoteiro() - nRoteiro()} itens do roteiro e ${15 - nResp()} perguntas. <button class="link-sem" data-ir="roteiro">Ir para o roteiro</button></div></div>
+      <div class="tit-sec"><h2>Checklist de instalação</h2><p>Visualização do que vem depois. As caixas ficam desativadas até a liberação.</p></div>
+      <section class="secao" data-aberta="true"><button><span class="seta">▾</span><h3>Instalação do sistema</h3><span class="mini"><i style="width:0"></i></span><span class="cont">0/5</span></button>
+      <div class="lista">${INSTALACAO.map(t => `<label class="chk travado"><input type="checkbox" disabled><span class="txt">${t}</span><span class="quem"></span></label>`).join('')}</div></section>`;
+  }
+
+  function telaVisao() {
+    return `<div class="tit-sec"><h2>Visão geral</h2><p>Resumo da demanda. Os números ficam no topo; ações de gestão (prazos, designar técnico, avisos) vêm abaixo, cada uma no seu bloco.</p></div>
+      <div class="cards4"><div class="kpi"><span>Trabalho efetivo</span><b>1h 20min</b></div><div class="kpi"><span>Esperando cliente</span><b>0min</b></div>
+      <div class="kpi"><span>Esperando programação</span><b>0min</b></div><div class="kpi"><span>Dias desde o contrato</span><b>3</b></div></div>
+      <div class="progresso"><span>Progresso até a virada</span><div class="barra"><i style="width:9%"></i></div><b>9%</b></div>`;
+  }
+
+  function telaVazia() {
+    return `<div class="tit-sec"><h2>${SECOES().flatMap(s => s[1]).find(i => i[0] === atual)[1]}</h2><p>Esta seção segue o mesmo padrão: título com explicação curta, conteúdo em uma coluna legível e ações no rodapé. O conteúdo atual do CRM entra aqui sem mudança de regra.</p></div>`;
+  }
+
+  function renderRodape() {
+    const r = $('#rodape');
+    if (atual !== 'perguntas') { r.hidden = true; return; }
+    r.hidden = false;
+    const n = nResp();
+    r.innerHTML = `<span class="resumo">${n} de 15 respondidas</span><span class="estado" id="estado-salvo">${salvoTxt}</span><span class="esp"></span>
+      ${n < 15 ? '<button class="btn" id="proxima">Próxima sem resposta ↓</button>' : '<button class="btn prim" data-ir="roteiro">Seguir para o roteiro →</button>'}`;
+  }
+
+  let salvoTxt = 'Respostas salvas automaticamente';
+  let tSalvar;
+  function salvar() {
+    salvoTxt = 'Salvando…'; const e = $('#estado-salvo'); if (e) { e.textContent = salvoTxt; e.classList.add('salvando'); }
+    clearTimeout(tSalvar);
+    tSalvar = setTimeout(() => { const h = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); salvoTxt = `Salvo às ${h}`; const e2 = $('#estado-salvo'); if (e2) { e2.textContent = salvoTxt; e2.classList.remove('salvando'); } }, 600);
+  }
+
+  function render(manterScroll) {
+    const sc = $('#conteudo-scroll'); const top = sc.scrollTop;
+    renderMenu();
+    $('#conteudo').innerHTML = atual === 'perguntas' ? telaPerguntas() : atual === 'roteiro' ? telaRoteiro() : atual === 'instalacao' ? telaInstalacao() : atual === 'visao' ? telaVisao() : telaVazia();
+    renderRodape();
+    $('#passo-sub').textContent = nResp() < 15 ? `Faltam ${15 - nResp()} perguntas e ${totalRoteiro() - nRoteiro()} itens do roteiro.` : `Perguntas completas. Faltam ${totalRoteiro() - nRoteiro()} itens do roteiro.`;
+    sc.scrollTop = manterScroll ? top : 0;
+  }
+  function ir(s) { atual = s; focoK = null; $('#corpo').classList.remove('ver-lateral'); render(false); }
+  function atualizarResp(k, v, refoco) { resp[k] = v; salvar(); render(true); if (refoco) { const el = document.getElementById(refoco); if (el) { el.focus(); const l = el.value.length; try { el.setSelectionRange(l, l); } catch (e) {} } } }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button, input[type=checkbox]'); if (!b) return;
+    if (b.dataset.s) return ir(b.dataset.s);
+    if (b.dataset.ir) return ir(b.dataset.ir);
+    if (b.dataset.k && b.dataset.v && b.closest('.sn')) return atualizarResp(b.dataset.k, resp[b.dataset.k] === b.dataset.v ? '' : b.dataset.v);
+    if (b.dataset.sug) return atualizarResp(b.dataset.sug, b.dataset.v);
+    if (b.dataset.multi) { const k = b.dataset.multi; let s = String(resp[k] || '').split(', ').filter(Boolean); s = s.includes(b.dataset.v) ? s.filter(x => x !== b.dataset.v) : (b.dataset.v === 'Nenhuma' ? ['Nenhuma'] : [...s.filter(x => x !== 'Nenhuma'), b.dataset.v]); return atualizarResp(k, s.join(', ')); }
+    if (b.dataset.mais) return atualizarResp(b.dataset.mais, (Number(resp[b.dataset.mais]) || 0) + 1);
+    if (b.dataset.menos) return atualizarResp(b.dataset.menos, Math.max(0, (Number(resp[b.dataset.menos]) || 0) - 1) || '');
+    if (b.dataset.sec) { const s = b.dataset.sec; abertas.has(s) ? abertas.delete(s) : abertas.add(s); return render(true); }
+    if (b.dataset.chk) { const t = b.dataset.chk; feitos.has(t) ? feitos.delete(t) : feitos.add(t); return render(true); }
+    if (b.id === 'esconder') { esconderFeitos = b.checked; return render(true); }
+    if (b.id === 'proxima') { const p = PERGUNTAS.find(x => !respondida(x.k)); focoK = p.k; render(true); const row = document.getElementById('row-' + p.k); row.scrollIntoView({ behavior: 'smooth', block: 'center' }); const f = row.querySelector('input, button'); if (f) f.focus({ preventScroll: true }); }
+  });
+  document.addEventListener('change', e => { if (e.target.id === 'sel-secao') ir(e.target.value); });
+  document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.k; if (k && e.target.classList.contains('campo')) { resp[k] = e.target.value; salvar(); const row = document.getElementById('row-' + k); if (row) { row.classList.toggle('resp', respondida(k)); const n = row.querySelector('.num'); n.textContent = respondida(k) ? '✓' : n.dataset.n; } renderMenu(); renderRodape(); } });
+
+  // Controles do protótipo
+  const marcar = (grp, btn) => grp.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === btn)));
+  $('#larguras').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; marcar($('#larguras'), b); $('#moldura').dataset.larg = b.dataset.l; });
+  $('#densidade').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; marcar($('#densidade'), b); $('#moldura').classList.toggle('compacto', b.dataset.d === 'comp'); });
+  $('#v-proto').addEventListener('click', () => { $('#tela-proto').hidden = false; $('#tela-muda').hidden = true; $('#v-proto').setAttribute('aria-pressed', 'true'); $('#v-muda').setAttribute('aria-pressed', 'false'); });
+  $('#v-muda').addEventListener('click', () => { $('#tela-proto').hidden = true; $('#tela-muda').hidden = false; $('#v-muda').setAttribute('aria-pressed', 'true'); $('#v-proto').setAttribute('aria-pressed', 'false'); });
+  $('#abrir-lateral').addEventListener('click', () => { const c = $('#corpo'); c.classList.toggle('ver-lateral'); $('#abrir-lateral').setAttribute('aria-expanded', String(c.classList.contains('ver-lateral'))); });
+  $('#copiar-link').addEventListener('click', e => { e.target.textContent = 'Link copiado (exemplo)'; setTimeout(() => e.target.textContent = 'Copiar link para o cliente', 1800); });
+
+  let seg = 0, timer = null;
+  $('#play').addEventListener('click', () => {
+    const b = $('#play');
+    if (timer) { clearInterval(timer); timer = null; b.textContent = '▶ Play'; b.classList.remove('rodando'); return; }
+    timer = setInterval(() => { seg++; const h = String(Math.floor(seg / 3600)).padStart(2, '0'), m = String(Math.floor(seg / 60) % 60).padStart(2, '0'), s = String(seg % 60).padStart(2, '0'); $('#tempo').textContent = `${h}:${m}:${s}`; }, 1000);
+    b.textContent = '❚❚ Pausar'; b.classList.add('rodando');
+  });
+
+  render(false);
+})();
+</script>
