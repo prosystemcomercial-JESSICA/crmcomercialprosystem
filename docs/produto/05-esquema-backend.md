@@ -1916,3 +1916,8 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Quando volta ao funil:** "Identificar" como **Lead** (`POST /whatsapp/conversas/:id/identificar`) ou abrir a conversa a partir de um lead (`POST /whatsapp/abrir` com `lead_id`) limpam a marca. O lead que volta pela página de apresentação (`routes/leads.ts`) prioriza a conversa, mas não revincula sozinho uma conversa marcada.
 - **Tela:** no cabeçalho da conversa aparece "· fora do funil, agentes desligados"; a confirmação do botão avisa que nenhum agente falará mais com o contato.
 - **Testes:** `backend/tests/fora-do-funil.test.ts`.
+
+### Atualização 26/10/2026: ficha da demanda confortável e campos confortáveis em todas as janelas
+
+- **Pedido da Jessica:** as janelas de preenchimento, acompanhamento e checklist estavam compactas e difíceis de usar. Ela aprovou o protótipo (`docs/prototipos/ficha-demanda-confortavel.html`) com três decisões: manter a ordem das perguntas do primeiro contato; salvar sozinho e manter o botão de salvar como reforço; uso principal no computador, o dia todo, sempre no modo espaçoso (sem modo compacto).
+- **Sem mudança de banco.** Única mudança no servidor: em `PUT /implantacoes/:id/coleta`, antes de gravar a anotação "📝 Ficha de coleta atualizada" em `ImplantacaoAtividade`, procura a mesma anotação do mesmo autor nos últimos 30 minutos (`findFirst` por `implantacao_id`, `descricao`, `autor_id`, `created_at`); se existir, não grava outra.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -25,10 +25,10 @@ const fmtData = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-B
 const fmtDataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 const paraInputData = (s?: string | null) => (s ? new Date(new Date(s).getTime() - 3 * 3600000).toISOString().slice(0, 10) : '');
 const btn = (cor: string, cheio = true): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '7px 12px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, borderRadius: 8, padding: '8px 14px', minHeight: 38, cursor: 'pointer',
   border: cheio ? 'none' : `1px solid ${cor}55`, background: cheio ? cor : 'transparent', color: cheio ? '#fff' : cor,
 });
-const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6 };
+const cartao: React.CSSProperties = { background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 10 };
 const rotulo: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 };
 
 const COR_SLA: Record<string, { cor: string; txt: string }> = {
@@ -49,7 +49,7 @@ function SlaBadge({ sla, etapa }: { sla: any; etapa?: string }) {
 
 function Barra({ pct, cor = '#286397' }: { pct: number; cor?: string }) {
   return (
-    <div style={{ height: 6, background: 'var(--t-content-bg)', borderRadius: 99, overflow: 'hidden' }} aria-label={`${pct}%`}>
+    <div style={{ height: 8, background: 'color-mix(in srgb, var(--t-card-border) 70%, transparent)', borderRadius: 99, overflow: 'hidden' }} aria-label={`${pct}%`}>
       <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', background: cor, borderRadius: 99, transition: 'width .3s' }} />
     </div>
   );
@@ -228,6 +228,7 @@ type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
   const [aba, setAba] = useState<Aba>(abaInicial || 'resumo');
+  const [lateral, setLateral] = useState(false);
   const carregar = useCallback(async () => {
     try { setD((await apiClient.getPortalImplantacao(id)).data.data); }
     catch (e) { alert(erroDe(e)); onClose(); }
@@ -251,62 +252,66 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     ['anexos', `Arquivos${(d.anexos || []).length ? ` (${d.anexos.length})` : ''}`, FileText], ['inventario', 'Inventário técnico', Settings],
     ['tarefascliente', `Tarefas do cliente${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length ? ` (${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length})` : ''}`, FileText],
   ];
-  // Card em 5 grupos (Fase 3): cada grupo junta as abas de um assunto; dentro dele, pílulas escolhem a aba.
+  // Ficha confortável (26/10/2026): menu de seções à esquerda (sem abas em dois níveis), conteúdo no meio
+  // e, à direita, o próximo passo e os contatos sempre à vista. Telas estreitas: o menu vira lista e o painel vira botão.
   const GRUPOS_ABA: { k: string; l: string; subs: Aba[] }[] = [
     { k: 'visao', l: 'Visão geral', subs: ['resumo'] },
-    { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'tarefascliente', 'ficha', 'inventario', 'anexos', 'cliente'] },
     { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'testes', 'virada', 'assistida', 'treinamento', 'correcoes'] },
-    { k: 'prints', l: 'Prints', subs: ['prints'] },
-    { k: 'conversa', l: 'Histórico', subs: ['historico', 'observacoes'] },
-    { k: 'tempos', l: 'Tempos', subs: ['tempos'] },
+    { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'ficha', 'tarefascliente', 'inventario', 'anexos', 'cliente'] },
+    { k: 'registros', l: 'Registros', subs: ['prints', 'historico', 'observacoes', 'tempos'] },
   ];
-  const dispo = new Map(abas.map(([k, l, Icon]) => [k, { l, Icon }]));
+  const dispo = new Map(abas.map(([k, l, Icon]) => [k, { l: k === 'resumo' ? 'Visão geral' : String(l).replace(/^🔒 /, ''), Icon }]));
   const grupos = GRUPOS_ABA.map(g => ({ ...g, subs: g.subs.filter(s => dispo.has(s)) })).filter(g => g.subs.length);
-  const grupoAtual = grupos.find(g => g.subs.includes(aba)) || grupos[0];
+  // Até o onboarding terminar, estas seções ficam travadas (o conteúdo explica o porquê).
+  const travadas: Aba[] = !servico && !d.onboarding_ok ? ['checklist', 'testes', 'virada', 'assistida', 'treinamento'] : [];
+  const abaDoPasso = d.proximo_passo?.quem !== 'NINGUEM' ? d.proximo_passo?.aba : null;
+  const tituloAba = dispo.get(aba)?.l || '';
   return (
     <Gaveta onClose={onClose}>
-      <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--t-card-border)', display: 'grid', gap: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#286397', marginBottom: 4 }}>{d.tipo_demanda}</div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.25, color: 'var(--t-text-primary)', textWrap: 'balance' as any }}>{i.cliente_razao_social}</h2>
-            <div style={{ fontSize: 13, color: 'var(--t-text-muted)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico', d.prazo_ajuste_ms >= 36e5 ? `prazo pausado +${Math.round(d.prazo_ajuste_ms / 36e5)}h (espera do cliente)` : null].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
-            </div>
+      <style>{CSS_FICHA}</style>
+      <header className="pf-cab">
+        <div className="pf-id">
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)' }}>{d.tipo_demanda}</div>
+          <h2 title={i.cliente_razao_social}>{i.cliente_razao_social}</h2>
+          <div className="pf-meta">
+            {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico', d.prazo_ajuste_ms >= 36e5 ? `prazo pausado +${Math.round(d.prazo_ajuste_ms / 36e5)}h (espera do cliente)` : null].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
           </div>
-          <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} style={{ color: 'var(--t-text-muted)' }} /></button>
+        </div>
+        <div className="pf-marcos"><LinhaMarcos d={d} /></div>
+        <div className="pf-acoes">
+          <BotoesDemanda implantacao={{ ...i, onboarding_ok: d.onboarding_ok }} />
+          <button className="pf-ver-lateral" onClick={() => setLateral(v => !v)} aria-expanded={lateral} style={btn('#286397', false)}><Phone size={14} /> Contatos e próximo passo</button>
+          <button onClick={onClose} aria-label="Fechar" style={{ width: 40, height: 40, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={20} style={{ color: 'var(--t-text-muted)' }} /></button>
         </div>
         {d.saude && d.saude.nivel !== 'VERDE' && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, color: COR_SAUDE[d.saude.nivel] }}>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13.5, color: COR_SAUDE[d.saude.nivel] }}>
             <PontoSaude saude={d.saude} /><span><b style={{ fontWeight: 600 }}>{d.saude.nivel === 'VERMELHO' ? 'Precisa de atenção agora' : 'Atenção'}:</b> {d.saude.motivos.join(' · ')}</span>
           </div>
         )}
-        <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
-        <FaixaProximoPasso d={d} gestao={gestao} aba={aba} irPara={setAba} recarregar={carregar} />
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240 }}><LinhaMarcos d={d} /></div>
-          <BotoesDemanda implantacao={{ ...i, onboarding_ok: d.onboarding_ok }} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: '1px solid var(--t-card-border)', overflowX: 'auto' }}>
-        {grupos.map(g => (
-          <button key={g.k} onClick={() => !g.subs.includes(aba) && setAba(g.subs[0])}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 12px', fontSize: 13, fontWeight: grupoAtual.k === g.k ? 600 : 500, whiteSpace: 'nowrap', border: 'none', background: 'transparent', cursor: 'pointer', color: grupoAtual.k === g.k ? '#286397' : 'var(--t-text-secondary)', borderBottom: grupoAtual.k === g.k ? '2px solid #286397' : '2px solid transparent' }}>
-            {g.l}
-          </button>
-        ))}
-      </div>
-      {grupoAtual.subs.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, padding: '10px 20px 0', overflowX: 'auto' }}>
-          {grupoAtual.subs.map(k => (
-            <button key={k} onClick={() => setAba(k)}
-              style={{ fontSize: 12, fontWeight: aba === k ? 600 : 500, padding: '6px 12px', minHeight: 32, borderRadius: 999, whiteSpace: 'nowrap', cursor: 'pointer', border: `1px solid ${aba === k ? '#28639755' : 'var(--t-card-border)'}`, background: aba === k ? '#2863970f' : 'transparent', color: aba === k ? '#286397' : 'var(--t-text-secondary)' }}>
-              {dispo.get(k)?.l}
-            </button>
+      </header>
+      <div className={`pf-corpo${lateral ? ' pf-com-lateral' : ''}`}>
+        <nav className="pf-menu" aria-label="Seções da demanda">
+          {grupos.map(g => (
+            <div key={g.k} style={{ display: 'grid', gap: 2 }}>
+              <div className="pf-menu-grupo">{g.l}</div>
+              {g.subs.map(k => (
+                <button key={k} className="pf-item" aria-current={aba === k ? 'page' : undefined} onClick={() => setAba(k)}>
+                  <span className={`pf-ponto${k === abaDoPasso ? ' pf-ponto-vez' : ''}`} title={k === abaDoPasso ? 'Próximo passo' : undefined} />
+                  <span style={{ flex: 1, minWidth: 0 }}>{dispo.get(k)?.l}</span>
+                  {travadas.includes(k) && <span title="Liberado depois do onboarding técnico" aria-label="travado">🔒</span>}
+                </button>
+              ))}
+            </div>
           ))}
-        </div>
-      )}
-      <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+        </nav>
+        <div className="pf-conteudo">
+          <div className="pf-menu-sel">
+            <select aria-label="Seção" value={aba} onChange={e => setAba(e.target.value as Aba)} className="ps-input w-full">
+              {grupos.map(g => <optgroup key={g.k} label={g.l}>{g.subs.map(k => <option key={k} value={k}>{dispo.get(k)?.l}{travadas.includes(k) ? ' (travado)' : ''}</option>)}</optgroup>)}
+            </select>
+          </div>
+          <div className="pf-conteudo-in">
+          <h3 className="pf-titulo">{tituloAba}</h3>
         {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
         {aba === 'tarefascliente' && <AbaTarefasCliente d={d} recarregar={carregar} />}
@@ -325,18 +330,174 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'cliente' && <AbaCliente d={d} recarregar={carregar} />}
         {aba === 'historico' && <AbaHistoricoCard id={i.id} />}
         {aba === 'prints' && <AbaPrints id={i.id} gestao={gestao} />}
+          </div>
+        </div>
+        <aside className="pf-lateral" aria-label="Próximo passo e contatos">
+          <FaixaProximoPasso d={d} gestao={gestao} aba={aba} irPara={(a: Aba) => { setAba(a); setLateral(false); }} recarregar={carregar} />
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div className="pf-menu-grupo" style={{ padding: 0 }}>Contatos</div>
+            <PainelContatos d={d} gestao={gestao} recarregar={carregar} />
+          </div>
+        </aside>
       </div>
       <BarraCelularCard d={d} />
     </Gaveta>
   );
 }
 
+// Estilos da ficha confortável. Desktop é o uso principal (o dia todo): espaçoso, alvos de 40px+, texto 14-15px.
+const CSS_FICHA = `
+.pf-cab{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 24px;align-items:center;padding:16px 24px 14px;border-bottom:1px solid var(--t-card-border)}
+.pf-id{min-width:0}
+.pf-id h2{margin:2px 0 0;font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1.25;color:var(--t-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-meta{font-size:13px;color:var(--t-text-muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.pf-marcos{min-width:0;grid-column:1 / -1;grid-row:2;max-width:980px}
+.pf-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.pf-ver-lateral{display:none !important}
+.pf-corpo{flex:1;min-height:0;display:grid;grid-template-columns:240px minmax(0,1fr) 360px;position:relative}
+.pf-menu{border-right:1px solid var(--t-card-border);overflow-y:auto;padding:16px 12px;display:grid;align-content:start;gap:14px;background:var(--t-content-bg)}
+.pf-menu-grupo{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t-text-muted);padding:0 10px 4px}
+.pf-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:9px 10px;min-height:40px;font-size:14px;color:var(--t-text-secondary);cursor:pointer;transition:background-color .12s}
+.pf-item:hover{background:var(--t-card-bg)}
+.pf-item[aria-current=page]{background:var(--t-card-bg);color:var(--t-link);font-weight:600;box-shadow:inset 3px 0 0 var(--t-primary)}
+.pf-ponto{width:8px;height:8px;border-radius:99px;flex-shrink:0;background:transparent}
+.pf-ponto-vez{background:var(--t-primary)}
+.pf-conteudo{overflow-y:auto;min-width:0;display:flex;flex-direction:column}
+.pf-menu-sel{display:none;padding:12px 16px 0}
+.pf-conteudo-in{padding:24px 32px 32px;display:grid;gap:18px;align-content:start;flex:1;width:100%;max-width:1040px;font-size:14px}
+.pf-titulo{margin:0;font-size:20px;font-weight:600;color:var(--t-text-primary);letter-spacing:-.01em}
+.pf-lateral{border-left:1px solid var(--t-card-border);overflow-y:auto;padding:20px;display:grid;align-content:start;gap:20px;background:var(--t-content-bg)}
+.pf-rodape{position:sticky;bottom:0;margin:0 -32px;padding:14px 32px;border-top:1px solid var(--t-card-border);background:var(--t-card-bg);display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:2;box-shadow:0 -6px 16px rgba(0,0,0,.05)}
+.pf-salvo{font-size:13px;color:var(--t-text-muted)}
+.pf-salvo[data-estado=salvando],.pf-salvo[data-estado=pendente]{color:#b45309}
+.pf-salvo[data-estado=erro]{color:#dc2626;font-weight:600}
+.pf-grupo{border:1px solid var(--t-card-border);border-radius:12px;overflow:hidden;background:var(--t-card-bg)}
+.pf-grupo>header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:12px 18px;background:var(--t-content-bg);border-bottom:1px solid var(--t-card-border)}
+.pf-grupo>header b{font-size:14px;font-weight:600;color:var(--t-text-primary)}
+.pf-grupo>header span{font-size:13px;color:var(--t-text-muted);font-variant-numeric:tabular-nums}
+.pf-perg{display:grid;grid-template-columns:30px minmax(0,1fr) minmax(220px,340px);gap:14px;align-items:center;padding:12px 18px;min-height:60px;border-top:1px solid var(--t-card-border)}
+.pf-perg:first-of-type{border-top:0}
+.pf-perg label{font-size:14.5px;font-weight:500;color:var(--t-text-primary);line-height:1.4}
+.pf-num{width:26px;height:26px;border-radius:99px;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--t-text-muted);border:1.5px solid var(--t-card-border);font-variant-numeric:tabular-nums}
+.pf-perg[data-ok=true] .pf-num{background:#16a34a;border-color:#16a34a;color:#fff}
+.pf-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px;padding:18px}
+.pf-campo{display:grid;gap:6px;align-content:start}
+.pf-campo>label,.pf-campo>span.pf-rot{font-size:13.5px;font-weight:500;color:var(--t-text-secondary)}
+.pf-seg{display:inline-flex;border:1px solid var(--t-card-border);border-radius:8px;overflow:hidden;background:var(--t-card-bg);max-width:100%;flex-wrap:wrap}
+.pf-seg button{border:0;min-height:42px;padding:0 18px;background:transparent;color:var(--t-text-secondary);font-size:14px;font-weight:500;cursor:pointer;flex:1 1 auto}
+.pf-seg button+button{border-left:1px solid var(--t-card-border)}
+.pf-seg button[aria-pressed=true]{background:var(--t-primary-light);color:var(--t-link);font-weight:700}
+.pf-seg button[aria-pressed=true][data-v=Sim]{background:#16a34a14;color:#15803d}
+.pf-num-campo{display:flex;gap:6px;align-items:center}
+.pf-num-campo input{max-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+.pf-num-campo button{width:42px;height:42px;border:1px solid var(--t-card-border);background:var(--t-card-bg);border-radius:8px;font-size:18px;color:var(--t-text-secondary);cursor:pointer}
+.pf-chk{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;min-height:48px;font-size:14px;line-height:1.45;cursor:pointer;border-radius:8px;transition:background-color .12s}
+.pf-chk:hover{background:var(--t-content-bg)}
+.pf-chk input{margin-top:1px;flex-shrink:0}
+@media (max-width:1180px){
+  .pf-corpo{grid-template-columns:220px minmax(0,1fr)}
+  .pf-lateral{display:none;position:absolute;right:0;top:0;bottom:0;width:min(360px,92%);z-index:5;box-shadow:-12px 0 32px rgba(0,0,0,.18)}
+  .pf-com-lateral .pf-lateral{display:grid}
+  .pf-ver-lateral{display:inline-flex !important}
+}
+@media (max-width:760px){
+  .pf-corpo{grid-template-columns:minmax(0,1fr)}
+  .pf-menu{display:none}
+  .pf-menu-sel{display:block}
+  .pf-cab{padding:12px 16px;gap:8px;grid-template-columns:minmax(0,1fr)}
+  .pf-acoes{justify-content:flex-start}
+  .pf-marcos{display:none}
+  .pf-ver-lateral{display:none !important}
+  .pf-id h2{font-size:17px;white-space:normal}
+  .pf-conteudo-in{padding:16px}
+  .pf-titulo{display:none}
+  .pf-rodape{margin:0 -16px;padding:12px 16px}
+  .pf-perg{grid-template-columns:26px minmax(0,1fr)}
+  .pf-perg>div{grid-column:2}
+  .pf-campos{grid-template-columns:minmax(0,1fr);padding:14px}
+}
+`;
+
 function Gaveta({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 65, background: 'rgba(0,0,0,.45)', display: 'flex', justifyContent: 'flex-end' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 'min(1100px, 100%)', height: '100%', background: 'var(--t-card-bg)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 40px rgba(0,0,0,.18)' }}>{children}</div>
+      <div onClick={e => e.stopPropagation()} style={{ width: 'min(1400px, 100%)', height: '100%', background: 'var(--t-card-bg)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 40px rgba(0,0,0,.18)' }}>{children}</div>
     </div>
   );
+}
+
+// ─── Salvamento automático com reforço no botão ─────────────────────────────
+// Sim/Não, opções e números salvam na hora (agendar); texto salva ao sair do campo (marcar + sair),
+// para não gravar palavra pela metade. Fechar a ficha com algo pendente também salva.
+function useAutoSalvar(salvarFn: () => Promise<void>) {
+  const fn = useRef(salvarFn);
+  fn.current = salvarFn;
+  const pend = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [estado, setEstado] = useState<'ok' | 'pendente' | 'salvando' | 'erro'>('ok');
+  const [hora, setHora] = useState<string | null>(null);
+  const [erro, setErro] = useState('');
+  const salvarJa = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    pend.current = false;
+    setEstado('salvando');
+    try {
+      await fn.current();
+      setEstado(pend.current ? 'pendente' : 'ok');
+      setHora(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }));
+    } catch (e) { pend.current = true; setEstado('erro'); setErro(erroDe(e)); }
+  }, []);
+  const agendar = useCallback((ms = 500) => {
+    pend.current = true; setEstado('pendente');
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(salvarJa, ms);
+  }, [salvarJa]);
+  const marcar = useCallback(() => { pend.current = true; setEstado('pendente'); }, []);
+  const sair = useCallback(() => { if (pend.current) salvarJa(); }, [salvarJa]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); if (pend.current) fn.current().catch(() => {}); }, []);
+  const texto = estado === 'salvando' ? 'Salvando…' : estado === 'pendente' ? 'Alteração ainda não salva' : estado === 'erro' ? `Não salvou: ${erro} Clique em Salvar.` : hora ? `Salvo automaticamente às ${hora}` : 'Cada resposta é salva sozinha';
+  return { estado, texto, salvarJa, agendar, marcar, sair };
+}
+
+/** Rodapé fixo dos formulários: situação do salvamento + botão de reforço. */
+function RodapeSalvar({ auto, rotulo, children }: { auto: ReturnType<typeof useAutoSalvar>; rotulo: string; children?: React.ReactNode }) {
+  return (
+    <div className="pf-rodape">
+      {children}
+      <span className="pf-salvo" data-estado={auto.estado} aria-live="polite">{auto.texto}</span>
+      <span style={{ flex: 1 }} />
+      <button disabled={auto.estado === 'salvando'} onClick={auto.salvarJa} style={{ ...btn('#286397'), minHeight: 42, padding: '0 20px', fontSize: 14 }}>
+        {auto.estado === 'salvando' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} {rotulo}
+      </button>
+    </div>
+  );
+}
+
+/** Um campo da ficha de coleta: Sim/Não e opções curtas em botões, número com − e +, texto, texto longo ou lista. */
+function CampoColeta({ c, id, valor, mudar, sair }: { c: any; id: string; valor: any; mudar: (v: string, imediato: boolean) => void; sair: () => void }) {
+  const v = valor == null ? '' : String(valor);
+  if (c.tipo === 'opcoes' && c.opcoes.length <= 3 && c.opcoes.every((o: string) => o.length <= 12)) {
+    return (
+      <div className="pf-seg" role="group" aria-label={c.label}>
+        {c.opcoes.map((o: string, k: number) => (
+          <button key={o} id={k === 0 ? id : undefined} type="button" data-v={o} aria-pressed={v === o} onClick={() => mudar(v === o ? '' : o, true)}>{o}</button>
+        ))}
+      </div>
+    );
+  }
+  if (c.tipo === 'opcoes') return <select id={id} value={v} onChange={e => mudar(e.target.value, true)} className="ps-input w-full"><option value="">Escolha…</option>{c.opcoes.map((o: string) => <option key={o}>{o}</option>)}</select>;
+  if (c.tipo === 'numero') {
+    const n = Number(v) || 0;
+    return (
+      <div className="pf-num-campo">
+        <button type="button" aria-label={`Diminuir ${c.label}`} onClick={() => mudar(n > 1 ? String(n - 1) : '', true)}>−</button>
+        <input id={id} inputMode="numeric" value={v} onChange={e => mudar(e.target.value.replace(/\D/g, ''), false)} onBlur={sair} className="ps-input" placeholder="0" />
+        <button type="button" aria-label={`Aumentar ${c.label}`} onClick={() => mudar(String(n + 1), true)}>+</button>
+      </div>
+    );
+  }
+  if (c.tipo === 'longo') return <textarea id={id} rows={3} value={v} onChange={e => mudar(e.target.value, false)} onBlur={sair} className="ps-input w-full" />;
+  return <input id={id} value={v} onChange={e => mudar(e.target.value, false)} onBlur={sair} className="ps-input w-full" />;
 }
 
 function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
@@ -519,10 +680,11 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
     return { ...c, contato_email: i.contato_email || '', contato_whatsapp: i.contato_whatsapp || '' };
   }, [i]);
   const [f, setF] = useState<Record<string, any>>(inicial);
-  const [salvando, setSalvando] = useState(false);
+  const auto = useAutoSalvar(async () => { await apiClient.salvarColeta(i.id, f); recarregar(); });
+  const mudar = (k: string) => (v: string, imediato: boolean) => { setF(p => ({ ...p, [k]: v })); if (imediato) auto.agendar(); else auto.marcar(); };
   const [tela, setTela] = useState<string | null>(null);
   const grupos = Array.from(new Set<string>(d.campos_coleta.map((c: any) => c.grupo)));
-  const salvar = async () => { setSalvando(true); try { await apiClient.salvarColeta(i.id, f); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); } };
+  const preenchidos = (g: string) => d.campos_coleta.filter((c: any) => c.grupo === g && String(f[c.key] ?? '').trim() !== '').length;
   const enviarTela = async (arq: File) => {
     if (arq.size > 8 * 1024 * 1024) return alert('Arquivo grande demais (máx. 8 MB).');
     const url = await new Promise<string>((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = erro; r.readAsDataURL(arq); });
@@ -530,34 +692,32 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
   };
   const verTela = async () => { try { const r = await apiClient.getTelaSuporte(i.id); setTela(r.data.data.url); } catch (e) { alert(erroDe(e)); } };
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      {grupos.map(g => (
-        <div key={g} style={{ ...cartao, padding: 14 }}>
-          <div style={{ ...rotulo, marginBottom: 10 }}>{g}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {d.campos_coleta.filter((c: any) => c.grupo === g).map((c: any) => (
-              <label key={c.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', gridColumn: c.tipo === 'longo' ? '1 / -1' : undefined }}>{c.label}
-                {c.tipo === 'opcoes' ? (
-                  <select value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full"><option value="">—</option>{c.opcoes.map((o: string) => <option key={o}>{o}</option>)}</select>
-                ) : c.tipo === 'longo' ? (
-                  <textarea rows={3} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full" />
-                ) : (
-                  <input type={c.tipo === 'numero' ? 'number' : 'text'} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full" />
-                )}
-              </label>
-            ))}
-            {g === 'Contato' && (
-              <>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>E-mail para avisos e boletos
-                  <input value={f.contato_email || ''} onChange={e => setF(p => ({ ...p, contato_email: e.target.value }))} className="ps-input w-full" /></label>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>WhatsApp para avisos de andamento
-                  <input value={f.contato_whatsapp || ''} onChange={e => setF(p => ({ ...p, contato_whatsapp: e.target.value }))} className="ps-input w-full" /></label>
-              </>
-            )}
-          </div>
-        </div>
-      ))}
-      <button disabled={salvando} onClick={salvar} style={{ ...btn('#286397'), justifyContent: 'center', padding: '10px 14px' }}>{salvando ? <Loader2 size={14} className="animate-spin" /> : null} Salvar ficha</button>
+    <div style={{ display: 'grid', gap: 18 }}>
+      {grupos.map(g => {
+        const doGrupo = d.campos_coleta.filter((c: any) => c.grupo === g);
+        return (
+          <section key={g} className="pf-grupo">
+            <header><b>{g}</b><span>{preenchidos(g)} de {doGrupo.length} preenchidos</span></header>
+            <div className="pf-campos">
+              {doGrupo.map((c: any) => (
+                <div key={c.key} className="pf-campo" style={{ gridColumn: c.tipo === 'longo' ? '1 / -1' : undefined }}>
+                  <label htmlFor={`fc-${c.key}`}>{c.label}</label>
+                  <CampoColeta c={c} id={`fc-${c.key}`} valor={f[c.key]} mudar={mudar(c.key)} sair={auto.sair} />
+                </div>
+              ))}
+              {g === 'Contato' && (
+                <>
+                  <div className="pf-campo"><label htmlFor="fc-contato_email">E-mail para avisos e boletos</label>
+                    <input id="fc-contato_email" type="email" value={f.contato_email || ''} onChange={e => mudar('contato_email')(e.target.value, false)} onBlur={auto.sair} className="ps-input w-full" /></div>
+                  <div className="pf-campo"><label htmlFor="fc-contato_whatsapp">WhatsApp para avisos de andamento</label>
+                    <input id="fc-contato_whatsapp" inputMode="tel" value={f.contato_whatsapp || ''} onChange={e => mudar('contato_whatsapp')(e.target.value, false)} onBlur={auto.sair} className="ps-input w-full" /></div>
+                </>
+              )}
+            </div>
+          </section>
+        );
+      })}
+      <RodapeSalvar auto={auto} rotulo="Salvar ficha" />
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Tela do Suporte (liberação do sistema)</div>
         <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{i.tela_suporte_arquivo_id ? '✅ Tela anexada. Pode substituir enviando outra.' : 'Obrigatória para iniciar a virada.'}</div>
@@ -586,37 +746,46 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
   };
   if (!itens.length) return <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>O roteiro do onboarding é criado quando a gestão designa o técnico.</div>;
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <PerguntasPrimeiroContato d={d} recarregar={recarregar} />
-      <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
-        <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
-        <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>
+    <div style={{ display: 'grid', gap: 18 }}>
+      <div style={{ ...cartao, padding: '16px 18px', display: 'grid', gap: 10, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
+        <b style={{ fontSize: 15, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
+        <div style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--t-text-secondary)', maxWidth: '75ch' }}>
           {d.onboarding_ok ? 'A implantação está liberada: instalação, conversão, quadro e virada.' : 'Responsabilidade do técnico, em até 2 dias úteis após a designação. Enquanto não terminar, a instalação, a conversão, o quadro e a virada ficam travados. Use o Play na etapa "Onboarding técnico" para contar o tempo.'}
         </div>
         <Barra pct={itens.length ? (feitos / itens.length) * 100 : 0} cor={d.onboarding_ok ? '#16a34a' : '#0369a1'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{feitos} de {itens.length} itens</span>
-          <button onClick={() => irPara('ficha')} style={btn('#286397', false)}><FileText size={12} /> Preencher a ficha de coleta</button>
-          <button onClick={copiarLink} style={btn('#0369a1', false)}><Link2 size={12} /> {copiado ? 'Link copiado' : 'Copiar link para o cliente aprovar'}</button>
-          {i.onboarding_aprovado_em && <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>Aprovado pelo cliente: {i.onboarding_aprovado_por} em {fmtDataHora(i.onboarding_aprovado_em)}</span>}
+          <span style={{ fontSize: 13, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{feitos} de {itens.length} itens</span>
+          <button onClick={() => irPara('ficha')} style={btn('#286397', false)}><FileText size={14} /> Preencher a ficha de coleta</button>
+          <button onClick={copiarLink} style={btn('#0369a1', false)}><Link2 size={14} /> {copiado ? 'Link copiado' : 'Copiar link para o cliente aprovar'}</button>
+          {i.onboarding_aprovado_em && <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }}>Aprovado pelo cliente: {i.onboarding_aprovado_por} em {fmtDataHora(i.onboarding_aprovado_em)}</span>}
         </div>
       </div>
-      {d.onboarding_secoes.map((s: any) => (
-        <div key={s.secao} style={{ ...cartao, padding: 14 }}>
-          <div style={{ ...rotulo, marginBottom: 6 }}>{s.secao}</div>
-          {s.itens.map((t: string) => {
-            const c = itens.find((x: any) => x.titulo === t);
-            if (!c) return null;
-            return (
-              <label key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '5px 4px', fontSize: 13, cursor: 'pointer', color: c.feito ? 'var(--t-text-muted)' : 'var(--t-text-primary)' }}>
-                {salvando === c.id ? <Loader2 size={14} className="animate-spin" /> : <input type="checkbox" checked={c.feito} onChange={() => marcar(c)} style={{ marginTop: 2 }} />}
-                <span style={{ textDecoration: c.feito ? 'line-through' : 'none' }}>{c.titulo}{c.feito && c.feito_por ? <span style={{ color: 'var(--t-text-muted)', textDecoration: 'none' }}> · {c.feito_por}</span> : null}</span>
-              </label>
-            );
-          })}
-        </div>
-      ))}
+      <PerguntasPrimeiroContato d={d} recarregar={recarregar} />
+      <div className="pf-menu-grupo" style={{ padding: '6px 0 0' }}>Roteiro do primeiro contato</div>
+      {d.onboarding_secoes.map((s: any) => {
+        const its = s.itens.map((t: string) => itens.find((x: any) => x.titulo === t)).filter(Boolean);
+        if (!its.length) return null;
+        return (
+          <section key={s.secao} className="pf-grupo">
+            <header><b>{s.secao}</b><span>{its.filter((c: any) => c.feito).length} de {its.length}</span></header>
+            <div style={{ padding: 6 }}>
+              {its.map((c: any) => <ItemChecklist key={c.id} c={c} salvando={salvando === c.id} marcar={() => marcar(c)} />)}
+            </div>
+          </section>
+        );
+      })}
     </div>
+  );
+}
+
+/** Linha de checklist confortável: área de toque inteira, quem marcou à direita. */
+function ItemChecklist({ c, salvando, marcar, extra, travado }: { c: any; salvando: boolean; marcar: () => void; extra?: React.ReactNode; travado?: boolean }) {
+  return (
+    <label className="pf-chk" style={{ color: c.feito ? 'var(--t-text-muted)' : 'var(--t-text-primary)', cursor: travado ? 'not-allowed' : 'pointer' }}>
+      {salvando ? <Loader2 size={18} className="animate-spin" style={{ flexShrink: 0 }} /> : <input type="checkbox" checked={c.feito} disabled={travado} onChange={marcar} />}
+      <span style={{ flex: 1, minWidth: 0, textDecoration: c.feito ? 'line-through' : 'none' }}>{c.titulo}{extra}</span>
+      {c.feito && c.feito_por && <span style={{ fontSize: 12.5, color: 'var(--t-text-muted)', whiteSpace: 'nowrap' }}>{c.feito_por}</span>}
+    </label>
   );
 }
 
@@ -625,34 +794,36 @@ function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () =>
   const i = d.implantacao;
   const campos = (d.perguntas_primeiro_contato || []).map((k: string) => d.campos_coleta.find((c: any) => c.key === k)).filter(Boolean);
   const [f, setF] = useState<Record<string, any>>({ ...(i.coleta || {}) });
-  const [salvando, setSalvando] = useState(false);
-  const respondidas = campos.filter((c: any) => String(f[c.key] ?? '').trim() !== '').length;
-  const salvar = async () => {
-    setSalvando(true);
-    try { await apiClient.salvarColeta(i.id, { ...(i.coleta || {}), ...f }); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
+  const auto = useAutoSalvar(async () => { await apiClient.salvarColeta(i.id, { ...(i.coleta || {}), ...f }); recarregar(); });
+  const ok = (k: string) => String(f[k] ?? '').trim() !== '';
+  const respondidas = campos.filter((c: any) => ok(c.key)).length;
+  const mudar = (k: string) => (v: string, imediato: boolean) => { setF(p => ({ ...p, [k]: v })); if (imediato) auto.agendar(); else auto.marcar(); };
+  const proxima = () => {
+    const c = campos.find((x: any) => !ok(x.key));
+    const el = c && document.getElementById(`pc-${c.key}`);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus({ preventScroll: true }); }
   };
+  // Mesma ordem em que o técnico pergunta (decisão da Jessica, 26/10/2026), uma pergunta por linha.
   return (
-    <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10, borderColor: respondidas === campos.length ? '#16a34a55' : '#0369a155' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Perguntas principais do primeiro contato</b>
-        <span style={{ fontSize: 12, fontWeight: 700, color: respondidas === campos.length ? '#16a34a' : 'var(--t-text-muted)' }}>{respondidas} de {campos.length} respondidas</span>
-      </div>
-      <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' }}>
+    <div style={{ display: 'grid', gap: 10 }}>
+      <section className="pf-grupo">
+        <header>
+          <b>Perguntas principais do primeiro contato</b>
+          <span style={{ color: respondidas === campos.length ? '#16a34a' : undefined, fontWeight: 600 }}>{respondidas} de {campos.length} respondidas</span>
+        </header>
         {campos.map((c: any, k: number) => (
-          <label key={c.key} style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', display: 'grid', gap: 4 }}>
-            <span>{k + 1}. {c.label}</span>
-            {c.tipo === 'opcoes' ? (
-              <select id={`pc-${c.key}`} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full"><option value="">—</option>{c.opcoes.map((o: string) => <option key={o}>{o}</option>)}</select>
-            ) : (
-              <input id={`pc-${c.key}`} type={c.tipo === 'numero' ? 'number' : 'text'} value={f[c.key] || ''} onChange={e => setF(p => ({ ...p, [c.key]: e.target.value }))} className="ps-input w-full" />
-            )}
-          </label>
+          <div key={c.key} className="pf-perg" data-ok={ok(c.key)}>
+            <span className="pf-num">{ok(c.key) ? '✓' : k + 1}</span>
+            <label htmlFor={`pc-${c.key}`}>{c.label}</label>
+            <div><CampoColeta c={c} id={`pc-${c.key}`} valor={f[c.key]} mudar={mudar(c.key)} sair={auto.sair} /></div>
+          </div>
         ))}
-      </div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button disabled={salvando} onClick={salvar} style={btn('#286397')}>{salvando ? <Loader2 size={13} className="animate-spin" /> : null} Salvar respostas</button>
-        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Com as {campos.length} respondidas, o item "Perguntas principais" do roteiro se marca sozinho.{d.perfil ? ` Perguntas de ${d.perfil.segmento === 'FARMACIA' ? 'farmácia' : d.perfil.segmento === 'PADARIA' ? 'padaria' : 'varejo'} (segmento do cadastro do cliente).` : ''}</span>
-      </div>
+      </section>
+      <span style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Com as {campos.length} respondidas, o item "Perguntas principais" do roteiro se marca sozinho.{d.perfil ? ` Perguntas de ${d.perfil.segmento === 'FARMACIA' ? 'farmácia' : d.perfil.segmento === 'PADARIA' ? 'padaria' : 'varejo'} (segmento do cadastro do cliente).` : ''}</span>
+      <RodapeSalvar auto={auto} rotulo="Salvar respostas">
+        <b style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'var(--t-text-primary)' }}>{respondidas} de {campos.length}</b>
+        {respondidas < campos.length && <button onClick={proxima} style={btn('#286397', false)}>Próxima sem resposta ↓</button>}
+      </RodapeSalvar>
     </div>
   );
 }
@@ -713,26 +884,31 @@ function AbaChecklist({ d, recarregar }: { d: any; recarregar: () => void }) {
   const grupos = Array.from(new Set<string>(d.checklist.map((c: any) => c.grupo))).filter(g => g !== 'ONBOARDING');
   const [salvando, setSalvando] = useState<string | null>(null);
   const marcar = async (item: any) => { setSalvando(item.id); try { await apiClient.marcarChecklistImplantacao(item.id, !item.feito); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(null); } };
-  if (!d.checklist.length) return <div style={{ color: 'var(--t-text-muted)', fontSize: 13 }}>O checklist padrão é criado quando a gestão designa o técnico.</div>;
+  const [esconder, setEsconder] = useState(false);
+  if (!d.checklist.length) return <div style={{ color: 'var(--t-text-muted)', fontSize: 14 }}>O checklist padrão é criado quando a gestão designa o técnico.</div>;
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      {!d.onboarding_ok && <div style={{ ...cartao, padding: 12, fontSize: 13, background: '#0369a10d', borderColor: '#0369a155', color: 'var(--t-text-primary)' }}>🔒 Estes passos ficam liberados quando o <b>onboarding técnico</b> (primeiro contato com o cliente) estiver concluído.</div>}
+    <div style={{ display: 'grid', gap: 18 }}>
+      {!d.onboarding_ok && <div style={{ ...cartao, padding: '14px 18px', fontSize: 14, lineHeight: 1.5, background: '#0369a10d', borderColor: '#0369a155', color: 'var(--t-text-primary)' }}>🔒 Estes passos ficam liberados quando o <b>onboarding técnico</b> (primeiro contato com o cliente) estiver concluído.</div>}
+      <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontSize: 14, color: 'var(--t-text-secondary)', cursor: 'pointer', justifySelf: 'start' }}>
+        <input type="checkbox" checked={esconder} onChange={e => setEsconder(e.target.checked)} /> Esconder os itens já feitos
+      </label>
       {grupos.map(g => {
         const its = d.checklist.filter((c: any) => c.grupo === g);
         const feitos = its.filter((c: any) => c.feito).length;
+        const visiveis = its.filter((c: any) => !esconder || !c.feito);
         return (
-          <div key={g} style={{ ...cartao, padding: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><b style={{ fontSize: 13 }}>{NOME_GRUPO[g] || g}</b><span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{feitos} de {its.length}</span></div>
-            <Barra pct={its.length ? (feitos / its.length) * 100 : 0} />
-            <div style={{ display: 'grid', gap: 2, marginTop: 8 }}>
-              {its.map((c: any) => (
-                <label key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '5px 4px', fontSize: 13, cursor: 'pointer', color: c.feito ? 'var(--t-text-muted)' : 'var(--t-text-primary)' }}>
-                  {salvando === c.id ? <Loader2 size={14} className="animate-spin" /> : <input type="checkbox" checked={c.feito} onChange={() => marcar(c)} style={{ marginTop: 2 }} />}
-                  <span style={{ textDecoration: c.feito ? 'line-through' : 'none' }}>{c.titulo}{g === 'TREINAMENTO' && c.fase ? <span style={{ color: 'var(--t-text-muted)' }}> · fase {c.fase}</span> : null}</span>
-                </label>
+          <section key={g} className="pf-grupo">
+            <header style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 160px auto', alignItems: 'center', gap: 14 }}>
+              <b>{NOME_GRUPO[g] || g}</b><Barra pct={its.length ? (feitos / its.length) * 100 : 0} cor={feitos === its.length ? '#16a34a' : '#286397'} /><span>{feitos} de {its.length}</span>
+            </header>
+            <div style={{ padding: 6 }}>
+              {visiveis.map((c: any) => (
+                <ItemChecklist key={c.id} c={c} salvando={salvando === c.id} marcar={() => marcar(c)}
+                  extra={g === 'TREINAMENTO' && c.fase ? <span style={{ color: 'var(--t-text-muted)', textDecoration: 'none' }}> · fase {c.fase}</span> : null} />
               ))}
+              {!visiveis.length && <div style={{ padding: '12px 14px', fontSize: 14, color: '#16a34a' }}>Tudo feito neste grupo.</div>}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>
@@ -1957,7 +2133,7 @@ function LinhaContato({ papel, nome, fone, acao }: { papel: string; nome: string
         <div style={os.rotulo}>{papel}</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--t-text-primary)' }}>{nome || 'Sem nome'}</span>
-          {n ? <a href={`tel:${n}`} style={{ fontSize: 15, fontWeight: 600, color: '#286397', textDecoration: 'none', fontVariantNumeric: 'tabular-nums' }}>{fmtFone(fone)}</a>
+          {n ? <a href={`tel:${n}`} style={{ fontSize: 15, fontWeight: 600, color: '#286397', textDecoration: 'none', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtFone(fone)}</a>
             : <span style={{ fontSize: 13, color: '#b45309' }}>sem telefone</span>}
         </div>
       </div>

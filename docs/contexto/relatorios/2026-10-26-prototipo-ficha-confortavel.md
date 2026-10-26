@@ -25,3 +25,33 @@ A Jessica mandou um print da ficha da implantação (aba Execução › Onboardi
 
 ## Próxima sessão
 Com as respostas, refatorar `FichaDemanda`/`Gaveta` em `Portal.tsx` sem mudar regras (bloqueio do onboarding, cronômetro, `salvarColeta`, `marcarChecklistImplantacao`). Salvamento automático precisa de debounce sobre `apiClient.salvarColeta`. Skills: `dev-frontend`, `frontend-design`, `webapp-testing` para conferir. Atualizar os 6 documentos de `docs/produto/`, o manual e `novidades-crm.html` quando aplicar.
+
+---
+
+## Continuação (26/10/2026, tarde): aplicado no CRM
+
+### Pedido
+Respostas da Jessica: "1 mantenha; 2 salva sozinho e reforço abaixo no botão; Confortável sempre será usado em desktop, então precisa ser espaçoso e não compacto, será usado o dia todo... Pode aplicar em todos".
+
+### Feito
+- `frontend/components/implantacao/Portal.tsx`: `FichaDemanda` em 3 colunas (menu de seções, conteúdo, painel de próximo passo e contatos), `CSS_FICHA`, `useAutoSalvar`, `RodapeSalvar`, `CampoColeta`, `ItemChecklist`; perguntas do primeiro contato uma por linha na ordem original; ficha de coleta em grupos com salvamento automático; roteiro e checklist com linhas grandes e "Esconder os itens já feitos"; botões e cartões um pouco maiores.
+- `frontend/app/globals.css`: estilo da classe `.ps-input` (não existia) e tamanho mínimo confortável de campos, listas e caixinhas em todas as janelas.
+- `backend/src/routes/implantacao-portal.ts`: anotação "Ficha de coleta atualizada" agrupada (1 por pessoa a cada 30 min).
+- Documentos: os 6 de `docs/produto/`, manual e novidades.
+
+### Verificado
+- `npx tsc --noEmit -p .` do frontend sem erros; backend sem erros no arquivo mudado; `next build` ok.
+- Fotos com Playwright e API simulada (dados fictícios) em 1600, 1180 e 400px: ficha, rolagem até a próxima pergunta, salvamento automático ("Salvo automaticamente às…") e checklist. Ajustes feitos depois das fotos (etapas em linha própria, telefone sem quebra, celular empilhado).
+- Não verificado: uso real em produção (não publicado) e as outras 75 janelas uma a uma (só recebem a base comum dos campos).
+
+### Decisões e porquês
+- Texto salva ao sair do campo, não a cada tecla: o "Sistema anterior" acrescenta itens de conversão ao checklist e gravaria nome pela metade.
+- "Aplicar em todos": layout completo só na ficha (é a janela com 18 seções); nas outras 75 janelas, conforto pela base comum (campos com borda, 40px, caixinhas de 18px) para não reescrever tudo de uma vez.
+- Base em `@layer base` com `:where()`: tamanhos que cada tela já define continuam valendo.
+
+### Pendente
+- **Publicar (Jessica decide):** a `main` tem o `f017b30` da outra sessão, que exige criar a coluna `WhatsappConversa.fora_do_funil_em` antes do deploy (o script recusa sem ela).
+- Próximas janelas com o layout completo: lead (`app/leads/page.tsx`), proposta (`app/propostas-comerciais/page.tsx`), cliente (`app/clientes/[id]/page.tsx`).
+
+### Próxima sessão
+Com o OK da Jessica: backup + `ALTER TABLE` da coluna + `deploy-vps.sh <commit>`; conferir o card de uma implantação real. Depois, aplicar o padrão na ficha do lead. Skills: `dev-frontend`, `webapp-testing`.

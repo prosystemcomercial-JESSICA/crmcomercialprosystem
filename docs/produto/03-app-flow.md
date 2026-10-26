@@ -1941,3 +1941,10 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Quando volta ao funil:** "Identificar" como **Lead** (`POST /whatsapp/conversas/:id/identificar`) ou abrir a conversa a partir de um lead (`POST /whatsapp/abrir` com `lead_id`) limpam a marca. O lead que volta pela página de apresentação (`routes/leads.ts`) prioriza a conversa, mas não revincula sozinho uma conversa marcada.
 - **Tela:** no cabeçalho da conversa aparece "· fora do funil, agentes desligados"; a confirmação do botão avisa que nenhum agente falará mais com o contato.
 - **Testes:** `backend/tests/fora-do-funil.test.ts`.
+
+### Atualização 26/10/2026: ficha da demanda confortável e campos confortáveis em todas as janelas
+
+- **Pedido da Jessica:** as janelas de preenchimento, acompanhamento e checklist estavam compactas e difíceis de usar. Ela aprovou o protótipo (`docs/prototipos/ficha-demanda-confortavel.html`) com três decisões: manter a ordem das perguntas do primeiro contato; salvar sozinho e manter o botão de salvar como reforço; uso principal no computador, o dia todo, sempre no modo espaçoso (sem modo compacto).
+- **Fluxo do técnico no card:** abre o card → cai no Onboarding técnico (como antes) → lê o aviso de bloqueio no topo → responde as perguntas durante a ligação (cada resposta grava sozinha; "Próxima sem resposta" leva à seguinte) → marca o roteiro → copia o link para o cliente aprovar. O próximo passo e os contatos ficam no painel da direita o tempo todo.
+- **Navegação:** o menu da esquerda troca a seção; o botão do próximo passo também. Seções travadas continuam abrindo e explicam o motivo.
+- **Fechar o card com resposta digitada e não salva:** grava ao fechar. Se o servidor recusar, o rodapé mostra "Não salvou" e o botão Salvar continua disponível.

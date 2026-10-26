@@ -168,7 +168,13 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (body.contato_email !== undefined) extra.contato_email = String(body.contato_email || '').trim() || null;
     if (body.contato_whatsapp !== undefined) extra.contato_whatsapp = String(body.contato_whatsapp || '').replace(/\D/g, '') || null;
     await prisma.implantacao.update({ where: { id }, data: { coleta, ...extra } });
-    await atividade(id, 'NOTA', '📝 Ficha de coleta atualizada', u);
+    // A ficha salva sozinha a cada resposta: uma anotação por pessoa a cada 30 min, para não encher o histórico.
+    const NOTA_FICHA = '📝 Ficha de coleta atualizada';
+    const recente = await prisma.implantacaoAtividade.findFirst({
+      where: { implantacao_id: id, descricao: NOTA_FICHA, autor_id: u?.id ?? null, created_at: { gte: new Date(Date.now() - 30 * 60000) } },
+      select: { id: true },
+    }).catch(() => null);
+    if (!recente) await atividade(id, 'NOTA', NOTA_FICHA, u);
     // Sistema de origem informado/trocado: acrescenta os itens extras desse sistema na conversão (só os que faltam).
     if (imp.modulo === 'IMPLANTACAO' && extra.sistema_anterior && extra.sistema_anterior !== imp.sistema_anterior) {
       const cfgP = await obterConfigPortal(prisma);

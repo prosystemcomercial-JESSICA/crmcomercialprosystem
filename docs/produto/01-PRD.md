@@ -1949,3 +1949,12 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Quando volta ao funil:** "Identificar" como **Lead** (`POST /whatsapp/conversas/:id/identificar`) ou abrir a conversa a partir de um lead (`POST /whatsapp/abrir` com `lead_id`) limpam a marca. O lead que volta pela página de apresentação (`routes/leads.ts`) prioriza a conversa, mas não revincula sozinho uma conversa marcada.
 - **Tela:** no cabeçalho da conversa aparece "· fora do funil, agentes desligados"; a confirmação do botão avisa que nenhum agente falará mais com o contato.
 - **Testes:** `backend/tests/fora-do-funil.test.ts`.
+
+### Atualização 26/10/2026: ficha da demanda confortável e campos confortáveis em todas as janelas
+
+- **Pedido da Jessica:** as janelas de preenchimento, acompanhamento e checklist estavam compactas e difíceis de usar. Ela aprovou o protótipo (`docs/prototipos/ficha-demanda-confortavel.html`) com três decisões: manter a ordem das perguntas do primeiro contato; salvar sozinho e manter o botão de salvar como reforço; uso principal no computador, o dia todo, sempre no modo espaçoso (sem modo compacto).
+- **Ficha da demanda (portal técnico):** cabeçalho de duas linhas (cliente, Play/Espera e as etapas); menu de seções à esquerda no lugar das abas em dois níveis (Visão geral, Execução, Cliente, Registros), com cadeado nas seções travadas pelo onboarding e um ponto azul na seção do próximo passo; à direita, o próximo passo e os contatos sempre à vista.
+- **Perguntas do primeiro contato:** uma por linha, na ordem de sempre; Sim/Não em botões de um toque; números com − e +; rodapé fixo com "X de 15", "Próxima sem resposta" e o botão **Salvar respostas**. Cada resposta é salva sozinha ("Salvo automaticamente às HH:MM").
+- **Ficha de coleta:** grupos com contador de preenchidos, campos em duas colunas, salvamento automático e botão **Salvar ficha** fixo no rodapé.
+- **Checklists (roteiro do onboarding e checklist da implantação):** linhas de 48px com a linha inteira clicável, quem marcou à direita, barra por grupo e "Esconder os itens já feitos". No onboarding, o aviso de bloqueio vem primeiro.
+- **Todas as janelas do CRM:** a classe de campo `ps-input` (usada em 14 telas, como Propostas, Implantações e Configurações) não tinha estilo e os campos apareciam sem borda; agora têm 42px, borda e foco visíveis. Em telas de computador, todo campo e lista ficam com pelo menos 40px e as caixinhas de marcar com 18px.

@@ -499,6 +499,36 @@ a:not([disabled]):active {
   letter-spacing: -0.02em;
 }
 
+/* ═══ Campos confortáveis em todas as janelas (pedido da Jessica, 26/10/2026) ═══
+   Uso o dia todo no computador: campos de 40px+, borda visível e caixinhas de 18px.
+   Ficam na camada base (e com :where) para que o tamanho que cada tela já define continue valendo. */
+@layer components {
+  .ps-input {
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid var(--t-card-border);
+    border-radius: 8px;
+    background: var(--t-card-bg);
+    color: var(--t-text-primary);
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  textarea.ps-input { min-height: 88px; resize: vertical; }
+  .ps-input:hover:not(:disabled) { border-color: color-mix(in srgb, var(--t-primary) 45%, var(--t-card-border)); }
+  .ps-input:focus { outline: none; border-color: var(--t-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-primary) 18%, transparent); }
+  .ps-input:disabled { background: var(--t-content-bg); color: var(--t-text-muted); cursor: not-allowed; }
+  .ps-input::placeholder { color: var(--t-text-muted); opacity: .8; }
+}
+@layer base {
+  @media (min-width: 641px) {
+    :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]):not([type=hidden]), select) { min-height: 40px; }
+    :where(textarea) { min-height: 72px; }
+  }
+  :where(input[type=checkbox], input[type=radio]) { width: 18px; height: 18px; accent-color: var(--t-primary); cursor: pointer; }
+  :where(input[type=checkbox]:disabled, input[type=radio]:disabled) { cursor: not-allowed; }
+}
+
 /* ═══ Hierarquia tipográfica em 3 camadas (The Three-Layer Rule) ═══
    Mesa de trabalho diária: o olho acha o VALOR primeiro, depois o LABEL,
    depois a META. A hierarquia vem de peso + cor, não só de tamanho. */

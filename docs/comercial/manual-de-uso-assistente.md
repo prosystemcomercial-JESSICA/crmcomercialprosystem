@@ -1381,3 +1381,11 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - O contato também não volta sozinho para o funil quando escreve de novo.
 - **Para pôr de volta no funil:** menu … › **Identificar** › **Lead**. A partir daí os agentes voltam a poder atuar.
 - Se o contato responder "SAIR" de uma campanha, o pedido continua sendo respeitado.
+
+### Atualização 26/10/2026: ficha da demanda confortável e campos confortáveis em todas as janelas
+
+- **Pedido da Jessica:** as janelas de preenchimento, acompanhamento e checklist estavam compactas e difíceis de usar. Ela aprovou o protótipo (`docs/prototipos/ficha-demanda-confortavel.html`) com três decisões: manter a ordem das perguntas do primeiro contato; salvar sozinho e manter o botão de salvar como reforço; uso principal no computador, o dia todo, sempre no modo espaçoso (sem modo compacto).
+- **No card de implantação:** as seções ficam no menu da esquerda; o que fazer agora e os telefones do cliente, à direita.
+- **Perguntas do primeiro contato:** clique Sim ou Não, use − e + nos números e digite o resto. Não precisa salvar: aparece "Salvo automaticamente às…". O botão **Salvar respostas** continua lá, se quiser garantir. "Próxima sem resposta" leva direto à pergunta que falta.
+- **Checklist:** clique em qualquer lugar da linha para marcar. "Esconder os itens já feitos" deixa só o que falta.
+- **No resto do CRM:** os campos ficaram maiores e com borda visível.
