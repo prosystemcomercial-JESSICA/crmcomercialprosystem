@@ -16,6 +16,9 @@ A Jessica mostrou a mensagem enviada à 64.163.743 Ronaira ("precisamos de: cert
 - `tsc` do backend e do frontend: nenhum erro nos arquivos alterados.
 - **Não verificado:** a configuração salva em produção (a leitura do banco foi bloqueada pela permissão do Claude) e a página no celular depois do deploy.
 
+- Commit 210518b no main (pipeline cancelado por pushes seguintes; o de f017b30, que o inclui, passou).
+- **Deploy não concluído:** `deploy-vps.sh f017b30` parou na trava do banco por causa da coluna `WhatsappConversa.fora_do_funil_em` do commit da outra sessão. Produção segue em 9a46b70 (sem esta mudança).
+
 ## Decisões e porquês
 - Sem mudança de banco: o formulário é achado pelo título da tarefa. Se alguém renomear o item em Configurações, ele vira resposta livre (texto ou arquivo), sem quebrar.
 - Regime com 4 opções (iguais às da ficha de coleta), não só Simples/Lucro Real.
@@ -27,4 +30,4 @@ A Jessica mostrou a mensagem enviada à 64.163.743 Ronaira ("precisamos de: cert
 - **Jessica:** se em Configurações › Tarefas do cliente houver uma lista personalizada (diferente da antiga), ela continua valendo; conferir lá.
 
 ## Próxima sessão
-Abrir uma demanda de teste em produção, clicar "Pedir os itens padrão" e conferir a página de acompanhamento no celular. Skills: `run`, `relatorio-final`.
+Primeiro publicar: a sessão do f017b30 libera a coluna (PERMITIDO) e roda o deploy; esta mudança vai junto. Depois: Abrir uma demanda de teste em produção, clicar "Pedir os itens padrão" e conferir a página de acompanhamento no celular. Skills: `run`, `relatorio-final`.
