@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { CreateCasoChurnDTO, UpdateCasoChurnDTO } from '@/types/dto';
+import { STATUS_CASO, STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 
 export class NotFoundError extends Error {
   constructor(message: string) {
@@ -38,7 +39,7 @@ export class CasoChurnService {
     // ANTI-DUPLICAÇÃO: se o cliente já tem um caso ABERTO (não perdido/recuperado),
     // não cria outro — devolve o existente. Evita múltiplos casos por duplo clique.
     const casoAberto = await this.prisma.casoChurn.findFirst({
-      where: { clienteId: data.clienteId, status: { notIn: ['PERDIDO', 'RECUPERADO'] } },
+      where: { clienteId: data.clienteId, status: { notIn: STATUS_ENCERRADO } },
       include: { cliente: true },
       orderBy: { created_at: 'desc' },
     }).catch(() => null);
@@ -100,7 +101,7 @@ export class CasoChurnService {
     // histórico de saída), mesmo com o cliente inativo. SISTEMA_REMOVIDO só acontece
     // depois de PERDIDO — o cliente já está sempre INATIVA nesse ponto — então sem
     // isso aqui a aba SISTEMA_REMOVIDO nunca mostrava nada (filtrava o próprio caso).
-    const ENCERRADOS = ['PERDIDO', 'RECUPERADO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+    const ENCERRADOS = STATUS_ENCERRADO;
     const verEncerrados = filters.status && ENCERRADOS.includes(filters.status);
     const clienteWhere: any = {};
     if (!verEncerrados && !filters.status) {
@@ -208,6 +209,10 @@ export class CasoChurnService {
     if (data.status === 'AGUARDANDO_EXCLUSAO' && !['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status)) {
       throw new BadRequestError('Só é possível enviar para exclusão de cadastro um caso PERDIDO ou com sistema removido');
     }
+    // FINALIZADO: tudo resolvido depois da perda (cadastro excluído, cobrança suspensa).
+    if (data.status === 'FINALIZADO' && !['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'].includes(caso.status)) {
+      throw new BadRequestError('Só é possível finalizar um caso PERDIDO, com sistema removido ou aguardando exclusão');
+    }
 
     // Limpa campos: '' em enum/numéricos não pode ir pro banco.
     const limpo: any = { ...data };
@@ -271,6 +276,18 @@ export class CasoChurnService {
           cliente_id: updated.clienteId, tipo: 'OBSERVACAO',
           titulo: '📤 Enviado para exclusão de cadastro',
           descricao: 'Cadastro enviado ao CEO para exclusão (aguardando exclusão).',
+          referencia_id: id, feito_por: userId,
+        },
+      }).catch(() => {});
+    }
+
+    // FINALIZADO → registra na ficha do cliente que o caso foi totalmente resolvido.
+    if (data.status === 'FINALIZADO' && caso.status !== 'FINALIZADO') {
+      await (this.prisma as any).eventoCliente.create({
+        data: {
+          cliente_id: updated.clienteId, tipo: 'OBSERVACAO',
+          titulo: '✅ Caso de churn finalizado',
+          descricao: 'Caso totalmente resolvido (nada mais pendente).',
           referencia_id: id, feito_por: userId,
         },
       }).catch(() => {});
@@ -412,7 +429,6 @@ export class CasoChurnService {
     // A gestão pode mover o caso para QUALQUER etapa livremente (o kanban/seletor
     // mostra todas), inclusive pular etapas (ex.: NOVO → EXECUTANDO) ou reabrir um
     // caso. Só validamos que o destino é um status conhecido.
-    const STATUS_VALIDOS = ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
-    return STATUS_VALIDOS.includes(to);
+    return (STATUS_CASO as readonly string[]).includes(to);
   }
 }

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { STATUS_PERDA } from '@/lib/caso-churn-status';
 
 export interface DashboardKPIs {
   total_casos: number;
@@ -120,8 +121,8 @@ export class DashboardRetencaoService {
           PERDIDO: 0
         };
       }
-      // Sistema removido e aguardando exclusão do cadastro continuam contando como perdidos.
-      chartData[dia][['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(caso.status) ? 'PERDIDO' : caso.status]++;
+      // Sistema removido, aguardando exclusão do cadastro e finalizado continuam contando como perdidos.
+      chartData[dia][STATUS_PERDA.includes(caso.status) ? 'PERDIDO' : caso.status]++;
     });
 
     return Object.entries(chartData).map(([dia, statuses]) => ({

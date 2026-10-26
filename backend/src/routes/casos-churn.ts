@@ -7,6 +7,7 @@ import { ROLES_TRATAM_CHURN } from '@/lib/scope';
 import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } from '@/types/dto';
 import { listarExclusao, enviarAoCeo, marcarExclusao, relatorioExclusaoPdf } from '@/services/churn-exclusao.service';
 import { ROLES_EXCLUSAO, podeSelecionarExclusao } from '@/lib/churn-exclusao';
+import { STATUS_PERDA } from '@/lib/caso-churn-status';
 
 export async function casosChurnRoutes(
   fastify: FastifyInstance,
@@ -112,7 +113,7 @@ export async function casosChurnRoutes(
   fastify.get('/casos-churn/graficos', { onRequest: requireAuth }, async (request, reply) => {
     const ano = Number((request.query as any)?.ano) || new Date().getFullYear();
     const ini = new Date(`${ano}-01-01T00:00:00-03:00`), fim = new Date(`${ano + 1}-01-01T00:00:00-03:00`);
-    const PERDA = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+    const PERDA = STATUS_PERDA;
     const casos: any[] = await prisma.casoChurn.findMany({
       select: { status: true, created_at: true, updated_at: true, resolvido_em: true, motivo_principal: true, fin_valor_atraso: true,
         cliente: { select: { mensalidade_base: true, mrr_perdido: true } } } as any,

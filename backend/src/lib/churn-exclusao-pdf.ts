@@ -38,7 +38,7 @@ const M = (topo: number, dir = 0, baixo = 0, esq = 0): [number, number, number, 
 const real = (v?: number | null) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dia = (v?: Date | string | null) => { if (!v) return '—'; const d = new Date(v); return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }); };
 const cnpjFmt = (c?: string | null) => { const d = (c || '').replace(/\D/g, ''); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || '—'); };
-const STATUS: Record<string, string> = { PERDIDO: 'Perdido', SISTEMA_REMOVIDO: 'Sistema removido', AGUARDANDO_EXCLUSAO: 'Aguardando exclusão' };
+const STATUS: Record<string, string> = { PERDIDO: 'Perdido', SISTEMA_REMOVIDO: 'Sistema removido', AGUARDANDO_EXCLUSAO: 'Aguardando exclusão', FINALIZADO: 'Finalizado' };
 const FIN: Record<string, string> = { EM_DIA: 'Em dia', EM_ATRASO: 'Em atraso', NEGOCIANDO: 'Negociando', INADIMPLENTE: 'Inadimplente' };
 const CINZA = '#6B7280';
 const FUNDO = '#EAF2FB';

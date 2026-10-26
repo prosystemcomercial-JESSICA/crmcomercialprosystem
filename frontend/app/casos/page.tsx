@@ -61,7 +61,7 @@ interface Caso {
 
 // Casos encerrados: risco não se aplica mais (não faz sentido reclassificar ou
 // destacar como crítico algo que já foi resolvido, perdido, ou teve o sistema removido).
-const ENCERRADOS = ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+const ENCERRADOS = ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'];
 
 const STATUS_COLORS: Record<string, string> = {
   NOVO: 'bg-opacity-0 ',
@@ -72,6 +72,7 @@ const STATUS_COLORS: Record<string, string> = {
   PERDIDO: 'bg-red-100 text-red-700',
   SISTEMA_REMOVIDO: 'bg-gray-200 text-gray-700',
   AGUARDANDO_EXCLUSAO: 'bg-slate-200 text-slate-700',
+  FINALIZADO: 'bg-emerald-100 text-emerald-800',
 };
 
 // Classificação de risco do cliente em churn — 4 faixas.
@@ -132,6 +133,8 @@ const STATUS_LABEL: Record<string, string> = {
   RECUPERADO: 'Recuperado',
   PERDIDO: 'Perdido',
   SISTEMA_REMOVIDO: 'Sistema removido',
+  AGUARDANDO_EXCLUSAO: 'Aguardando exclusão',
+  FINALIZADO: 'Finalizado',
 };
 
 const STATUS_COR: Record<string, { bg: string; text: string; dot: string }> = {
@@ -142,6 +145,8 @@ const STATUS_COR: Record<string, { bg: string; text: string; dot: string }> = {
   RECUPERADO:       { bg: '#DCFCE7', text: '#166534', dot: '#22C55E' },
   PERDIDO:          { bg: '#FEE2E2', text: '#991B1B', dot: '#EF4444' },
   SISTEMA_REMOVIDO: { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
+  AGUARDANDO_EXCLUSAO: { bg: '#E2E8F0', text: '#334155', dot: '#64748B' },
+  FINALIZADO:       { bg: '#D1FAE5', text: '#065F46', dot: '#10B981' },
 };
 
 const RADAR_RISK_COR = (s: number) => s >= 85 ? '#B91C1C' : s >= 70 ? '#DC2626' : s >= 40 ? '#D97706' : '#16A34A';
@@ -262,6 +267,7 @@ const COLUNAS_CASO: { k: string; rot: string; dica: string; cor: string }[] = [
   { k: 'RECUPERADO', rot: 'Recuperado', dica: 'Cliente ficou', cor: '#16a34a' },
   { k: 'PERDIDO', rot: 'Perdido', dica: 'Cliente saiu (inclui sistema removido)', cor: '#dc2626' },
   { k: 'AGUARDANDO_EXCLUSAO', rot: 'Aguardando exclusão do cadastro', dica: 'Enviado ao CEO para excluir o cadastro', cor: '#475569' },
+  { k: 'FINALIZADO', rot: 'Finalizado', dica: 'Totalmente resolvido, nada pendente', cor: '#059669' },
 ];
 const RISCO_PILL = (s: number) => s >= 85 ? { t: 'Crítico', bg: '#fee2e2', c: '#b91c1c' } : s >= 70 ? { t: 'Alto', bg: '#ffedd5', c: '#c2410c' } : s >= 40 ? { t: 'Médio', bg: '#fef3c7', c: '#a16207' } : { t: 'Baixo', bg: '#dcfce7', c: '#15803d' };
 const chip = (bg: string, c: string): React.CSSProperties => ({ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: c });
@@ -277,7 +283,7 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
   return (
     <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(250px, 1fr)', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
       {COLUNAS_CASO.map(col => {
-        const encerrada = col.k === 'RECUPERADO' || col.k === 'PERDIDO' || col.k === 'AGUARDANDO_EXCLUSAO';
+        const encerrada = ENCERRADOS.includes(col.k);
         const lista = casos.filter(c => colunaDe(c) === col.k)
           .sort((a, b) => encerrada ? quando(b) - quando(a) : (b.risk_score - a.risk_score) || (diasEmAberto(b) - diasEmAberto(a)));
         const visiveis = encerrada ? lista.slice(0, 25) : lista;
@@ -632,7 +638,7 @@ export default function CasosPage() {
     );
   }
 
-  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+  const statuses = ['', 'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'];
 
   return (
     <DashboardLayout>
@@ -961,8 +967,8 @@ export default function CasosPage() {
                         >
                           {[
                             'NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO',
-                            // "Sistema removido" só é uma opção válida a partir de PERDIDO (regra do backend).
-                            ...(caso.status === 'PERDIDO' || caso.status === 'SISTEMA_REMOVIDO' || caso.status === 'AGUARDANDO_EXCLUSAO' ? ['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'] : []),
+                            // "Sistema removido", exclusão e finalizado só valem a partir de PERDIDO (regra do backend).
+                            ...(['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'].includes(caso.status) ? ['SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO', 'FINALIZADO'] : []),
                           ].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
@@ -1017,6 +1023,12 @@ export default function CasosPage() {
                   <button onClick={async () => { const ok = await handleUpdateStatus(dossie.id, 'SISTEMA_REMOVIDO'); if (ok) setDossie(null); }}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-700 border border-gray-300 hover:bg-gray-300">
                     🗑️ Marcar sistema removido
+                  </button>
+                )}
+                {dossie.status === 'AGUARDANDO_EXCLUSAO' && (
+                  <button onClick={async () => { const ok = await handleUpdateStatus(dossie.id, 'FINALIZADO'); if (ok) setDossie(null); }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200">
+                    ✅ Finalizar caso
                   </button>
                 )}
                 <button onClick={() => setDossie(null)} className="text-gray-400 hover:text-gray-700">✕</button>

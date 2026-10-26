@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, scopeUserId, podeVerTudo, getUser } from '@/lib/scope';
+import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { resolverNomesUsuarios, resolverSupervisorComercial } from '@/lib/usuarios';
 import { criarComissaoValidada } from '@/lib/comissao-fluxo';
 
@@ -374,7 +375,7 @@ export async function ativosRoutes(fastify: FastifyInstance, options: { prisma: 
     if (deveAbrir && !casoId) {
       // ANTI-DUPLICAÇÃO: reaproveita caso ABERTO do cliente (não perdido/recuperado).
       const casoAberto = await prisma.casoChurn.findFirst({
-        where: { clienteId: atual.cliente_id, status: { notIn: ['PERDIDO', 'RECUPERADO'] } },
+        where: { clienteId: atual.cliente_id, status: { notIn: STATUS_ENCERRADO } },
         orderBy: { created_at: 'desc' },
       }).catch(() => null);
       // risco: problema relatado = alto (75); subutilização = médio (50).

@@ -4,6 +4,9 @@
 /** Casos que podem ir para o CEO: só os perdidos (o cliente já saiu). */
 export const STATUS_PODE_ENVIAR = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
 
+/** A aba de exclusão também mostra os finalizados, para o histórico do pedido não sumir. */
+export const STATUS_LISTA_EXCLUSAO = [...STATUS_PODE_ENVIAR, 'FINALIZADO'];
+
 /** Quem envia e quem confirma (gestão comercial e diretoria). */
 export const ROLES_EXCLUSAO = ['CEO', 'ADMIN', 'SUPERVISAO_COMERCIAL'];
 

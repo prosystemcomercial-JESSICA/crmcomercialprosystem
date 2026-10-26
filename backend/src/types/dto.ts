@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { STATUS_CASO } from '@/lib/caso-churn-status';
 
 // Casos de Churn DTOs
 export const CreateCasoChurnSchema = z.object({
@@ -11,7 +12,7 @@ export const CreateCasoChurnSchema = z.object({
 });
 
 export const UpdateCasoChurnSchema = z.object({
-  status: z.enum(['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO', 'RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO']).optional(),
+  status: z.enum(STATUS_CASO).optional(),
   risk_score: z.number().min(0).max(100).optional(),
   motivo_principal: z.string().optional(),
   descricao: z.string().optional(),

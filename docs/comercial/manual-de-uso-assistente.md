@@ -1390,3 +1390,14 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Checklist:** clique em qualquer lugar da linha para marcar. "Esconder os itens já feitos" deixa só o que falta.
 - **No resto do CRM:** os campos ficaram maiores e com borda visível.
 - **Segunda leva (mesmo dia, "aplicar todos"):** a ficha do lead e a janela da proposta ficaram mais largas e com letras maiores; na ficha do lead o botão Salvar fica sempre à vista embaixo.
+
+### Atualização 26/10/2026: etapa "Finalizado" nos casos de churn
+
+- **Pedido da Jessica:** incluir a coluna **Finalizado (totalmente resolvido)** depois de "Aguardando exclusão do cadastro".
+- **Status novo `FINALIZADO`:** última etapa do caso de churn. Só vale a partir de PERDIDO, SISTEMA_REMOVIDO ou AGUARDANDO_EXCLUSAO (o backend recusa vindo de outra etapa, com a mensagem "Só é possível finalizar um caso PERDIDO, com sistema removido ou aguardando exclusão"). Sem mudança de banco: `CasoChurn.status` é texto.
+- **Lista única de status (`backend/src/lib/caso-churn-status.ts`):** `STATUS_CASO` (os 9 status, usado na validação do DTO e na transição), `STATUS_PERDA` (PERDIDO, SISTEMA_REMOVIDO, AGUARDANDO_EXCLUSAO, FINALIZADO) e `STATUS_ENCERRADO` (RECUPERADO + perdas). Antes cada arquivo repetia a lista.
+- **Onde conta:** finalizado conta como **perda** nos gráficos de churn (`/casos-churn/graficos`), no painel do CEO (`/ceo`, perdidos e tempo de resolução), no gráfico do dashboard de retenção e no relatório de retenção (motivos de saída). Conta como **encerrado** na lista de casos (aparece mesmo com o cliente inativo), na antiduplicação ao abrir caso (no serviço e no módulo Ativos) e na pesquisa pós-implantação (que só abre caso se não houver um aberto). Correção junto: essas antiduplicações tratavam SISTEMA_REMOVIDO e AGUARDANDO_EXCLUSAO como "caso aberto"; agora usam `STATUS_ENCERRADO`.
+- **Ficha do cliente:** ao finalizar, entra o evento "✅ Caso de churn finalizado" (uma vez).
+- **Aba Exclusões (CEO):** os finalizados continuam na lista (`STATUS_LISTA_EXCLUSAO`), para o histórico do pedido não sumir; reenviar um finalizado não o volta para "Aguardando exclusão". `STATUS_PODE_ENVIAR` não mudou. PDF e lista mostram "Finalizado".
+- **Tela Churn & Retenção (`frontend/app/casos/page.tsx`):** coluna **Finalizado** (verde, "Totalmente resolvido, nada pendente") no fim do Kanban, aceita arrastar; opção FINALIZADO no filtro de status e no seletor da linha (só em caso perdido); botão **✅ Finalizar caso** no dossiê de um caso aguardando exclusão; selo "Finalizado" no Radar. Teste: `backend/tests/caso-churn-status.test.ts`.
+- **Como usar:** quando tudo de um cliente perdido estiver resolvido (cadastro excluído, cobrança suspensa, nada pendente), arraste o card para a coluna **Finalizado** no Kanban, escolha FINALIZADO no seletor da linha ou abra o caso e toque em **✅ Finalizar caso**. Se precisar, dá para voltar o caso para outra etapa.

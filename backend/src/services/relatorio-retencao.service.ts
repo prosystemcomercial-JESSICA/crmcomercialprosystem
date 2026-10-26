@@ -1,9 +1,10 @@
 // Relatório de Retenção (Supervisão Comercial e CEO): ranking dos motivos de saída
 // (casos de churn + motivo de inativação da base) e LTV completo de cada cliente.
 import { PrismaClient } from '@prisma/client';
+import { STATUS_PERDA } from '@/lib/caso-churn-status';
 import { categoriaSaida, faixaTempoDeCasa, FAIXAS_TEMPO, ltvDoCliente, montarRankingSaida, montarSaidasPorAno, segmentoDoCliente, type Saida } from '@/lib/relatorio-retencao';
 
-const PERDA = ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'];
+const PERDA = STATUS_PERDA;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export async function montarRelatorioRetencao(prisma: PrismaClient, agora = new Date()) {

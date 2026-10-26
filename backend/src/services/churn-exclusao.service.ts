@@ -3,7 +3,7 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { CasoChurnService } from './caso-churn.service';
 import {
-  STATUS_PODE_ENVIAR, chaveExclusao, lerRegistro, situacaoExclusao, textoAvisoCeo,
+  STATUS_LISTA_EXCLUSAO, chaveExclusao, lerRegistro, situacaoExclusao, textoAvisoCeo,
   type RegistroExclusao, type ItemAviso, type CanalExclusao,
 } from '@/lib/churn-exclusao';
 
@@ -46,7 +46,7 @@ const nomeCliente = (c: any) => (c?.nome_fantasia || c?.empresa || c?.razao_soci
 /** Casos perdidos com a situação do pedido ao CEO. */
 export async function listarExclusao(prisma: PrismaClient) {
   const casos = await prisma.casoChurn.findMany({
-    where: { status: { in: STATUS_PODE_ENVIAR } },
+    where: { status: { in: STATUS_LISTA_EXCLUSAO } },
     orderBy: { updated_at: 'desc' },
     select: {
       id: true, status: true, motivo_principal: true, descricao: true, fin_valor_atraso: true, fin_situacao: true, fin_observacao: true, created_at: true, updated_at: true, resolvido_em: true,
@@ -83,7 +83,7 @@ export async function enviarAoCeo(prisma: PrismaClient, ids: string[], observaca
   const agora = new Date().toISOString();
   for (const c of lista) {
     // Mesmo fluxo do Kanban: status, evento na ficha do cliente e linha do tempo do caso.
-    if (c.status !== 'AGUARDANDO_EXCLUSAO') await service.update(c.id, { status: 'AGUARDANDO_EXCLUSAO' } as any, user.id);
+    if (c.status !== 'AGUARDANDO_EXCLUSAO' && c.status !== 'FINALIZADO') await service.update(c.id, { status: 'AGUARDANDO_EXCLUSAO' } as any, user.id);
     // Reenvio mantém o que o CEO já marcou.
     const ant = c.registro;
     await salvarRegistro(prisma, c.id, {

@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
+import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
 import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario } from '@/lib/implantacao/portal';
@@ -564,7 +565,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       await avisarEquipe(prisma, `⚠️ Pós-implantação de ${pv.marco} dias com risco: ${imp.cliente_razao_social} (nota ${r.satisfacao}/5${r.usa_todo_dia === 'Não' ? ', não usa todo dia' : ''}${r.sngpc === 'Com problema' ? ', SNGPC com problema' : ''}).${r.dificuldade ? ` Dificuldade: ${r.dificuldade}` : ''}`, imp.id).catch(() => {});
       // Caso de retenção (radar de churn), se o cliente está no cadastro e não tem caso aberto.
       if (imp.cliente_id) {
-        const aberto = await prisma.casoChurn.count({ where: { clienteId: imp.cliente_id, status: { notIn: ['RECUPERADO', 'PERDIDO', 'SISTEMA_REMOVIDO'] } } });
+        const aberto = await prisma.casoChurn.count({ where: { clienteId: imp.cliente_id, status: { notIn: STATUS_ENCERRADO } } });
         if (!aberto) await prisma.casoChurn.create({ data: { clienteId: imp.cliente_id, status: 'NOVO', motivo_principal: `Pós-implantação de ${pv.marco} dias com risco`, descricao: `Nota ${r.satisfacao}/5 · usa todo dia: ${r.usa_todo_dia} · financeiro: ${r.usa_financeiro} · SNGPC: ${r.sngpc}${r.dificuldade ? ` · dificuldade: ${r.dificuldade}` : ''}${r.observacao ? ` · ${r.observacao}` : ''} (registrado por ${u.nome || 'técnico'})` } as any }).catch(() => null);
       }
     }

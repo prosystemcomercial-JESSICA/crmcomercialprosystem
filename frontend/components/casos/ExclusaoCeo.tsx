@@ -21,7 +21,7 @@ interface Item {
 const real = (v: number | null) => v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const data = (v?: string | null) => v ? new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
 const cnpjFmt = (c: string | null) => { const d = (c || '').replace(/\D/g, ''); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || ''); };
-const STATUS: Record<string, string> = { PERDIDO: 'Perdido', SISTEMA_REMOVIDO: 'Sistema removido', AGUARDANDO_EXCLUSAO: 'Aguardando exclusão' };
+const STATUS: Record<string, string> = { PERDIDO: 'Perdido', SISTEMA_REMOVIDO: 'Sistema removido', AGUARDANDO_EXCLUSAO: 'Aguardando exclusão', FINALIZADO: 'Finalizado' };
 
 // podeConfirmar: gestão (CEO, ADMIN, SUPERVISAO_COMERCIAL). Quem só tem o módulo Churn (ex.: Ana Clara) seleciona e envia.
 export default function ExclusaoCeo({ podeConfirmar = true }: { podeConfirmar?: boolean }) {

@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor } from '@/lib/scope';
+import { STATUS_PERDA } from '@/lib/caso-churn-status';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
 
 /**
@@ -391,7 +392,7 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
       const aberto = ABERTOS.includes(k.status);
       const emTratamento = k.status === 'EXECUTANDO' || k.status === 'PLANEJADO' || k.status === 'DIAGNOSTICADO';
       // Resolução = updated_at quando o caso saiu para RECUPERADO/PERDIDO.
-      const fim = (k.status === 'RECUPERADO' || ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(k.status)) ? new Date(k.updated_at) : null;
+      const fim = (k.status === 'RECUPERADO' || STATUS_PERDA.includes(k.status)) ? new Date(k.updated_at) : null;
       const diasEmAberto = dias(new Date(k.created_at), fim || hoje);
       return {
         id: k.id, status: k.status, aberto, em_tratamento: emTratamento,
@@ -412,7 +413,7 @@ export async function ceoRoutes(fastify: FastifyInstance, options: { prisma: Pri
       total: lista.length,
       abertos: abertos.length,
       em_tratamento: tratamento.length,
-      perdidos: lista.filter(l => ['PERDIDO', 'SISTEMA_REMOVIDO', 'AGUARDANDO_EXCLUSAO'].includes(l.status)).length,
+      perdidos: lista.filter(l => STATUS_PERDA.includes(l.status)).length,
       recuperados: lista.filter(l => l.status === 'RECUPERADO').length,
       mrr_em_risco: Math.round(abertos.reduce((s, l) => s + l.mrr_em_risco, 0)),
       tempo_medio_aberto: abertos.length ? Math.round(abertos.reduce((s, l) => s + l.dias_em_aberto, 0) / abertos.length) : 0,
