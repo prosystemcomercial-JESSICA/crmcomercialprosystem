@@ -8,14 +8,14 @@ Detalhe técnico completo na seção "Atualização 26/10/2026 (3ª parte)" de `
 - Banco: colunas novas em `CasoChurn` (`situacao_pedido`, `situacao_pedido_em`, `retorno_*`) e índice em `retorno_em`.
 - Backend: `backend/src/lib/churn-retorno.ts` (regras), `backend/src/services/churn-retorno.service.ts`, 4 rotas em `backend/src/routes/casos-churn.ts`, alerta `CHURN_RETORNO` no `/alertas` (`routes/complementos.ts`), agendador de 5 min `iniciarSchedulerRetornoChurn` em `server.ts` (push na hora marcada).
 - Tela `frontend/app/casos/page.tsx`: selos no card, organização por etiqueta, filtros, quadro "Retornos para agora e para hoje", seções "Situação do cliente" e "Próximo retorno" na ficha do caso, link `/casos?caso=<id>`.
-- Novidades: cartão "Churn: etiqueta e retorno marcado" (selo "Em breve" até publicar).
+- Novidades: cartão "Churn: etiqueta e retorno marcado" (selo "No ar").
 
 ## Verificado
 - `npx vitest run tests/churn-retorno.test.ts`: 5 testes verdes.
 - `tsc` do backend: nenhum erro nos arquivos novos (os 2 de `complementos.ts` linhas 184 e 197 são antigos). `tsc` do frontend sem erros na página.
 - Fotos com API simulada e dados fictícios (1500 e 400 px): card, filtros, quadro de retornos e ficha do caso conferidos.
 - `tests/retencao.test.ts` não roda neste computador (precisa do MySQL da CI). Não verificado aqui.
-- Publicação: ver ESTADO.md (registro do mesmo dia).
+- CI do GitHub verde em 5e76199 (inclui os testes com banco). Publicado em produção às 20h: backup pre-alter-20261026-195710.sql.gz, ALTER conferido com o diff do Prisma, deploy ok, agendador ligado (log de boot), rota nova responde. Não verificado: um aviso real chegando ao celular.
 
 ## Decisões e porquês
 - Colunas no próprio caso, e não uma Atividade da agenda: a regra do projeto proíbe atividades automáticas, e o retorno pertence ao caso (aparece no card e no sino). Um retorno por vez; o histórico fica na linha do tempo.
@@ -24,8 +24,7 @@ Detalhe técnico completo na seção "Atualização 26/10/2026 (3ª parte)" de `
 - Organização: em cada coluna, pediu cancelamento no topo, depois em observação, depois retorno vencido, depois o risco.
 
 ## Pendente
-- Publicar: backup + `ALTER TABLE` das colunas novas + `deploy-vps.sh <commit>` (se não tiver sido feito nesta sessão; ver ESTADO.md).
 - Jessica: marcar as etiquetas nos casos atuais (começam sem marcação) e ativar as notificações do celular de quem vai receber retornos.
 
 ## Próxima sessão
-Conferir no ESTADO.md se o deploy saiu; se não, rodar o `ALTER TABLE` com backup e o deploy. Depois, trocar o selo da novidade para "No ar".
+Quando a Jessica marcar o primeiro retorno, conferir no log `[CHURN-RETORNO]` se o aviso saiu na hora e se apareceu no sino.
