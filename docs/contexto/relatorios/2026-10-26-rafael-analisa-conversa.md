@@ -13,7 +13,7 @@ A Jessica mandou o print de uma conversa da Caroline com uma farmácia de Vila V
 ## Verificado
 - `npx vitest run tests/sdr-demo-sem-fluxo.test.ts tests/sdr-contexto-ficha.test.ts`: 12 testes verdes (o caso do print está no teste).
 - Tipos: nenhum erro novo nos arquivos mexidos (backend e frontend). O erro `demo_a_partir` em `caroline.service.ts` é antigo.
-- **Não verificado:** a conversa completa em produção (a leitura do banco foi negada pela permissão do Claude; a análise partiu do print) e o deploy (ver ESTADO.md).
+- **Não verificado:** a conversa completa em produção (a leitura do banco foi negada pela permissão do Claude; a análise partiu do print) O deploy de `9a46b70` foi feito com backup: build ok, banco sem alterações, frontend ok e backend respondendo.
 
 ## Decisões e porquês
 - A regra fica no roteiro **e** no código: só o roteiro já existia ("QUEM É DE VERDADE") e não impediu o erro.
@@ -22,7 +22,7 @@ A Jessica mandou o print de uma conversa da Caroline com uma farmácia de Vila V
 
 ## Pendente
 - **Jessica:** depois do deploy, abrir a conversa da farmácia › … › "Pedir análise ao Rafael" e conferir a análise em Escritório › Rafael (aprovar o documento, se quiser no caderno).
-- Deploy, se não tiver saído nesta sessão (ver ESTADO.md).
+
 
 ## Próxima sessão
 Conferir no log `[CAROLINE]`/Escritório se aparece "segurou a demonstração" em conversas de prospecção e se nenhuma demonstração legítima foi barrada. Skills: `diagnosing-bugs` se algo travar.
