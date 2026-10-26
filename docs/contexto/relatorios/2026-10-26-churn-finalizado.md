@@ -27,9 +27,12 @@
 - Linha do tempo junta as atualizações do caso e os eventos da ficha do cliente (inclui inativação, suporte retirado, cobrança suspensa).
 - Sem mudança de banco (`CasoChurn.status` é texto; registro do CEO segue em `ConfiguracaoIntegracao`).
 
+## Publicação
+- 26/10/2026, 18h40, a pedido da Jessica: backup `pre-alter-20261026-183738.sql.gz`, ALTER TABLE pendente do `f017b30`, `deploy-vps.sh 72cdace` (pipeline ok, build ok, site e API respondendo).
+- `finalizar-exclusoes-concluidas.ts --aplicar`: 8 casos finalizados (7 do print + 1713, que também tinha as duas confirmações). Simulação seguinte: 0.
+
 ## Pendente
-- Publicar: a `main` ainda espera o `ALTER TABLE WhatsappConversa ADD COLUMN fora_do_funil_em DATETIME(3) NULL;` (do `f017b30`) antes do deploy. A Jessica precisa liberar a permissão da sessão na VPS.
-- Depois do deploy: `npx tsx scripts/finalizar-exclusoes-concluidas.ts` (conferir a lista de 7) e `--aplicar`; trocar o selo da novidade para "No ar".
+- Nada desta tarefa. Conferir com a Jessica um card real em Exclusões › Concluídos.
 
 ## Próxima sessão
-Com a permissão: backup → ALTER TABLE pendente → `backend/scripts/deploy-vps.sh <hash da main>` → script dos finalizados → abrir Exclusões › Concluídos e conferir um card real.
+Se a Jessica pedir ajustes no card: `frontend/components/casos/TrilhaCancelamento.tsx` e `trilhaCancelamento` em `backend/src/services/churn-exclusao.service.ts`.
