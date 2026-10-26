@@ -1374,7 +1374,7 @@ export default function PropostasComerciais() {
             padding: '24px 16px', overflowY: 'auto',
           }}>
             <div className="ios-modal" style={{
-              background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 820,
+              background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 1000,
               boxShadow: '0 24px 64px rgba(0,0,0,0.25)', overflow: 'hidden',
             }}>
               {/* Modal header */}
@@ -1404,7 +1404,7 @@ export default function PropostasComerciais() {
                 {sections.map((s, i) => (
                   <button key={s.label} onClick={() => setActiveSection(i)}
                     style={{
-                      padding: '12px 16px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                      padding: '14px 18px', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer',
                       background: 'transparent', whiteSpace: 'nowrap',
                       borderBottom: activeSection === i ? '2px solid var(--t-primary)' : '2px solid transparent',
                       color: activeSection === i ? 'var(--t-primary)' : 'var(--t-text-muted)',
@@ -1415,11 +1415,11 @@ export default function PropostasComerciais() {
               </div>
 
               {/* Form body */}
-              <div className="ios-modal-corpo" style={{ padding: 24, maxHeight: 'calc(80vh - 180px)', overflowY: 'auto' }}>
+              <div className="ios-modal-corpo" style={{ padding: 28, maxHeight: 'calc(100vh - 260px)', minHeight: 360, overflowY: 'auto' }}>
 
                 {/* Seção 0 — Empresa */}
                 {activeSection === 0 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     <FormField label="Razão Social *" col={2}>
                       <input value={form.razao_social} onChange={e => setField('razao_social', e.target.value)} className="ps-input w-full" placeholder="Razão social completa" />
                     </FormField>
@@ -1469,7 +1469,7 @@ export default function PropostasComerciais() {
 
                 {/* Seção 1 — Responsável */}
                 {activeSection === 1 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     <FormField label="Nome do Responsável" col={2}>
                       <input value={form.responsavel_nome as string} onChange={e => setField('responsavel_nome', e.target.value)} className="ps-input w-full" placeholder="Nome completo" />
                     </FormField>
@@ -1493,7 +1493,7 @@ export default function PropostasComerciais() {
 
                 {/* Seção 2 — Comercial */}
                 {activeSection === 2 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     <FormField label="Vendedor Responsável">
                       {isGestor ? (
                         <>
@@ -1566,7 +1566,7 @@ export default function PropostasComerciais() {
 
                 {/* Seção 3 — Plano & Produtos */}
                 {activeSection === 3 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     {/* Apenas "Plano Recomendado": o deck sempre apresenta Pro × Plus
                         na mensalidade (preferência de venda). Mantemos plano_selecionado
                         espelhando o recomendado p/ compatibilidade (tabela/PDF/condições). */}
@@ -1846,7 +1846,7 @@ export default function PropostasComerciais() {
 
                 {/* Seção 5 — Valores */}
                 {activeSection === 5 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     {modoMultiLoja && lojasProjeto.length > 0 && (
                       <div className="col-span-2" style={{
                         padding: '10px 14px', borderRadius: 8, marginBottom: 4,
@@ -1918,7 +1918,7 @@ export default function PropostasComerciais() {
 
                 {/* Seção 6 — Conteúdo */}
                 {activeSection === 6 && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                     <FormField label="Título da Proposta (gerado pelo segmento)" col={2}>
                       <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                         {(form.titulo_proposta as string) || (tplDoSegmento(form.segmento as string)?.titulo) || 'Selecione o segmento (aba Empresa) para gerar o título'}
@@ -1993,7 +1993,7 @@ export default function PropostasComerciais() {
             padding: 16,
           }}>
             <div style={{
-              background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 560,
+              background: 'var(--t-card-bg)', borderRadius: 16, width: '100%', maxWidth: 640,
               boxShadow: '0 24px 64px rgba(0,0,0,0.25)', maxHeight: '92vh', overflowY: 'auto',
             }}>
               {/* header */}
@@ -2145,7 +2145,7 @@ export default function PropostasComerciais() {
 function FormField({ label, children, col }: { label: string; children: React.ReactNode; col?: number }) {
   return (
     <div style={{ gridColumn: col === 2 ? 'span 2' : undefined }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', display: 'block', marginBottom: 4 }}>
+      <label style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--t-text-secondary)', display: 'block', marginBottom: 6 }}>
         {label}
       </label>
       {children}

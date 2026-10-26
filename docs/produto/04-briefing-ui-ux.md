@@ -1906,3 +1906,4 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Layout da ficha:** menu de 240px · conteúdo de até 1040px · painel de 360px. Notebook (até 1180px): painel atrás do botão. Celular (até 760px): lista de seções, cabeçalho empilhado, etapas escondidas e a barra Ligar/WhatsApp/Play que já existia.
 - **Campos em todo o CRM:** `.ps-input` com borda, raio de 8px, foco com anel azul e estado desativado; 40px mínimos para campos e listas no computador.
 - **Conferido** com fotos em 1600, 1180 e 400px de largura (dados fictícios, API simulada).
+- **Segunda leva (mesmo dia, "aplicar todos"):** ficha do lead, janela da proposta e ficha do cliente seguem o mesmo padrão: letras de 13 a 14px, campos de 42px, duas colunas com 20px entre elas e ação de salvar fixa no rodapé. Conferido com foto da ficha do lead em 1600px (dados fictícios).

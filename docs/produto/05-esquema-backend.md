@@ -1921,3 +1921,4 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 
 - **Pedido da Jessica:** as janelas de preenchimento, acompanhamento e checklist estavam compactas e difíceis de usar. Ela aprovou o protótipo (`docs/prototipos/ficha-demanda-confortavel.html`) com três decisões: manter a ordem das perguntas do primeiro contato; salvar sozinho e manter o botão de salvar como reforço; uso principal no computador, o dia todo, sempre no modo espaçoso (sem modo compacto).
 - **Sem mudança de banco.** Única mudança no servidor: em `PUT /implantacoes/:id/coleta`, antes de gravar a anotação "📝 Ficha de coleta atualizada" em `ImplantacaoAtividade`, procura a mesma anotação do mesmo autor nos últimos 30 minutos (`findFirst` por `implantacao_id`, `descricao`, `autor_id`, `created_at`); se existir, não grava outra.
+- **Segunda leva (mesmo dia, "aplicar todos"):** só frontend, sem mudança no servidor nem no banco.

@@ -232,12 +232,11 @@ const TIPO_OP_MAP: Record<string, string> = {
 function Inp({ label, value, onChange, type = 'text', placeholder = '', required = false }: any) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>
+      <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <input type={type} value={value ?? ''} onChange={onChange} placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-        style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} />
+        className="ps-input w-full" />
     </div>
   );
 }
@@ -245,12 +244,11 @@ function Inp({ label, value, onChange, type = 'text', placeholder = '', required
 function Sel({ label, value, onChange, options, required = false }: any) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>
+      <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <select value={value ?? ''} onChange={onChange}
-        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-        style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+        className="ps-input w-full">
         <option value="">Selecione</option>
         {options.map((o: any) => (
           <option key={typeof o === 'string' ? o : o.value} value={typeof o === 'string' ? o : o.value}>
@@ -265,10 +263,9 @@ function Sel({ label, value, onChange, options, required = false }: any) {
 function Txt({ label, value, onChange, rows = 3 }: any) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>{label}</label>
+      <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>{label}</label>
       <textarea value={value ?? ''} onChange={onChange} rows={rows}
-        className="w-full px-3 py-2 rounded-lg border text-sm outline-none resize-none"
-        style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }} />
+        className="ps-input w-full" />
     </div>
   );
 }
@@ -276,7 +273,7 @@ function Txt({ label, value, onChange, rows = 3 }: any) {
 function FormField({ label, children, col }: { label: string; children: React.ReactNode; col?: number }) {
   return (
     <div style={{ gridColumn: col === 2 ? 'span 2' : undefined }}>
-      <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>{label}</label>
+      <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -1744,29 +1741,29 @@ export default function LeadsPage() {
       {/* ── Lead Detail Panel ────────────────────────────────────────────── */}
       {selectedLead && (
         <div className="fixed inset-0 z-40 flex" style={{ background: 'rgba(13,34,56,.5)' }} onClick={() => setSelectedLead(null)}>
-          <div className="ml-auto flex h-full" style={{ width: '90vw', maxWidth: 1120 }} onClick={e => e.stopPropagation()}>
+          <div className="ml-auto flex h-full" style={{ width: '94vw', maxWidth: 1320 }} onClick={e => e.stopPropagation()}>
 
             {/* LEFT: ficha */}
-            <div className="flex flex-col flex-1 ps-card overflow-hidden" style={{ borderLeft: '1px solid var(--t-card-border)' }}>
+            <div className="flex flex-col flex-1 ps-card ps-card--padded-none overflow-hidden" style={{ borderLeft: '1px solid var(--t-card-border)' }}>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+              <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-extrabold truncate" style={{ color: 'var(--t-text-primary)' }}>
+                  <h2 className="text-lg font-bold truncate" style={{ color: 'var(--t-text-primary)' }}>
                     {selectedLead.razao_social || selectedLead.nome_fantasia || selectedLead.nome}
                   </h2>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                    {selectedLead.segmento && <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>{selectedLead.segmento}</span>}
+                    {selectedLead.segmento && <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: 'var(--t-primary-light)', color: 'var(--t-link)' }}>{selectedLead.segmento}</span>}
                     {(() => {
                       const col = colConfig(selectedLead.etapa_comercial);
-                      return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: `${col.cor}18`, color: col.cor }}>{col.nome}</span>;
+                      return <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: `${col.cor}18`, color: col.cor }}>{col.nome}</span>;
                     })()}
                     {(() => {
                       const t = TEMP_CONFIG[selectedLead.temperatura as keyof typeof TEMP_CONFIG] || TEMP_CONFIG.FRIO;
-                      return <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: t.bg, color: t.color }}>{t.label}</span>;
+                      return <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: t.bg, color: t.color }}>{t.label}</span>;
                     })()}
                     {typeof selectedLead.completude_pct === 'number' && (
-                      <span className="text-white font-bold text-[11px]"
+                      <span className="text-white font-bold text-[13px]"
                         style={{ background: corCompletude(selectedLead.completude_pct), borderRadius: 999, padding: '3px 10px' }}
                         title="Completude do cadastro">
                         {selectedLead.completude_pct}% completo
@@ -1775,7 +1772,7 @@ export default function LeadsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
-                  <button onClick={() => gerarPropostaDoLead(selectedLead)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: '#16a34a' }}>
+                  <button onClick={() => gerarPropostaDoLead(selectedLead)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-white" style={{ background: '#16a34a' }}>
                     <FileText size={11} /> Gerar Proposta
                   </button>
                   {(() => {
@@ -1785,7 +1782,7 @@ export default function LeadsPage() {
                       <a
                         href={`/whatsapp?numero=${tel.replace(/\D/g, '')}&nome=${encodeURIComponent(selectedLead.razao_social || selectedLead.nome || '')}${selectedLead.id ? `&lead=${selectedLead.id}` : ''}`}
                         title={`Abrir WhatsApp no CRM: ${tel}`}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold text-white"
                         style={{ background: '#25D366' }}
                       >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="white" style={{ flexShrink: 0 }}>
@@ -1802,7 +1799,7 @@ export default function LeadsPage() {
                       disabled={atribuindo}
                       onChange={e => atribuirVendedor(selectedLead.id, e.target.value)}
                       title="Atribuir a um vendedor"
-                      className="text-xs border rounded-lg px-2 py-1.5"
+                      className="text-sm border rounded-lg px-2 py-1.5"
                       style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }}
                     >
                       <option value="">👤 Atribuir vendedor…</option>
@@ -1818,10 +1815,10 @@ export default function LeadsPage() {
               </div>
 
               {/* Stage mover */}
-              <div className="flex items-center gap-1 px-4 py-1.5 overflow-x-auto flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
+              <div className="flex items-center gap-1.5 px-6 py-2.5 overflow-x-auto flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                 {colunas.map(col => (
                   <button key={col.chave} onClick={() => moveColumn(selectedLead, col.chave)}
-                    className="flex-shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full transition-all"
+                    className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
                     style={{ background: selectedLead.etapa_comercial === col.chave ? col.cor : `${col.cor}15`, color: selectedLead.etapa_comercial === col.chave ? 'white' : col.cor }}>
                     {col.nome}
                   </button>
@@ -1829,7 +1826,7 @@ export default function LeadsPage() {
               </div>
 
               {/* Tabs */}
-              <div className="flex px-5 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
+              <div className="flex px-6 gap-1 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                 {([
                   { key: 'dados',       label: 'Dados',       icon: Building2 },
                   { key: 'atendimento', label: 'Atendimento',  icon: MessageSquare },
@@ -1838,7 +1835,7 @@ export default function LeadsPage() {
                   ...(isGestor ? [{ key: 'trilha', label: 'Trilha / Auditoria', icon: Clock }] : []),
                 ] as any[]).map(({ key, label, icon: Icon }) => (
                   <button key={key} onClick={() => setDetailTab(key)}
-                    className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2"
+                    className="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2"
                     style={{ borderColor: detailTab === key ? '#4B8EC8' : 'transparent', color: detailTab === key ? '#4B8EC8' : '#7AAACB' }}>
                     <Icon size={12} /> {label}
                   </button>
@@ -1846,14 +1843,14 @@ export default function LeadsPage() {
               </div>
 
               {/* Tab content */}
-              <div className="flex-1 overflow-y-auto p-5">
+              <div className="flex-1 overflow-y-auto px-7 pt-6 pb-8">
 
                 {/* Dados */}
                 {detailTab === 'dados' && (
                   <div className="space-y-5">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Empresa</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Empresa</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                         <Inp label="Razão Social" value={editForm.razao_social} onChange={(e: any) => setF('razao_social', e.target.value)} />
                         <Inp label="Nome Fantasia" value={editForm.nome_fantasia} onChange={(e: any) => setF('nome_fantasia', e.target.value)} />
                         <Inp label="CNPJ" value={editForm.cnpj} onChange={(e: any) => setF('cnpj', e.target.value)} />
@@ -1867,8 +1864,8 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Responsável</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Responsável</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                         <Inp label="Nome" value={editForm.responsavel_nome} onChange={(e: any) => setF('responsavel_nome', e.target.value)} />
                         <Inp label="Cargo" value={editForm.responsavel_cargo} onChange={(e: any) => setF('responsavel_cargo', e.target.value)} />
                         <Inp label="Telefone/WhatsApp" value={editForm.responsavel_telefone} onChange={(e: any) => setF('responsavel_telefone', e.target.value)} />
@@ -1878,8 +1875,8 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Classificação</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Classificação</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                         <Sel label="Temperatura" value={editForm.temperatura} onChange={(e: any) => setF('temperatura', e.target.value)}
                           options={Object.entries(TEMP_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
                         <Sel label="Origem" value={editForm.origem} onChange={(e: any) => setF('origem', e.target.value)} options={ORIGENS_MANUAL} />
@@ -1889,28 +1886,28 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Etiquetas</p>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Etiquetas</p>
                       <div className="flex flex-wrap gap-2">
                         {etiquetas.map(etq => {
                           const aplicada = (selectedLead.etiquetas_lead || []).some(e => e.etiqueta.id === etq.id);
                           return (
                             <button key={etq.id} onClick={() => toggleEtiqueta(etq.id)}
-                              className="text-xs px-2.5 py-1 rounded-full font-semibold transition-all"
+                              className="text-sm px-2.5 py-1 rounded-full font-semibold transition-all"
                               style={{ background: aplicada ? etq.cor : `${etq.cor}15`, color: aplicada ? 'white' : etq.cor, border: `1px solid ${etq.cor}40` }}>
                               {etq.nome}
                             </button>
                           );
                         })}
                         <button onClick={() => setShowNewEtiq(true)}
-                          className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                          className="text-sm px-2.5 py-1 rounded-full font-semibold"
                           style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)', border: '1px dashed #D8E8F5' }}>
                           + Nova etiqueta
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-3">
-                      {savedLeadOk && <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
+                    <div className="sticky -bottom-8 -mx-7 -mb-8 px-7 py-4 flex items-center justify-end gap-3 z-10" style={{ background: 'var(--t-card-bg)', borderTop: '1px solid var(--t-card-border)', boxShadow: '0 -6px 16px rgba(0,0,0,.05)' }}>
+                      {savedLeadOk && <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
                       <button onClick={saveLead} disabled={savingLead}
                         className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                         style={{ background: savedLeadOk ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
@@ -1925,8 +1922,8 @@ export default function LeadsPage() {
                 {detailTab === 'atendimento' && (
                   <div className="space-y-5">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Acompanhamento</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Acompanhamento</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                         <Sel label="Status de atendimento" value={editForm.status_atendimento} onChange={(e: any) => setF('status_atendimento', e.target.value)}
                           options={['NOVO','SEM_CONTATO','CONTATO_TENTADO','EM_CONVERSA','QUALIFICADO','AGUARDANDO_RETORNO','PROPOSTA_NECESSARIA','PROPOSTA_ENVIADA','EM_NEGOCIACAO','ACEITO','FECHADO','PERDIDO'].map(v => ({ value: v, label: v.replace(/_/g, ' ') }))} />
                         <Inp label="Próximo contato" type="datetime-local" value={editForm.proximo_contato?.slice?.(0,16)} onChange={(e: any) => setF('proximo_contato', e.target.value)} />
@@ -1937,12 +1934,12 @@ export default function LeadsPage() {
                         <Txt label="Observação comercial principal" value={editForm.observacoes} onChange={(e: any) => setF('observacoes', e.target.value)} rows={3} />
                       </div>
                     </div>
-                    <div className="text-xs p-3 rounded-lg" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
+                    <div className="text-sm p-3 rounded-lg" style={{ background: 'var(--t-content-bg)', border: '1px solid var(--t-card-border)' }}>
                       <p style={{ color: 'var(--t-text-secondary)' }}>Última obs: <span style={{ color: 'var(--t-text-primary)' }}>{fmtDateTime(selectedLead.ultima_obs_at) || '—'}</span></p>
                       <p className="mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>Próximo contato: <span style={{ color: selectedLead.proximo_contato && new Date(selectedLead.proximo_contato) <= new Date() ? '#dc2626' : '#0D2238' }}>{fmtDateTime(selectedLead.proximo_contato) || '—'}</span></p>
                     </div>
                     <div className="flex items-center justify-end gap-3">
-                      {savedLeadOk && <span className="text-xs font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
+                      {savedLeadOk && <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>✓ Salvo com sucesso!</span>}
                       <button onClick={saveLead} disabled={savingLead}
                         className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                         style={{ background: savedLeadOk ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg, #4B8EC8, #2E6EAB)' }}>
@@ -1970,18 +1967,18 @@ export default function LeadsPage() {
                         <div className="rounded-xl p-5 text-center" style={{ background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
                           <CheckCircle2 size={32} style={{ color: '#16a34a', margin: '0 auto 10px' }} />
                           <h3 className="font-bold text-sm mb-1" style={{ color: '#15803d' }}>Proposta criada com sucesso!</h3>
-                          <p className="text-xs mb-3" style={{ color: '#4ade80' }}>
+                          <p className="text-sm mb-3" style={{ color: '#4ade80' }}>
                             {propostaGerada.razao_social} — {propostaGerada.plano_selecionado || 'sem plano'}
                           </p>
                           <div className="flex gap-2 justify-center">
                             <button
                               onClick={() => { setPropostaGerada(null); initPropostaForm(selectedLead); }}
-                              className="px-4 py-2 text-xs font-semibold rounded-xl"
+                              className="px-4 py-2 text-sm font-semibold rounded-xl"
                               style={{ background: '#F0FDF4', color: '#16a34a', border: '1px solid #BBF7D0' }}>
                               Nova proposta
                             </button>
                             <a href="/propostas-comerciais" target="_blank"
-                              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl text-white"
+                              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl text-white"
                               style={{ background: '#16a34a' }}>
                               <FileText size={12} /> Ver propostas
                             </a>
@@ -1997,7 +1994,7 @@ export default function LeadsPage() {
                       <div className="flex gap-0 border-b overflow-x-auto -mx-4 px-4" style={{ borderColor: 'var(--t-card-border)' }}>
                         {SECTIONS.map((s, i) => (
                           <button key={s} onClick={() => setPropostaSection(i)}
-                            className="px-3 py-2 text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
+                            className="px-3 py-2 text-[13px] font-semibold whitespace-nowrap flex-shrink-0"
                             style={{
                               background: 'transparent', border: 'none', cursor: 'pointer',
                               borderBottom: propostaSection === i ? '2px solid #4B8EC8' : '2px solid transparent',
@@ -2010,7 +2007,7 @@ export default function LeadsPage() {
 
                       {/* Section 0 — Empresa */}
                       {propostaSection === 0 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Razão Social *" col={2}>
                             <input value={propostaForm.razao_social || ''} onChange={e => setPF('razao_social', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="Razão social completa" />
                           </FormField>
@@ -2057,7 +2054,7 @@ export default function LeadsPage() {
 
                       {/* Section 1 — Responsável */}
                       {propostaSection === 1 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Nome do Responsável" col={2}>
                             <input value={propostaForm.responsavel_nome || ''} onChange={e => setPF('responsavel_nome', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="Nome completo" />
                           </FormField>
@@ -2081,7 +2078,7 @@ export default function LeadsPage() {
 
                       {/* Section 2 — Comercial */}
                       {propostaSection === 2 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Vendedor Responsável">
                             <input value={propostaForm.vendedor_nome || ''} onChange={e => setPF('vendedor_nome', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="Nome do vendedor" />
                           </FormField>
@@ -2115,7 +2112,7 @@ export default function LeadsPage() {
 
                       {/* Section 3 — Plano & Produtos */}
                       {propostaSection === 3 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Plano Selecionado">
                             <select value={propostaForm.plano_selecionado || ''} onChange={e => setPF('plano_selecionado', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }}>
                               <option value="">Selecione...</option>
@@ -2143,7 +2140,7 @@ export default function LeadsPage() {
                                 const sel = (Array.isArray(propostaForm.modulos_inclusos) ? propostaForm.modulos_inclusos : []).includes(m);
                                 return (
                                   <button key={m} type="button" onClick={() => togglePF('modulos_inclusos', m)}
-                                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                                    className="px-2.5 py-1 rounded-full text-sm font-medium transition-all"
                                     style={{ border: `1.5px solid ${sel ? '#4B8EC8' : '#D8E8F5'}`, background: sel ? '#EBF4FF' : 'transparent', color: sel ? '#4B8EC8' : '#7AAACB' }}>
                                     {m}
                                   </button>
@@ -2157,7 +2154,7 @@ export default function LeadsPage() {
                                 const sel = (Array.isArray(propostaForm.servicos_adicionais) ? propostaForm.servicos_adicionais : []).includes(s);
                                 return (
                                   <button key={s} type="button" onClick={() => togglePF('servicos_adicionais', s)}
-                                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                                    className="px-2.5 py-1 rounded-full text-sm font-medium transition-all"
                                     style={{ border: `1.5px solid ${sel ? '#16a34a' : '#D8E8F5'}`, background: sel ? '#dcfce7' : 'transparent', color: sel ? '#16a34a' : '#7AAACB' }}>
                                     {s}
                                   </button>
@@ -2170,7 +2167,7 @@ export default function LeadsPage() {
 
                       {/* Section 4 — Valores */}
                       {propostaSection === 4 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Valor de Implantação / Setup (R$)">
                             <input type="number" value={propostaForm.valor_implantacao || ''} onChange={e => setPF('valor_implantacao', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="0,00" />
                           </FormField>
@@ -2208,7 +2205,7 @@ export default function LeadsPage() {
 
                       {/* Section 5 — Conteúdo */}
                       {propostaSection === 5 && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
                           <FormField label="Título Principal da Proposta" col={2}>
                             <input value={propostaForm.titulo_proposta || ''} onChange={e => setPF('titulo_proposta', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} placeholder="Ex: Proposta Comercial Prosystem — Plano Plus" />
                           </FormField>
@@ -2264,14 +2261,14 @@ export default function LeadsPage() {
                         <div className="flex gap-2">
                           {propostaSection > 0 && (
                             <button onClick={() => setPropostaSection(s => s - 1)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg"
+                              className="px-3 py-1.5 text-sm font-medium rounded-lg"
                               style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-secondary)', background: 'transparent' }}>
                               ← Anterior
                             </button>
                           )}
                           {propostaSection < SECTIONS.length - 1 && (
                             <button onClick={() => setPropostaSection(s => s + 1)}
-                              className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white"
+                              className="px-3 py-1.5 text-sm font-semibold rounded-lg text-white"
                               style={{ background: '#4B8EC8', border: 'none' }}>
                               Próximo →
                             </button>
@@ -2293,7 +2290,7 @@ export default function LeadsPage() {
                   <div className="text-center py-12" style={{ color: 'var(--t-text-secondary)' }}>
                     <Paperclip size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
                     <p className="text-sm font-semibold mb-1">Nenhum arquivo anexado</p>
-                    <p className="text-xs">Funcionalidade de upload em breve.</p>
+                    <p className="text-sm">Funcionalidade de upload em breve.</p>
                   </div>
                 )}
 
@@ -2309,19 +2306,19 @@ export default function LeadsPage() {
                       {trilha.ciclo && (
                         <div className="rounded-xl border p-4" style={{ borderColor: 'var(--t-card-border)', background: 'var(--t-content-bg)' }}>
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Ciclo do lead</p>
-                            <span className="text-xs font-bold" style={{ color: trilha.ciclo.em_aberto ? '#ea580c' : '#16a34a' }}>
+                            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Ciclo do lead</p>
+                            <span className="text-sm font-bold" style={{ color: trilha.ciclo.em_aberto ? '#ea580c' : '#16a34a' }}>
                               {trilha.ciclo.assinado_em ? `Assinado em ${fmtDateTime(trilha.ciclo.assinado_em)}` : 'Em aberto'}
                             </span>
                           </div>
                           <div className="grid grid-cols-3 gap-3 text-center mb-3">
-                            <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Entrada</p><p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.criado_em ? fmtDateTime(trilha.ciclo.criado_em) : '—'}</p></div>
-                            <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Ciclo total</p><p className="text-lg font-extrabold" style={{ color: 'var(--t-link)' }}>{trilha.ciclo.ciclo_dias ?? '—'} <span className="text-xs font-medium">dias</span></p></div>
-                            <div><p className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Etapas</p><p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.etapas?.length || 0}</p></div>
+                            <div><p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Entrada</p><p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.criado_em ? fmtDateTime(trilha.ciclo.criado_em) : '—'}</p></div>
+                            <div><p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Ciclo total</p><p className="text-lg font-extrabold" style={{ color: 'var(--t-link)' }}>{trilha.ciclo.ciclo_dias ?? '—'} <span className="text-sm font-medium">dias</span></p></div>
+                            <div><p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Etapas</p><p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{trilha.ciclo.etapas?.length || 0}</p></div>
                           </div>
                           <div className="space-y-1.5">
                             {(trilha.ciclo.etapas || []).map((e: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between text-xs">
+                              <div key={i} className="flex items-center justify-between text-sm">
                                 <span style={{ color: 'var(--t-text-primary)' }}>{ETAPA_TRILHA_LABEL[e.etapa] || e.etapa}</span>
                                 <span className="font-semibold" style={{ color: 'var(--t-text-primary)' }}>{e.dias} dias{e.saiu_em ? '' : ' (atual)'}</span>
                               </div>
@@ -2332,7 +2329,7 @@ export default function LeadsPage() {
 
                       {/* Linha do tempo completa (auditoria) */}
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Linha do tempo (auditoria completa)</p>
+                        <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--t-link)' }}>Linha do tempo (auditoria completa)</p>
                         <div className="space-y-3">
                           {buildTrilhaItens(trilha).map((it, i) => (
                             <div key={i} className="flex gap-3">
@@ -2342,16 +2339,16 @@ export default function LeadsPage() {
                               </div>
                               <div className="flex-1 pb-1">
                                 <div className="flex items-center justify-between gap-2">
-                                  <p className="text-xs font-semibold" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
-                                  <span className="text-[10px] shrink-0" style={{ color: 'var(--t-text-muted)' }}>{fmtDateTime(it.data)}</span>
+                                  <p className="text-sm font-semibold" style={{ color: 'var(--t-text-primary)' }}>{it.titulo}</p>
+                                  <span className="text-xs shrink-0" style={{ color: 'var(--t-text-muted)' }}>{fmtDateTime(it.data)}</span>
                                 </div>
-                                {it.descricao && <p className="text-[11px] mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{it.descricao}</p>}
-                                {it.ator && <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-text-muted)' }}>por {it.ator}</p>}
+                                {it.descricao && <p className="text-[13px] mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{it.descricao}</p>}
+                                {it.ator && <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-muted)' }}>por {it.ator}</p>}
                               </div>
                             </div>
                           ))}
                           {buildTrilhaItens(trilha).length === 0 && (
-                            <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>Sem eventos registrados ainda.</p>
+                            <p className="text-sm" style={{ color: 'var(--t-text-muted)' }}>Sem eventos registrados ainda.</p>
                           )}
                         </div>
                       </div>
@@ -2364,28 +2361,28 @@ export default function LeadsPage() {
             {/* RIGHT: Observações */}
             <div className="flex flex-col ps-card flex-shrink-0 overflow-hidden" style={{ width: 310, borderLeft: '1px solid var(--t-card-border)' }}>
               <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-card-border)', background: 'var(--t-content-bg)' }}>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Histórico de Contatos</p>
-                <p className="text-[9px] mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>Toda a trilha do atendimento</p>
+                <p className="text-xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--t-link)' }}>Histórico de Contatos</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>Toda a trilha do atendimento</p>
               </div>
 
               {/* Add obs form */}
               <div className="p-3 flex-shrink-0 space-y-2" style={{ borderBottom: '1px solid var(--t-card-border)' }}>
                 <select value={obsForm.tipo} onChange={e => setObsForm(p => ({ ...p, tipo: e.target.value }))}
-                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+                  className="w-full text-sm px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
                   <option value="">Tipo de contato...</option>
                   {OBS_TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
                 <textarea value={obsForm.descricao} onChange={e => setObsForm(p => ({ ...p, descricao: e.target.value }))}
                   placeholder="Atualização de contato — o que aconteceu..." rows={3}
-                  className="w-full text-xs px-2.5 py-2 rounded-lg resize-none outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }} />
+                  className="w-full text-sm px-2.5 py-2 rounded-lg resize-none outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }} />
                 <input value={obsForm.proxima_acao} onChange={e => setObsForm(p => ({ ...p, proxima_acao: e.target.value }))}
                   placeholder="Próxima ação (nota rápida)..."
-                  className="w-full text-xs px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }} />
+                  className="w-full text-sm px-2.5 py-2 rounded-lg outline-none" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }} />
 
                 {/* Toggle próxima ação → Agenda */}
                 <button
                   onClick={() => setShowAgendaForm(p => !p)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] font-semibold"
                   style={{ border: `1.5px solid ${showAgendaForm ? '#4B8EC8' : '#D8E8F5'}`, color: showAgendaForm ? '#4B8EC8' : '#7AAACB', background: showAgendaForm ? '#EBF4FF' : 'transparent' }}>
                   <span>Agendar próxima ação na Agenda</span>
                   <ChevronDown size={12} style={{ transform: showAgendaForm ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
@@ -2393,12 +2390,12 @@ export default function LeadsPage() {
 
                 {showAgendaForm && (
                   <div className="space-y-2 rounded-lg p-2.5" style={{ background: 'var(--t-primary-light)', border: '1px solid #C3DCFC' }}>
-                    <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>Próxima ação → Agenda</p>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--t-link)' }}>Próxima ação → Agenda</p>
                     <input value={agendaForm.titulo} onChange={e => setAgendaForm(p => ({ ...p, titulo: e.target.value }))}
                       placeholder="Título do compromisso..."
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
+                      className="w-full text-sm px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
                     <select value={agendaForm.tipo} onChange={e => setAgendaForm(p => ({ ...p, tipo: e.target.value }))}
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }}>
+                      className="w-full text-sm px-2.5 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }}>
                       <option value="LIGACAO">📞 Ligação</option>
                       <option value="WHATSAPP">💬 WhatsApp</option>
                       <option value="REUNIAO">🤝 Reunião</option>
@@ -2409,16 +2406,16 @@ export default function LeadsPage() {
                     </select>
                     <div className="flex gap-1.5">
                       <input type="date" value={agendaForm.data} onChange={e => setAgendaForm(p => ({ ...p, data: e.target.value }))}
-                        className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
+                        className="flex-1 text-sm px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
                       <input type="time" value={agendaForm.hora} onChange={e => setAgendaForm(p => ({ ...p, hora: e.target.value }))}
-                        className="w-20 text-xs px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
+                        className="w-20 text-sm px-2 py-1.5 rounded-lg outline-none" style={{ border: '1px solid #C3DCFC', color: 'var(--t-text-primary)' }} />
                     </div>
-                    <p className="text-[9px]" style={{ color: 'var(--t-link)' }}>Será criado automaticamente na Agenda com vínculo a este lead.</p>
+                    <p className="text-xs" style={{ color: 'var(--t-link)' }}>Será criado automaticamente na Agenda com vínculo a este lead.</p>
                   </div>
                 )}
 
                 <button onClick={addObs} disabled={addingObs || !obsForm.tipo || !obsForm.descricao}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40"
                   style={{ background: '#4B8EC8' }}>
                   {addingObs ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
                   {showAgendaForm && agendaForm.titulo && agendaForm.data && agendaForm.hora ? 'Registrar + Agendar' : 'Registrar'}
@@ -2430,18 +2427,18 @@ export default function LeadsPage() {
                 {obsLoading ? (
                   <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin" style={{ color: 'var(--t-link)' }} /></div>
                 ) : observacoes.length === 0 ? (
-                  <p className="text-center text-[11px] py-6" style={{ color: 'var(--t-text-secondary)' }}>Nenhum contato registrado.</p>
+                  <p className="text-center text-[13px] py-6" style={{ color: 'var(--t-text-secondary)' }}>Nenhum contato registrado.</p>
                 ) : observacoes.map(obs => (
                   <div key={obs.id} className="flex gap-2">
                     {(() => { const ObsIcon = OBS_ICON[obs.tipo] || Pin; return <span className="flex-shrink-0 mt-0.5" style={{ color: 'var(--t-text-muted)' }}><ObsIcon size={13} /></span>; })()}
                     <div className="flex-1 rounded-lg p-2.5" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)' }}>
                       <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[10px] font-bold" style={{ color: 'var(--t-text-primary)' }}>{obs.created_by_name || 'Sistema'}</span>
-                        <span className="text-[9px]" style={{ color: 'var(--t-text-secondary)' }}>{fmtDateTime(obs.created_at)}</span>
+                        <span className="text-xs font-bold" style={{ color: 'var(--t-text-primary)' }}>{obs.created_by_name || 'Sistema'}</span>
+                        <span className="text-xs" style={{ color: 'var(--t-text-secondary)' }}>{fmtDateTime(obs.created_at)}</span>
                       </div>
-                      <p className="text-[11px] leading-snug" style={{ color: 'var(--t-text-primary)' }}>{obs.descricao}</p>
-                      {obs.proxima_acao && <p className="text-[10px] mt-1 font-semibold" style={{ color: '#d97706' }}>→ {obs.proxima_acao}</p>}
-                      {obs.data_proximo_retorno && <p className="text-[9px] mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{fmtDateTime(obs.data_proximo_retorno)}</p>}
+                      <p className="text-[13px] leading-snug" style={{ color: 'var(--t-text-primary)' }}>{obs.descricao}</p>
+                      {obs.proxima_acao && <p className="text-xs mt-1 font-semibold" style={{ color: '#d97706' }}>→ {obs.proxima_acao}</p>}
+                      {obs.data_proximo_retorno && <p className="text-xs mt-0.5" style={{ color: 'var(--t-text-secondary)' }}>{fmtDateTime(obs.data_proximo_retorno)}</p>}
                     </div>
                   </div>
                 ))}
@@ -2535,7 +2532,7 @@ export default function LeadsPage() {
             <div className="space-y-3">
               <Inp label="Nome da coluna *" value={newColForm.nome} onChange={(e: any) => setNewColForm(p => ({ ...p, nome: e.target.value }))} />
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={newColForm.cor} onChange={e => setNewColForm(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid var(--t-card-border)' }} />
                   {['#6b7280','#2563eb','#7c3aed','#d97706','#dc2626','#16a34a','#0891b2','#db2777'].map(c => (
@@ -2566,13 +2563,13 @@ export default function LeadsPage() {
             <div className="space-y-3">
               <Inp label="Nome do quadro *" value={newQuadro.nome} onChange={(e: any) => setNewQuadro(p => ({ ...p, nome: e.target.value }))} />
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Colunas (separadas por vírgula)</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Colunas (separadas por vírgula)</label>
                 <input value={newQuadro.colunas} onChange={e => setNewQuadro(p => ({ ...p, colunas: e.target.value }))}
                   className="w-full px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }} />
                 <p className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>Ex: A fazer, Em andamento, Concluído</p>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={newQuadro.cor} onChange={e => setNewQuadro(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid var(--t-card-border)' }} />
                   {['var(--t-primary)','#d97706','#7c3aed','#16a34a','#dc2626','#0891b2'].map(c => (
@@ -2581,7 +2578,7 @@ export default function LeadsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Quem pode ver este quadro</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Quem pode ver este quadro</label>
                 <div className="flex gap-2">
                   <button onClick={() => setNewQuadro(p => ({ ...p, visibilidade: 'PRIVADO' }))}
                     className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold"
@@ -2633,7 +2630,7 @@ export default function LeadsPage() {
               {quadroAtivo.visibilidade === 'PRIVADO' && (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Liberar para</label>
+                    <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Liberar para</label>
                     <div className="flex gap-2">
                       <select value={novoCompartilhadoId} onChange={e => setNovoCompartilhadoId(e.target.value)}
                         className="flex-1 px-3 py-2 text-sm rounded-lg border outline-none" style={{ borderColor: 'var(--t-card-border)' }}>
@@ -2650,7 +2647,7 @@ export default function LeadsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Já têm acesso</label>
+                    <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Já têm acesso</label>
                     {compartilhamentos.length === 0 ? (
                       <p className="text-xs" style={{ color: '#9ca3af' }}>Ninguém além de você ainda.</p>
                     ) : (
@@ -2689,7 +2686,7 @@ export default function LeadsPage() {
             <div className="space-y-3">
               <Inp label="Nome da etiqueta *" value={newEtiqForm.nome} onChange={(e: any) => setNewEtiqForm(p => ({ ...p, nome: e.target.value }))} />
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={newEtiqForm.cor} onChange={e => setNewEtiqForm(p => ({ ...p, cor: e.target.value }))} className="w-10 h-10 rounded cursor-pointer" style={{ border: '1px solid var(--t-card-border)' }} />
                   {['#0891b2','#d97706','#7c3aed','#2563eb','#dc2626','#16a34a','#1877f2','#f59e0b'].map(c => (
@@ -2794,13 +2791,13 @@ export default function LeadsPage() {
               <Inp label="Nome visível *" value={formEtapa.nome} onChange={(e: any) => setFormEtapa(f => ({ ...f, nome: e.target.value }))} />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
+                  <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Cor</label>
                   <input type="color" value={formEtapa.cor} onChange={e => setFormEtapa(f => ({ ...f, cor: e.target.value }))} className="w-full h-10 border rounded" style={{ borderColor: 'var(--t-card-border)' }} />
                 </div>
                 <Inp label="Ordem" type="number" value={formEtapa.ordem} onChange={(e: any) => setFormEtapa(f => ({ ...f, ordem: Number(e.target.value) || 99 }))} />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--t-text-secondary)' }}>Tipo da etapa</label>
+                <label className="block text-[13px] font-medium mb-1.5" style={{ color: 'var(--t-text-secondary)' }}>Tipo da etapa</label>
                 <select value={formEtapa.tipo} onChange={e => setFormEtapa(f => ({ ...f, tipo: e.target.value as EtapaFunil['tipo'] }))}
                   className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
                   <option value="ANDAMENTO">Andamento</option>
@@ -2882,8 +2879,7 @@ export default function LeadsPage() {
             <p className="text-xs mb-4" style={{ color: 'var(--t-text-secondary)' }}>Informe o motivo da perda para melhorar a estratégia comercial.</p>
             <div className="mb-4">
               <select value={perdaMotivo} onChange={e => setPerdaMotivo(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                style={{ borderColor: 'var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+                className="ps-input w-full">
                 <option value="">Selecione...</option>
                 {MOTIVOS_PERDA.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>

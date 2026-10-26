@@ -55,3 +55,27 @@ Respostas da Jessica: "1 mantenha; 2 salva sozinho e reforço abaixo no botão; 
 
 ### Próxima sessão
 Com o OK da Jessica: backup + `ALTER TABLE` da coluna + `deploy-vps.sh <commit>`; conferir o card de uma implantação real. Depois, aplicar o padrão na ficha do lead. Skills: `dev-frontend`, `webapp-testing`.
+
+---
+
+## Continuação 2 (26/10/2026, fim da tarde): "aplicar todos"
+
+### Pedido
+"aplicar todos": publicar (com o campo novo do banco) e levar o padrão às outras janelas.
+
+### Feito
+- `frontend/app/leads/page.tsx`: ficha do lead mais larga (1320px), letras um degrau acima, abas e etapas maiores, `Inp`/`Sel`/`Txt` com `.ps-input`, duas colunas com mais espaço, Salvar fixo no rodapé (salvamento continua manual).
+- `frontend/app/propostas-comerciais/page.tsx`: janela 1000px, corpo com a altura da tela, passos e rótulos maiores; janela de ações 640px.
+- `frontend/app/clientes/[id]/page.tsx`: textos miúdos maiores.
+- Documentos de produto, manual: nota da segunda leva.
+
+### Verificado
+- `tsc` do frontend sem erros; `next build` ok; foto da ficha do lead em 1600px com dados fictícios (o primeiro rodapé deixava aparecer campo por baixo; corrigido com `-bottom-8`, porque o sticky respeita o recuo da área de rolagem).
+- Não publicado: a ação na VPS (backup + coluna + deploy) foi recusada pela permissão do Claude Code nesta sessão.
+- CI do `3629fab`: falha de rede ao baixar fontes do Google no build (não é do código; build local ok); pedido "rodar de novo".
+
+### Pendente
+- Jessica: liberar a permissão de produção para o Claude (ou rodar ela mesma) e publicar: backup, coluna `WhatsappConversa.fora_do_funil_em`, `deploy-vps.sh <hash da main>`.
+
+### Próxima sessão
+Conferir o CI verde, publicar com a permissão liberada e abrir um card de implantação e um lead reais para ver a tela.

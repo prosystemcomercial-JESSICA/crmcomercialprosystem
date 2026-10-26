@@ -1389,3 +1389,4 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Perguntas do primeiro contato:** clique Sim ou Não, use − e + nos números e digite o resto. Não precisa salvar: aparece "Salvo automaticamente às…". O botão **Salvar respostas** continua lá, se quiser garantir. "Próxima sem resposta" leva direto à pergunta que falta.
 - **Checklist:** clique em qualquer lugar da linha para marcar. "Esconder os itens já feitos" deixa só o que falta.
 - **No resto do CRM:** os campos ficaram maiores e com borda visível.
+- **Segunda leva (mesmo dia, "aplicar todos"):** a ficha do lead e a janela da proposta ficaram mais largas e com letras maiores; na ficha do lead o botão Salvar fica sempre à vista embaixo.

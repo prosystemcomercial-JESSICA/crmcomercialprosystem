@@ -1948,3 +1948,4 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Fluxo do técnico no card:** abre o card → cai no Onboarding técnico (como antes) → lê o aviso de bloqueio no topo → responde as perguntas durante a ligação (cada resposta grava sozinha; "Próxima sem resposta" leva à seguinte) → marca o roteiro → copia o link para o cliente aprovar. O próximo passo e os contatos ficam no painel da direita o tempo todo.
 - **Navegação:** o menu da esquerda troca a seção; o botão do próximo passo também. Seções travadas continuam abrindo e explicam o motivo.
 - **Fechar o card com resposta digitada e não salva:** grava ao fechar. Se o servidor recusar, o rodapé mostra "Não salvou" e o botão Salvar continua disponível.
+- **Segunda leva (mesmo dia, "aplicar todos"):** na ficha do lead, o Salvar fica sempre visível no rodapé enquanto se preenche os dados; o fluxo de salvar não mudou.

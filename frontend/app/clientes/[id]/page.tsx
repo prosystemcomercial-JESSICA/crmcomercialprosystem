@@ -853,8 +853,8 @@ export default function ClienteDetailPage() {
                       <div>
                         <p className="text-sm font-medium" style={{ color: 'var(--t-text-primary)' }}>
                           {c.nome}
-                          {c.cargo && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' }}>{c.cargo}</span>}
-                          {c.origem === 'WHATSAPP' && <span className="ml-1.5 text-[10px]" title="Vindo do WhatsApp">💬</span>}
+                          {c.cargo && <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--t-content-bg)', color: 'var(--t-text-secondary)' }}>{c.cargo}</span>}
+                          {c.origem === 'WHATSAPP' && <span className="ml-1.5 text-xs" title="Vindo do WhatsApp">💬</span>}
                         </p>
                         {c.telefone && (
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -1114,7 +1114,7 @@ export default function ClienteDetailPage() {
                 <Field label="Mensalidade base (R$)" type="number" value={finForm.mensalidade_base}
                   onChange={v => setFinForm(f => ({ ...f, mensalidade_base: v }))} placeholder="Ex: 300,00" />
               </div>
-              <p className="text-[11px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--t-text-muted)' }}>
                 A mensalidade total = base + acréscimos de serviços confirmados (ex.: Arquivo Fiscal). Salve para recalcular.
               </p>
             </Section>
@@ -1246,7 +1246,7 @@ export default function ClienteDetailPage() {
                 <Field label="Plano" value={ativosForm.plano} onChange={v => setAtivosForm(f => ({ ...f, plano: v }))} placeholder="BASIC, PRO, PLUS…" />
                 <Field label="Contato principal" value={ativosForm.contato} onChange={v => setAtivosForm(f => ({ ...f, contato: v }))} placeholder="Nome do contato" cols={2} />
               </div>
-              <p className="text-[11px] mt-2" style={{ color: 'var(--t-text-muted)' }}>
+              <p className="text-[13px] mt-2" style={{ color: 'var(--t-text-muted)' }}>
                 Campos vindos da importação. Se algum veio em branco, preencha aqui manualmente.
               </p>
             </Section>
