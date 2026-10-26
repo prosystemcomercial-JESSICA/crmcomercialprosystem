@@ -591,6 +591,24 @@ async function iniciarSchedulerExpiracaoPropostas() {
   console.log('[BOOT] Scheduler de expiração de propostas iniciado');
 }
 
+// 8g) Scheduler: retorno marcado nos casos de churn (26/10/2026) — na hora marcada, aviso no celular
+//     do responsável e de quem marcou (uma vez por retorno; o sino de Alertas mostra até concluir).
+async function iniciarSchedulerRetornoChurn() {
+  if (!prismaClient) return;
+  const rodar = async () => {
+    try {
+      const { avisarRetornosChurn } = await import('./services/churn-retorno.service.js');
+      const n = await avisarRetornosChurn(prismaClient!);
+      if (n > 0) console.log(`[CHURN-RETORNO] ${n} aviso(s) de retorno enviado(s)`);
+    } catch (err: any) {
+      console.error('[CHURN-RETORNO] Erro no scheduler:', err?.message);
+    }
+  };
+  setInterval(rodar, 5 * 60 * 1000);
+  setTimeout(rodar, 90 * 1000);
+  console.log('[BOOT] Scheduler de retornos do churn iniciado (5 min)');
+}
+
 // 8) Carrega rotas dinamicamente — cada uma isolada em try/catch.
 //    Se UMA rota falhar ao importar/registrar, as outras continuam funcionando
 //    e o /health permanece respondendo.
@@ -702,6 +720,7 @@ const start = async () => {
     iniciarSchedulerSequenciaEmail();
     iniciarSchedulerCadenciaWhatsapp();
     iniciarSchedulerExpiracaoPropostas();
+    iniciarSchedulerRetornoChurn();
 
     import('./services/whatsapp-eventos.service.js')
       .then(({ iniciarHeartbeatSSE }) => { iniciarHeartbeatSSE(); console.log('[BOOT] Heartbeat SSE do WhatsApp iniciado'); })

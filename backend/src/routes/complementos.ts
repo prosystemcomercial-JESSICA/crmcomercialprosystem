@@ -274,13 +274,32 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
       ativos_hoje = (await filaDoDiaAtivos(prisma, user.id, now).catch(() => null))?.vendedores?.[0] || null;
     }
 
+    // Churn: retornos marcados que venceram ou são para hoje (26/10/2026). Gestão vê todos; os demais, os seus.
+    const { retornosMarcados } = await import('../services/churn-retorno.service');
+    const { estadoRetorno, textoRetorno } = await import('../lib/churn-retorno');
+    const retornos_churn = isCEO ? [] : (await retornosMarcados(prisma, podeVerTudo(user) ? null : (user?.id || '__no_user__')).catch(() => [] as any[]))
+      .filter((c: any) => ['VENCIDO', 'HOJE'].includes(estadoRetorno(c, now) || ''));
+
     const CATEGORIA_LABEL: Record<string, string> = {
       FISCAL: 'Pacote Fiscal', TEF: 'TEF', TRIBUTARIO: 'Tributário',
       COMUNICACAO: 'Comunicação', UPGRADE: 'Upgrade', TROCA_CNPJ: 'Troca CNPJ', OUTRO: 'Outro',
     };
 
     const alertas = [
-      ...(ativos_hoje && ativos_hoje.faltam_hoje > 0 && ativos_hoje.fila.length ? [{
+      ...retornos_churn.map((c: any) => {
+        const vencido = estadoRetorno(c, now) === 'VENCIDO';
+        const sit = c.situacao_pedido === 'CANCELAMENTO' ? '🔴 pediu cancelamento · ' : c.situacao_pedido === 'OBSERVACAO' ? '🔵 em observação · ' : '';
+        return {
+          id: `churn-ret-${c.id}-${new Date(c.retorno_em).getTime()}`,
+          tipo: 'CHURN_RETORNO',
+          urgencia: (vencido ? 'ALTA' : 'MEDIA') as 'ALTA' | 'MEDIA',
+          titulo: `${vencido ? 'Retorno de churn na hora' : 'Retorno de churn hoje'}: ${c.cliente?.nome_fantasia || c.cliente?.razao_social || c.cliente?.nome || 'cliente'}`,
+          descricao: `${sit}${textoRetorno(c)}`,
+          data: c.retorno_em,
+          link: `/casos?caso=${c.id}`,
+        };
+      }),
+      ...(ativos_hoje &&ativos_hoje.faltam_hoje > 0 && ativos_hoje.fila.length ? [{
         id: `ativos-hoje-${now.toISOString().slice(0, 10)}`,
         tipo: 'ATIVOS_HOJE',
         urgencia: 'MEDIA' as const,

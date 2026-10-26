@@ -46,6 +46,12 @@ interface Caso {
   sistema_removido_em?: string;
   retroativo?: boolean;
   data_abertura_real?: string;
+  situacao_pedido?: 'OBSERVACAO' | 'CANCELAMENTO' | null;
+  retorno_em?: string | null;
+  retorno_tipo?: string | null;
+  retorno_obs?: string | null;
+  retorno_responsavel_id?: string | null;
+  retorno_responsavel_nome?: string | null;
   cliente: {
     id: string;
     nome: string;
@@ -195,6 +201,7 @@ function RadarCard({ caso, atualizacoes, onClick }: { caso: Caso; atualizacoes: 
             <span style={{ background: cor.bg, color: cor.text, borderRadius: 5, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
               {STATUS_LABEL[caso.status] || caso.status}
             </span>
+            {!encerrado && caso.situacao_pedido && <span style={{ marginLeft: 4 }}><SeloSituacao s={caso.situacao_pedido} /></span>}
           </div>
         </div>
         {/* Risco score */}
@@ -268,6 +275,55 @@ const COLUNAS_CASO: { k: string; rot: string; dica: string; cor: string }[] = [
   { k: 'PERDIDO', rot: 'Perdido', dica: 'Cliente saiu (inclui sistema removido)', cor: '#dc2626' },
   { k: 'AGUARDANDO_EXCLUSAO', rot: 'Aguardando exclusão do cadastro', dica: 'Enviado ao CEO para excluir o cadastro', cor: '#475569' },
 ];
+// Etiqueta do caso (pedido da Jessica, 26/10/2026): em observação = bolinha azul piscando;
+// pediu cancelamento = bolinha vermelha. Mesmas regras de backend/src/lib/churn-retorno.ts.
+const SITUACAO_PEDIDO: Record<'OBSERVACAO' | 'CANCELAMENTO', { rot: string; cor: string; fundo: string; pisca: boolean }> = {
+  OBSERVACAO: { rot: 'Em observação', cor: '#2563eb', fundo: '#dbeafe', pisca: true },
+  CANCELAMENTO: { rot: 'Pediu cancelamento', cor: '#dc2626', fundo: '#fee2e2', pisca: false },
+};
+const ROTULO_RETORNO: Record<string, string> = { CONTATO: 'Contato', ATIVIDADE: 'Atividade', ACAO: 'Ação' };
+const diaBR = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+const estadoRetorno = (c: Caso, agora = new Date()): 'VENCIDO' | 'HOJE' | 'FUTURO' | null => {
+  if (!c.retorno_em) return null;
+  const em = new Date(c.retorno_em);
+  if (em.getTime() <= agora.getTime()) return 'VENCIDO';
+  return diaBR(em) === diaBR(agora) ? 'HOJE' : 'FUTURO';
+};
+const quandoRetorno = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+};
+const ESTILO_PISCA = `@keyframes casoPisca { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(37,99,235,.55); } 50% { opacity: .35; box-shadow: 0 0 0 5px rgba(37,99,235,0); } }
+.caso-pisca { animation: casoPisca 1.4s ease-in-out infinite; }
+@keyframes casoAlerta { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.caso-alerta { animation: casoAlerta 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .caso-pisca, .caso-alerta { animation: none; } }`;
+
+function SeloSituacao({ s, grande }: { s?: Caso['situacao_pedido']; grande?: boolean }) {
+  if (!s || !SITUACAO_PEDIDO[s]) return null;
+  const v = SITUACAO_PEDIDO[s];
+  return (
+    <span title={v.rot} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: grande ? 12 : 10.5, fontWeight: 800, padding: grande ? '3px 10px' : '1px 8px', borderRadius: 999, background: v.fundo, color: v.cor, whiteSpace: 'nowrap' }}>
+      <span className={v.pisca ? 'caso-pisca' : undefined} style={{ width: 8, height: 8, borderRadius: 999, background: v.cor, flexShrink: 0 }} />
+      {v.rot}
+    </span>
+  );
+}
+
+function ChipRetorno({ c }: { c: Caso }) {
+  const est = estadoRetorno(c);
+  if (!est || !c.retorno_em) return null;
+  const cores = est === 'VENCIDO' ? { bg: '#fee2e2', c: '#b91c1c' } : est === 'HOJE' ? { bg: '#fef3c7', c: '#a16207' } : { bg: '#e0f2fe', c: '#0369a1' };
+  const quem = c.retorno_responsavel_nome ? ` · ${c.retorno_responsavel_nome.split(' ')[0]}` : '';
+  return (
+    <span title={`${ROTULO_RETORNO[c.retorno_tipo || ''] || 'Retorno'}${c.retorno_obs ? `: ${c.retorno_obs}` : ''}`}
+      className={est === 'VENCIDO' ? 'caso-alerta' : undefined}
+      style={chip(cores.bg, cores.c)}>
+      {est === 'VENCIDO' ? '⏰' : '📅'} {est === 'VENCIDO' ? 'Retorno vencido' : est === 'HOJE' ? 'Retorno hoje' : 'Retorno'} {quandoRetorno(c.retorno_em)}{quem}
+    </span>
+  );
+}
+
 const RISCO_PILL = (s: number) => s >= 85 ? { t: 'Crítico', bg: '#fee2e2', c: '#b91c1c' } : s >= 70 ? { t: 'Alto', bg: '#ffedd5', c: '#c2410c' } : s >= 40 ? { t: 'Médio', bg: '#fef3c7', c: '#a16207' } : { t: 'Baixo', bg: '#dcfce7', c: '#15803d' };
 const chip = (bg: string, c: string): React.CSSProperties => ({ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: c });
 
@@ -279,12 +335,14 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
   if (carregando && !casos.length) return <div className="p-8 text-center">Carregando…</div>;
   const colunaDe = (c: Caso) => (c.status === 'SISTEMA_REMOVIDO' ? 'PERDIDO' : c.status);
   const quando = (c: Caso) => new Date((c as any).updated_at || c.created_at).getTime();
+  // Organização: pediu cancelamento no topo, depois em observação, depois retorno vencido; o resto pelo risco.
+  const pesoSituacao = (c: Caso) => (c.situacao_pedido === 'CANCELAMENTO' ? 4 : c.situacao_pedido === 'OBSERVACAO' ? 2 : 0) + (estadoRetorno(c) === 'VENCIDO' ? 1 : 0);
   return (
     <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(250px, 1fr)', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
       {COLUNAS_CASO.map(col => {
         const encerrada = ENCERRADOS.includes(col.k);
         const lista = casos.filter(c => colunaDe(c) === col.k)
-          .sort((a, b) => encerrada ? quando(b) - quando(a) : (b.risk_score - a.risk_score) || (diasEmAberto(b) - diasEmAberto(a)));
+          .sort((a, b) => encerrada ? quando(b) - quando(a) : (pesoSituacao(b) - pesoSituacao(a)) || (b.risk_score - a.risk_score) || (diasEmAberto(b) - diasEmAberto(a)));
         const visiveis = encerrada ? lista.slice(0, 25) : lista;
         const criticos = encerrada ? 0 : lista.filter(c => c.risk_score >= 70).length;
         return (
@@ -307,13 +365,15 @@ function KanbanCasos({ casos, carregando, arrastando, sobre, setArrastando, setS
               const codigo = (c.cliente as any)?.codigo;
               return (
                 <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => onAbrir(c)}
-                  style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderLeft: `3px solid ${encerrada ? col.cor : risco.c}`, borderRadius: 10, padding: 10, cursor: 'grab', opacity: arrastando === c.id ? 0.5 : 1, display: 'grid', gap: 5 }}>
+                  style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderLeft: `3px solid ${encerrada ? col.cor : c.situacao_pedido === 'CANCELAMENTO' ? '#dc2626' : c.situacao_pedido === 'OBSERVACAO' ? '#2563eb' : risco.c}`, borderRadius: 10, padding: 10, cursor: 'grab', opacity: arrastando === c.id ? 0.5 : 1, display: 'grid', gap: 5 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, alignItems: 'flex-start' }}>
                     <b style={{ fontSize: 13, color: 'var(--t-text-primary)', lineHeight: 1.25 }}>{codigo ? `${codigo} · ` : ''}{nome}</b>
                     {!encerrada && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: risco.bg, color: risco.c, whiteSpace: 'nowrap' }}>{risco.t}</span>}
                   </div>
+                  {!encerrada && c.situacao_pedido && <div><SeloSituacao s={c.situacao_pedido} /></div>}
                   {c.motivo_principal && <span style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.motivo_principal}</span>}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {!encerrada && <ChipRetorno c={c} />}
                     {atraso && <span style={chip('#fee2e2', '#b91c1c')}>💸 em atraso{c.fin_valor_atraso ? ` ${Number(c.fin_valor_atraso).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}</span>}
                     {typeof c.dias_sem_contato === 'number' && c.dias_sem_contato >= 3 && <span style={chip(c.dias_sem_contato >= 7 ? '#fee2e2' : '#fef3c7', c.dias_sem_contato >= 7 ? '#b91c1c' : '#a16207')}>⏰ {c.dias_sem_contato}d sem contato</span>}
                     {c.reneg_ativa && <span style={chip('#dcfce7', '#15803d')}>🤝 acordo</span>}
@@ -429,7 +489,66 @@ export default function CasosPage() {
     setNovaAtt({ tipo: 'OBSERVACAO', texto: '', canal: '', resultado: '' });
     setAtualizacoes([]);
     try { const r = await apiClient.getAtualizacoesCaso(c.id); setAtualizacoes(r.data.data || []); } catch { /**/ }
+    setRetornoForm(formRetornoDe(c));
   };
+
+  // ── Etiqueta (observação / pediu cancelamento) e retorno marcado (26/10/2026) ──
+  const [filtroSituacao, setFiltroSituacao] = useState<'' | 'CANCELAMENTO' | 'OBSERVACAO' | 'RETORNO' | 'VENCIDO'>('');
+  const [equipe, setEquipe] = useState<{ id: string; nome: string }[]>([]);
+  useEffect(() => { if (isAuthenticated) apiClient.getResponsaveis().then(r => setEquipe(r.data?.data || [])).catch(() => {}); }, [isAuthenticated]);
+  const formRetornoDe = (c: Caso) => {
+    const amanha9 = new Date(); amanha9.setDate(amanha9.getDate() + 1); amanha9.setHours(9, 0, 0, 0);
+    const base = c.retorno_em ? new Date(c.retorno_em) : amanha9;
+    const local = new Date(base.getTime() - base.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    return { em: local, tipo: c.retorno_tipo || 'CONTATO', obs: c.retorno_obs || '', responsavel_id: c.retorno_responsavel_id || user?.id || '', feito: '' };
+  };
+  const [retornoForm, setRetornoForm] = useState<any>({ em: '', tipo: 'CONTATO', obs: '', responsavel_id: '', feito: '' });
+  const [salvandoRetorno, setSalvandoRetorno] = useState(false);
+  const [erroRetorno, setErroRetorno] = useState('');
+  const aplicarNoCaso = (novo: any) => {
+    setCasos(cs => cs.map(x => x.id === novo.id ? { ...x, ...novo, cliente: x.cliente } : x));
+    setDossie(d => d && d.id === novo.id ? { ...d, ...novo, cliente: d.cliente } : d);
+    if (dossie?.id === novo.id) apiClient.getAtualizacoesCaso(novo.id).then(r => setAtualizacoes(r.data.data || [])).catch(() => {});
+  };
+  const mudarSituacao = async (c: Caso, situacao: 'OBSERVACAO' | 'CANCELAMENTO' | null) => {
+    try { const r = await apiClient.situacaoCaso(c.id, situacao); aplicarNoCaso(r.data.data); }
+    catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível salvar a etiqueta.'); }
+  };
+  const acaoRetorno = async (acao: 'marcar' | 'concluir' | 'desmarcar') => {
+    if (!dossie) return;
+    setErroRetorno('');
+    if (acao === 'marcar' && !retornoForm.em) { setErroRetorno('Escolha a data e a hora do retorno.'); return; }
+    setSalvandoRetorno(true);
+    try {
+      const r = acao === 'marcar'
+        ? await apiClient.marcarRetornoCaso(dossie.id, { em: new Date(retornoForm.em).toISOString(), tipo: retornoForm.tipo, obs: retornoForm.obs, responsavel_id: retornoForm.responsavel_id || null })
+        : acao === 'concluir' ? await apiClient.concluirRetornoCaso(dossie.id, retornoForm.feito) : await apiClient.desmarcarRetornoCaso(dossie.id);
+      aplicarNoCaso(r.data.data);
+      setRetornoForm(formRetornoDe(r.data.data));
+    } catch (e: any) { setErroRetorno(e?.response?.data?.message || 'Não foi possível salvar o retorno.'); }
+    finally { setSalvandoRetorno(false); }
+  };
+  // Link do aviso (/casos?caso=<id>) abre a ficha do caso.
+  const casoDoLinkRef = useRef<string | null>(null);
+  useEffect(() => { try { casoDoLinkRef.current = new URLSearchParams(window.location.search).get('caso'); } catch { /* sem window */ } }, []);
+  useEffect(() => {
+    const id = casoDoLinkRef.current; if (!id || dataLoading) return;
+    casoDoLinkRef.current = null;
+    const achado = casos.find(c => c.id === id);
+    if (achado) { setAbaAtiva('lista'); abrirDossie(achado); }
+    else apiClient.getCaso(id).then(r => { if (r?.data?.data) { setAbaAtiva('lista'); abrirDossie(r.data.data); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [casos, dataLoading]);
+  const abertos = casos.filter(c => !ENCERRADOS.includes(c.status));
+  const contagem = {
+    CANCELAMENTO: abertos.filter(c => c.situacao_pedido === 'CANCELAMENTO').length,
+    OBSERVACAO: abertos.filter(c => c.situacao_pedido === 'OBSERVACAO').length,
+    RETORNO: abertos.filter(c => c.retorno_em).length,
+    VENCIDO: abertos.filter(c => estadoRetorno(c) === 'VENCIDO').length,
+  };
+  const casosVisiveis = !filtroSituacao ? casos : casos.filter(c => !ENCERRADOS.includes(c.status) && (
+    filtroSituacao === 'RETORNO' ? !!c.retorno_em : filtroSituacao === 'VENCIDO' ? estadoRetorno(c) === 'VENCIDO' : c.situacao_pedido === filtroSituacao));
+  const retornosPendentes = abertos.filter(c => ['VENCIDO', 'HOJE'].includes(estadoRetorno(c) || '')).sort((a, b) => new Date(a.retorno_em!).getTime() - new Date(b.retorno_em!).getTime());
 
   const salvarDossie = async () => {
     if (!dossie) return;
@@ -819,8 +938,47 @@ export default function CasosPage() {
           ))}
         </div>
 
+        {/* Organização por etiqueta e retornos marcados (26/10/2026) */}
+        <style>{ESTILO_PISCA}</style>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {([
+            ['', 'Todos os casos', null, casos.length],
+            ['CANCELAMENTO', 'Pediu cancelamento', 'CANCELAMENTO', contagem.CANCELAMENTO],
+            ['OBSERVACAO', 'Em observação', 'OBSERVACAO', contagem.OBSERVACAO],
+            ['RETORNO', '📅 Com retorno marcado', null, contagem.RETORNO],
+            ['VENCIDO', '⏰ Retorno vencido', null, contagem.VENCIDO],
+          ] as const).map(([k, rot, sit, n]) => {
+            const ativo = filtroSituacao === k;
+            const cor = sit ? SITUACAO_PEDIDO[sit].cor : k === 'VENCIDO' ? '#b91c1c' : '#2563eb';
+            return (
+              <button key={k || 'todos'} onClick={() => setFiltroSituacao(k)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${ativo ? cor : 'var(--t-card-border)'}`, background: ativo ? `${cor}14` : 'var(--t-card-bg)', color: ativo ? cor : 'var(--t-text-secondary)' }}>
+                {sit && <span className={SITUACAO_PEDIDO[sit].pisca ? 'caso-pisca' : undefined} style={{ width: 9, height: 9, borderRadius: 999, background: SITUACAO_PEDIDO[sit].cor }} />}
+                {rot} <span style={{ fontWeight: 800 }}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        {retornosPendentes.length > 0 && (
+          <div style={{ border: '1px solid #fcd34d', background: '#fffbeb', borderRadius: 12, padding: '10px 12px', display: 'grid', gap: 6 }}>
+            <b style={{ fontSize: 13, color: '#92400e' }}>⏰ Retornos para agora e para hoje ({retornosPendentes.length})</b>
+            {retornosPendentes.map(c => {
+              const vencido = estadoRetorno(c) === 'VENCIDO';
+              return (
+                <button key={c.id} onClick={() => abrirDossie(c)} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, textAlign: 'left', background: '#fff', border: `1px solid ${vencido ? '#fecaca' : '#fde68a'}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12.5, color: '#1f2937' }}>
+                  <span style={{ fontWeight: 800, color: vencido ? '#b91c1c' : '#a16207', whiteSpace: 'nowrap' }}>{vencido ? 'Vencido' : 'Hoje'} · {quandoRetorno(c.retorno_em!)}</span>
+                  <b>{c.cliente?.nome_fantasia || c.cliente?.razao_social || c.cliente?.nome}</b>
+                  <SeloSituacao s={c.situacao_pedido} />
+                  <span style={{ color: '#4b5563' }}>{ROTULO_RETORNO[c.retorno_tipo || ''] || 'Retorno'}{c.retorno_responsavel_nome ? ` com ${c.retorno_responsavel_nome}` : ''}{c.retorno_obs ? `: ${c.retorno_obs}` : ''}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {modo === 'kanban' && <KanbanCasos
-          casos={casos} carregando={dataLoading} arrastando={arrastando} sobre={sobreColuna}
+          casos={casosVisiveis} carregando={dataLoading} arrastando={arrastando} sobre={sobreColuna}
           setArrastando={setArrastando} setSobre={setSobreColuna}
           onMover={async (c, st) => { if (c.status !== st) await handleUpdateStatus(c.id, st); }}
           onAbrir={abrirDossie} onRenegociar={abrirRenegociacao} onNovo={() => router.push('/casos/novo')}
@@ -872,7 +1030,7 @@ export default function CasosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {casos.map((caso) => (
+                {casosVisiveis.map((caso) => (
                   <tr key={caso.id} className={`hover:opacity-80 transition-colors ${caso.reaberto ? 'bg-orange-50' : ''}`}>
                     <td className="px-6 py-4">
                       <button onClick={() => abrirDossie(caso)} className="flex items-center gap-3 text-left hover:opacity-80" title="Abrir caso (ver como está sendo tratado)">
@@ -893,6 +1051,8 @@ export default function CasosPage() {
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[caso.status] || 'bg-opacity-0 '}`}>
                           {caso.status}
                         </span>
+                        {!ENCERRADOS.includes(caso.status) && <SeloSituacao s={caso.situacao_pedido} />}
+                        {!ENCERRADOS.includes(caso.status) && <ChipRetorno c={caso} />}
                         {caso.reaberto && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-700 border border-orange-300" title="Este caso já foi reaberto uma vez">
                             🔄 Reaberto
@@ -1030,6 +1190,73 @@ export default function CasosPage() {
             </div>
 
             <div className="p-5 space-y-5">
+              {!ENCERRADOS.includes(dossie.status) && (
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {/* Etiqueta do cliente */}
+                  <div className="rounded-xl border p-4" style={{ borderColor: 'var(--t-card-border)' }}>
+                    <p className="text-sm font-bold mb-2">🏷️ Situação do cliente</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {([[null, 'Sem marcação'], ['OBSERVACAO', 'Em observação'], ['CANCELAMENTO', 'Pediu cancelamento']] as const).map(([k, rot]) => {
+                        const ativo = (dossie.situacao_pedido || null) === k;
+                        const cor = k ? SITUACAO_PEDIDO[k].cor : '#64748b';
+                        return (
+                          <button key={rot} onClick={() => mudarSituacao(dossie, k)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 40, padding: '0 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                              border: `2px solid ${ativo ? cor : 'var(--t-card-border)'}`, background: ativo ? `${cor}14` : 'var(--t-card-bg)', color: ativo ? cor : 'var(--t-text-secondary)' }}>
+                            {k && <span className={SITUACAO_PEDIDO[k].pisca ? 'caso-pisca' : undefined} style={{ width: 10, height: 10, borderRadius: 999, background: cor }} />}
+                            {rot}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] mt-2" style={{ color: 'var(--t-text-muted)' }}>Em observação: o cliente está sendo acompanhado. Pediu cancelamento: o cliente pediu para cancelar de fato. Aparece no card do Kanban.</p>
+                  </div>
+
+                  {/* Próximo retorno */}
+                  <div className="rounded-xl border p-4" style={{ borderColor: estadoRetorno(dossie) === 'VENCIDO' ? '#fca5a5' : '#bae6fd', background: estadoRetorno(dossie) === 'VENCIDO' ? '#fef2f2' : '#f0f9ff' }}>
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <p className="text-sm font-bold" style={{ color: '#075985' }}>📅 Próximo retorno</p>
+                      <ChipRetorno c={dossie} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Data e hora</label>
+                        <input type="datetime-local" value={retornoForm.em} onChange={e => setRetornoForm((f: any) => ({ ...f, em: e.target.value }))} className="ps-input w-full" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">O que fazer</label>
+                        <select value={retornoForm.tipo} onChange={e => setRetornoForm((f: any) => ({ ...f, tipo: e.target.value }))} className="ps-input w-full">
+                          <option value="CONTATO">Contato com o cliente</option>
+                          <option value="ATIVIDADE">Atividade</option>
+                          <option value="ACAO">Ação</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Quem faz</label>
+                        <select value={retornoForm.responsavel_id} onChange={e => setRetornoForm((f: any) => ({ ...f, responsavel_id: e.target.value }))} className="ps-input w-full">
+                          {user?.id && !equipe.some(u => u.id === user.id) && <option value={user.id}>Eu</option>}
+                          {dossie.retorno_responsavel_id && dossie.retorno_responsavel_id !== user?.id && !equipe.some(u => u.id === dossie.retorno_responsavel_id) && <option value={dossie.retorno_responsavel_id}>{dossie.retorno_responsavel_nome || 'Responsável atual'}</option>}
+                          {equipe.map(u => <option key={u.id} value={u.id}>{u.id === user?.id ? `Eu (${u.nome})` : u.nome}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <input value={retornoForm.obs} onChange={e => setRetornoForm((f: any) => ({ ...f, obs: e.target.value }))} className="ps-input w-full mt-2" placeholder="O que combinar ou verificar (ex.: ligar para o dono e oferecer a renegociação)" />
+                    {erroRetorno && <p className="text-xs text-red-600 mt-2">{erroRetorno}</p>}
+                    <div className="flex flex-wrap gap-2 mt-3 items-center">
+                      <button onClick={() => acaoRetorno('marcar')} disabled={salvandoRetorno} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 disabled:opacity-50">
+                        {dossie.retorno_em ? 'Remarcar retorno' : 'Marcar retorno'}
+                      </button>
+                      {dossie.retorno_em && <>
+                        <input value={retornoForm.feito} onChange={e => setRetornoForm((f: any) => ({ ...f, feito: e.target.value }))} className="ps-input" style={{ flex: '1 1 220px' }} placeholder="Como foi? (vai para a linha do tempo)" />
+                        <button onClick={() => acaoRetorno('concluir')} disabled={salvandoRetorno} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50">✅ Retorno feito</button>
+                        <button onClick={() => acaoRetorno('desmarcar')} disabled={salvandoRetorno} className="px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 disabled:opacity-50">Desmarcar</button>
+                      </>}
+                    </div>
+                    <p className="text-[11px] mt-2" style={{ color: '#0369a1' }}>Na hora marcada, quem faz e quem marcou recebem aviso no celular, e o retorno fica no sino de Alertas e no topo do Churn até ser feito ou remarcado. Se for outra pessoa, ela é avisada na hora em que você marcar.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Encaminhar ao supervisor técnico — texto pronto p/ copiar */}
               <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
                 <div className="flex items-center justify-between gap-2 mb-2">

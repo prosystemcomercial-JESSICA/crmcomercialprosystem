@@ -274,6 +274,22 @@ model CasoChurn {
   // PERDIDO; idempotente (não sobrescreve).
   sistema_removido_em DateTime?
 
+  // Situação do pedido do cliente (pedido da Jessica, 26/10/2026): etiqueta no card.
+  // OBSERVACAO = cliente em observação (bolinha azul piscando); CANCELAMENTO = pediu o cancelamento de fato (vermelha).
+  situacao_pedido    String?
+  situacao_pedido_em DateTime?
+
+  // Próximo retorno marcado (contato, atividade ou ação com data). Na hora marcada o responsável
+  // recebe aviso no celular e o retorno aparece no sino de Alertas até ser concluído ou remarcado.
+  retorno_em               DateTime?
+  retorno_tipo             String? // CONTATO | ATIVIDADE | ACAO
+  retorno_obs              String?   @db.Text
+  retorno_responsavel_id   String?
+  retorno_responsavel_nome String?
+  retorno_marcado_por      String?
+  retorno_marcado_por_nome String?
+  retorno_avisado_em       DateTime?
+
   created_by String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -288,6 +304,7 @@ model CasoChurn {
   @@index([clienteId])
   @@index([risk_score])
   @@index([created_at])
+  @@index([retorno_em])
 }
 
 // Linha do tempo do caso de churn: cada atualização (observação, contato,

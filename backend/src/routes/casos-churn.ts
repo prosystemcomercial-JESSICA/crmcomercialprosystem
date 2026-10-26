@@ -8,6 +8,8 @@ import { CreateCasoChurnSchema, UpdateCasoChurnSchema, ListCasoChurnSchema } fro
 import { listarExclusao, enviarAoCeo, marcarExclusao, relatorioExclusaoPdf, trilhaCancelamento } from '@/services/churn-exclusao.service';
 import { ROLES_EXCLUSAO, podeSelecionarExclusao } from '@/lib/churn-exclusao';
 import { STATUS_PERDA } from '@/lib/caso-churn-status';
+import { SITUACOES_PEDIDO, TIPOS_RETORNO } from '@/lib/churn-retorno';
+import { definirSituacaoPedido, marcarRetorno, concluirRetorno, desmarcarRetorno } from '@/services/churn-retorno.service';
 
 export async function casosChurnRoutes(
   fastify: FastifyInstance,
@@ -290,6 +292,54 @@ export async function casosChurnRoutes(
     // Mexer no caso atualiza o updated_at (mantém "última movimentação").
     await prisma.casoChurn.update({ where: { id }, data: { updated_at: new Date() } }).catch(() => {});
     return reply.status(201).send({ status: 'success', data: item });
+  });
+
+  // ── SITUAÇÃO DO PEDIDO E RETORNO MARCADO (pedido da Jessica, 26/10/2026) ──────
+  const erroRetorno = (reply: any, error: any, onde: string) => {
+    if (error.name === 'ZodError') return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
+    if (error.name === 'BadRequestError') return reply.status(400).send({ status: 'error', message: error.message });
+    if (error.name === 'NotFoundError') return reply.status(404).send({ status: 'error', message: error.message });
+    console.error(`[${onde}]`, error);
+    return reply.status(500).send({ status: 'error', message: 'Erro ao salvar' });
+  };
+  const ator = (request: any) => ({ id: request.user?.id, nome: request.user?.nome });
+
+  // PATCH /casos-churn/:id/situacao — etiqueta "em observação" / "pediu cancelamento" (null tira)
+  fastify.patch('/casos-churn/:id/situacao', { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = z.object({ situacao: z.enum(SITUACOES_PEDIDO).nullable() }).parse(request.body);
+      return reply.send({ status: 'success', data: await definirSituacaoPedido(prisma, id, body.situacao, ator(request)) });
+    } catch (error: any) { return erroRetorno(reply, error, 'PATCH /casos-churn/:id/situacao'); }
+  });
+
+  // PUT /casos-churn/:id/retorno — marca (ou remarca) o próximo retorno, com responsável
+  fastify.put('/casos-churn/:id/retorno', { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = z.object({
+        em: z.string().min(1), tipo: z.enum(TIPOS_RETORNO).default('CONTATO'),
+        obs: z.string().max(1000).optional().nullable(), responsavel_id: z.string().optional().nullable(),
+      }).parse(request.body);
+      return reply.send({ status: 'success', data: await marcarRetorno(prisma, id, body, ator(request)) });
+    } catch (error: any) { return erroRetorno(reply, error, 'PUT /casos-churn/:id/retorno'); }
+  });
+
+  // POST /casos-churn/:id/retorno/concluir — retorno feito (vai para a linha do tempo)
+  fastify.post('/casos-churn/:id/retorno/concluir', { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = z.object({ texto: z.string().max(2000).optional().nullable() }).parse(request.body || {});
+      return reply.send({ status: 'success', data: await concluirRetorno(prisma, id, body.texto || null, ator(request)) });
+    } catch (error: any) { return erroRetorno(reply, error, 'POST /casos-churn/:id/retorno/concluir'); }
+  });
+
+  // DELETE /casos-churn/:id/retorno — desmarca sem registrar como feito
+  fastify.delete('/casos-churn/:id/retorno', { onRequest: [requireAuth, requireRole(ROLES_TRATAM_CHURN)] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      return reply.send({ status: 'success', data: await desmarcarRetorno(prisma, id, ator(request)) });
+    } catch (error: any) { return erroRetorno(reply, error, 'DELETE /casos-churn/:id/retorno'); }
   });
 
   // ── RENEGOCIAÇÃO (dificuldade financeira) ─────────────────────────────────
