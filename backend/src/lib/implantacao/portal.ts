@@ -446,6 +446,83 @@ export function checklistDoModelo(modelos: ModeloChecklist[] | undefined, extras
   if (extra.length) grupos.find(g => g.grupo === 'CONVERSAO')!.itens = [...grupos.find(g => g.grupo === 'CONVERSAO')!.itens, ...extra];
   return grupos;
 }
+
+// ─── Perfil da implantação: segmento do cliente + tipo de base (pedido da Jessica, 26/10/2026) ─────
+// As listas acima foram escritas para farmácia e conversão. Varejo e padaria não usam PBM, SNGPC,
+// Farmácias APP nem prescritores; banco zerado não tem conversão nem testes de conversão.
+export type SegmentoPerfil = 'FARMACIA' | 'PADARIA' | 'VAREJO';
+export type PerfilImplantacao = { segmento: SegmentoPerfil; zerado: boolean };
+export const NOME_SEGMENTO: Record<SegmentoPerfil, string> = { FARMACIA: 'Farmácia', PADARIA: 'Padaria', VAREJO: 'Varejo' };
+/** Segmento do cadastro do cliente → perfil. Sem segmento fica Farmácia (a base da Prosystem e o comportamento de antes). */
+export function segmentoDoPerfil(segmento?: string | null): SegmentoPerfil {
+  const s = norm(segmento);
+  if (!s || /farm|drog|manipul/.test(s)) return 'FARMACIA';
+  if (/padar|panific|confeit/.test(s)) return 'PADARIA';
+  return 'VAREJO';
+}
+export const perfilDe = (segmento?: string | null, tipoBase?: string | null): PerfilImplantacao => ({ segmento: segmentoDoPerfil(segmento), zerado: tipoBase === 'BANCO_ZERADO' });
+export const descreverPerfil = (p: PerfilImplantacao) => `${NOME_SEGMENTO[p.segmento]} · ${p.zerado ? 'banco zerado' : 'conversão'}`;
+
+// Itens de farmácia: fora da farmácia somem (null) ou trocam de texto.
+const SO_FARMACIA: Record<string, string | null> = {
+  'Controle de lote, validade e medicamentos controlados definido': 'Controle de lote e validade definido (quando o produto exigir)',
+  'Integrações mapeadas (TEF, PBM, Farmácia Popular, convênios, e-commerce)': 'Integrações mapeadas (TEF, convênios, e-commerce)',
+  'Instalar e Configurar Farmácias APP': null,
+  'Validar Produtos (cód. barras, estoque, tributação, registro MS, custo, venda, lucro, promoção...)': 'Validar Produtos (cód. barras, estoque, tributação, custo, venda, lucro, promoção...)',
+  'Validar Cadastro de Empresas e Prescritores': 'Validar Cadastro de Empresas',
+  'Controlados / Receitas - Controle SNGPC': null,
+  'PBM': null,
+};
+// Itens de conversão no roteiro: no banco zerado trocam de texto.
+const SO_CONVERSAO: Record<string, string | null> = {
+  'Sistema anterior, escopo da migração e volume aproximado de produtos': 'Volume aproximado de produtos e quem fará o cadastro inicial (banco zerado)',
+};
+const CAMPOS_SO_FARMACIA = ['pbms', 'sngpc'];
+const CAMPOS_SO_CONVERSAO = ['sistema_anterior'];
+
+/** Ajusta uma lista de itens ao perfil (troca ou tira os que não fazem sentido). */
+export function ajustarAoPerfil(itens: string[], p: PerfilImplantacao): string[] {
+  const troca = (t: string) => {
+    let r: string | null = t;
+    if (p.segmento !== 'FARMACIA' && r in SO_FARMACIA) r = SO_FARMACIA[r];
+    if (r && p.zerado && r in SO_CONVERSAO) r = SO_CONVERSAO[r];
+    return r;
+  };
+  return itens.map(troca).filter((t): t is string => !!t);
+}
+export const onboardingSecoesDoPerfil = (p: PerfilImplantacao) => ONBOARDING_SECOES.map(s => ({ secao: s.secao, itens: ajustarAoPerfil(s.itens, p) })).filter(s => s.itens.length);
+export const onboardingItensDoPerfil = (p: PerfilImplantacao) => onboardingSecoesDoPerfil(p).flatMap(s => s.itens);
+export const perguntasDoPerfil = (p: PerfilImplantacao) => PERGUNTAS_PRIMEIRO_CONTATO.filter(k => p.segmento === 'FARMACIA' || !CAMPOS_SO_FARMACIA.includes(k));
+export const perguntasRespondidasDoPerfil = (coleta: any, p: PerfilImplantacao) => perguntasDoPerfil(p).every(k => coleta && String(coleta[k] ?? '').trim() !== '');
+export function camposColetaDoPerfil(p: PerfilImplantacao) {
+  return CAMPOS_COLETA
+    .filter(c => (p.segmento === 'FARMACIA' || !CAMPOS_SO_FARMACIA.includes(c.key)) && (!p.zerado || !CAMPOS_SO_CONVERSAO.includes(c.key)))
+    .map(c => p.segmento === 'FARMACIA' ? c
+      : c.key === 'controle_lote' ? { ...c, label: 'Controle de lote e validade' }
+      : c.key === 'integracoes' ? { ...c, label: 'Integrações (TEF, convênios, e-commerce)' } : c);
+}
+/** Checklist do perfil: modelo do segmento (ou padrão) ajustado; banco zerado não tem o grupo de conversão. */
+export function checklistDoPerfil(modelos: ModeloChecklist[] | undefined, extras: ExtraSistema[] | undefined, segmento: string | null | undefined, sistemaAnterior: string | null | undefined, p: PerfilImplantacao) {
+  return checklistDoModelo(modelos, extras, segmento, p.zerado ? null : sistemaAnterior)
+    .filter(g => !(p.zerado && g.grupo === 'CONVERSAO'))
+    .map(g => ({ grupo: g.grupo, itens: ajustarAoPerfil(g.itens, p) }));
+}
+/** Todos os textos padrão (de qualquer perfil): só esses podem sair num realinhamento; item criado à mão nunca sai. */
+export const TITULOS_PADRAO = new Set<string>([
+  ...ONBOARDING_ITENS, ...CHECKLIST_PADRAO.flatMap(g => g.itens),
+  ...Object.values(SO_FARMACIA).filter((t): t is string => !!t), ...Object.values(SO_CONVERSAO).filter((t): t is string => !!t),
+]);
+/** O que muda no checklist de uma implantação para casar com o perfil: tira itens padrão não feitos que não cabem, põe os que faltam. */
+export function realinhamento(atuais: { id: string; grupo: string; titulo: string; feito: boolean }[], esperados: { grupo: string; itens: string[] }[]) {
+  const quer = new Map(esperados.map(g => [g.grupo, new Set(g.itens)]));
+  const remover = atuais.filter(a => !a.feito && TITULOS_PADRAO.has(a.titulo) && quer.has(a.grupo) && !quer.get(a.grupo)!.has(a.titulo)).map(a => a.id);
+  // Grupo de conversão inteiro no banco zerado: sai o que não foi feito.
+  const semGrupo = atuais.filter(a => !a.feito && a.grupo === 'CONVERSAO' && !quer.has('CONVERSAO') && TITULOS_PADRAO.has(a.titulo)).map(a => a.id);
+  const ja = new Set(atuais.map(a => `${a.grupo}|${a.titulo}`));
+  const incluir = esperados.flatMap(g => g.itens.map((titulo, ordem) => ({ grupo: g.grupo, titulo, ordem })).filter(x => !ja.has(`${x.grupo}|${x.titulo}`)));
+  return { remover: [...remover, ...semGrupo], incluir };
+}
+
 export function extrasDoSistema(extras: ExtraSistema[] | undefined, sistemaAnterior?: string | null): string[] {
   const s = norm(sistemaAnterior);
   if (!s) return [];

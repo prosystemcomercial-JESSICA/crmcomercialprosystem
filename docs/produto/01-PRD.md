@@ -1893,3 +1893,25 @@ Revisão solicitada: a cada abertura ou recarregamento do CRM todos os grupos de
 - **Caso:** no contato Mauro Cesar (proposta Papel Picote Toys, link gerado e desconto aprovado), a Jessica clicou várias vezes em "Enviar / reenviar" e nada saiu. Esse botão só abria e fechava a lista; o envio era o botão pequeno "Enviar" dentro do cartão, que não foi clicado (o servidor não recebeu nenhum `enviar-proposta`).
 - **Tela (`EnviarPropostaWpp`):** o botão de cima passou a se chamar **Propostas do contato** (aberto: **Fechar propostas**). Com propostas na lista aparece a dica "Clique em Enviar para o cliente na proposta…". O botão do cartão ficou cheio (verde-azulado, branco, 12px): **Enviar para o cliente** / **Reenviar para o cliente**.
 - **Uma vez só:** trava na tela (`useRef`) contra clique duplo antes de redesenhar, e no servidor (`enviarPropostaWhatsapp`) recusa o envio da mesma proposta para a mesma conversa em menos de 1 minuto ("Esta proposta acabou de ser enviada para este contato."). Reenviar de propósito continua valendo depois disso.
+
+### Atualização 26/10/2026: onboarding e checklist por segmento e por tipo de base
+
+**Pedido da Jessica:** o card de um cliente de **varejo** em **banco zerado** pedia PBM, SNGPC, Farmácias APP, prescritores, conversão e testes de conversão, que não fazem sentido para ele. Varejo é diferente de farmácia; banco zerado é diferente de conversão.
+
+- **Perfil da implantação** = segmento do cadastro do cliente + tipo de base (`lib/implantacao/portal.ts`: `segmentoDoPerfil`, `perfilDe`, `descreverPerfil`).
+  - Segmento: "farm", "drog" ou "manipul" → **Farmácia**; "padar", "panific" ou "confeit" → **Padaria**; qualquer outro texto → **Varejo**. Cliente **sem segmento** fica Farmácia (comportamento de antes).
+  - Tipo: `tipo_base = BANCO_ZERADO` → banco zerado; o resto → conversão.
+- **Fora da farmácia** (Varejo e Padaria):
+  - Perguntas do primeiro contato: saem **PBMs utilizadas** e **SNGPC** (ficam 13; farmácia continua com 15). O item "Perguntas principais respondidas" se marca com as perguntas do perfil (`perguntasDoPerfil`, `perguntasRespondidasDoPerfil`).
+  - Roteiro do onboarding: "Controle de lote, validade e medicamentos controlados" vira "Controle de lote e validade definido (quando o produto exigir)"; "Integrações (TEF, PBM, Farmácia Popular...)" vira "Integrações mapeadas (TEF, convênios, e-commerce)".
+  - Checklist: sai "Instalar e Configurar Farmácias APP" (instalação), "Controlados / Receitas - Controle SNGPC" e "PBM" (treinamento); na conversão, "Validar Produtos" perde "registro MS" e "Validar Cadastro de Empresas e Prescritores" vira "Validar Cadastro de Empresas".
+  - Ficha de coleta: somem PBMs e SNGPC; "Controle de lote, validade e controlados" vira "Controle de lote e validade"; Integrações sem PBM/Farmácia Popular (`camposColetaDoPerfil`).
+- **Banco zerado** (qualquer segmento):
+  - Não recebe o grupo **Conversão** do checklist nem os **Testes de conversão** (a aba some do card, a não ser que já haja teste registrado).
+  - Roteiro: "Sistema anterior, escopo da migração e volume de produtos" vira "Volume aproximado de produtos e quem fará o cadastro inicial (banco zerado)". A ficha não mostra "Sistema anterior".
+- **Modelos por segmento** (Configurações do portal) continuam valendo: o modelo do segmento entra e passa pelo mesmo ajuste.
+- **Quando se aplica:** na designação do técnico (o checklist já nasce no perfil); quando a ficha troca banco zerado ↔ conversão (`realinharAoPerfil` no `PUT /implantacoes/:id/coleta`, com nota no histórico); e nas implantações já abertas pelo script `backend/scripts/realinhar-perfil-implantacoes.ts` (sem `--aplicar` só mostra; com `--aplicar` ajusta).
+- **Segurança do ajuste** (`realinhamento`): só sai item **padrão** e **não feito** que não cabe no perfil; item feito ou criado à mão nunca sai. Onboarding já concluído não ganha item novo; loja já virada só ganha item de treinamento. Testes de conversão do banco zerado: saem só os ainda **pendentes**.
+- **Tela:** o cabeçalho do card mostra o perfil ("Implantação · Varejo · banco zerado"); a contagem das perguntas é a do perfil; a API do detalhe devolve `perfil`, `campos_coleta`, `onboarding_secoes` e `perguntas_primeiro_contato` já ajustados.
+- **Banco:** sem mudança de esquema. Testes: `backend/tests/implantacao-perfil.test.ts`.
+- **Próximo passo sugerido:** a Jessica e a supervisão técnica revisam se Varejo e Padaria precisam de itens próprios (ex.: grade de tamanho/cor, balança etiquetadora, produção) e cadastram em Configurações › Modelos por segmento.

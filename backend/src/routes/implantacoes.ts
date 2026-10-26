@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoModelo, colunaDaEtapa, ONBOARDING_ITENS, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidas, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
-import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao } from '@/services/implantacao-portal.service';
+import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, colunaDaEtapa, onboardingItensDoPerfil, perfilDe, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidasDoPerfil, perguntasDoPerfil, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
+import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, TESTES_PADRAO } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -18,7 +18,6 @@ import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefa
  */
 
 const ETAPAS_EXEC = ['AGUARDANDO_DESIGNACAO', 'DESIGNADO', 'EM_ANALISE', 'EM_CONVERSAO', 'EM_CONFIGURACAO', 'EM_TREINAMENTO', 'FINALIZADO'];
-const TESTES_PADRAO = ['Produtos', 'Clientes', 'Fornecedores', 'Estoque', 'Financeiro (a pagar/receber)', 'Fiscal / NF-e', 'Vendas / Histórico'];
 
 
 function dias(a?: Date | string | null, b?: Date | string | null): number | null {
@@ -184,27 +183,27 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
       },
     });
 
-    // Semeia testes e checklist padrão (uma vez).
+    // Semeia testes e checklist (uma vez), no perfil da implantação: segmento do cliente + banco zerado/conversão.
+    const segmento = imp.modulo === 'IMPLANTACAO' ? await segmentoDaImplantacao(prisma, imp) : null;
+    const perfil = perfilDe(segmento, imp.tipo_base);
     const temTeste = await prisma.implantacaoTeste.count({ where: { implantacao_id: id } });
-    if (temTeste === 0) {
+    if (temTeste === 0 && imp.modulo === 'IMPLANTACAO' && !perfil.zerado) {
       await prisma.implantacaoTeste.createMany({ data: TESTES_PADRAO.map(item => ({ implantacao_id: id, item })) }).catch(() => {});
     }
     const temChk = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id } });
     if (temChk === 0) {
-      // Semeia a trilha completa (3 grupos: Instalação, Conversão, Treinamento) pelo modelo do segmento do
-      // cliente (Configurações do portal), com os itens extras do sistema de origem na conversão.
+      // Semeia a trilha (Instalação, Conversão só na conversão, Treinamento) pelo modelo do segmento do cliente
+      // (Configurações do portal), sem os itens de farmácia fora da farmácia e com os extras do sistema de origem.
       const itens: any[] = [];
-      if (imp.modulo === 'IMPLANTACAO') ONBOARDING_ITENS.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i }));
+      if (imp.modulo === 'IMPLANTACAO') onboardingItensDoPerfil(perfil).forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i }));
       const cfg = await obterConfigPortal(prisma);
-      const cli = imp.cliente_id ? await prisma.cliente.findUnique({ where: { id: imp.cliente_id }, select: { segmento: true } }).catch(() => null)
-        : imp.cliente_cnpj ? await prisma.cliente.findFirst({ where: { cnpj: imp.cliente_cnpj }, select: { segmento: true } }).catch(() => null) : null;
-      const grupos = imp.modulo === 'IMPLANTACAO' ? checklistDoModelo(cfg.modelos, cfg.extras_sistema, cli?.segmento, imp.sistema_anterior) : CHECKLIST_PADRAO;
+      const grupos = imp.modulo === 'IMPLANTACAO' ? checklistDoPerfil(cfg.modelos, cfg.extras_sistema, segmento, imp.sistema_anterior, perfil) : CHECKLIST_PADRAO;
       grupos.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
       await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
     }
     // Implantação designada antes do onboarding técnico existir: acrescenta os itens dele (uma vez).
     if (imp.modulo === 'IMPLANTACAO' && temChk > 0 && !(await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id, grupo: 'ONBOARDING' } })) && !ehLegado(imp)) {
-      await prisma.implantacaoChecklistItem.createMany({ data: ONBOARDING_ITENS.map((titulo, i) => ({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i })) }).catch(() => {});
+      await prisma.implantacaoChecklistItem.createMany({ data: onboardingItensDoPerfil(perfil).map((titulo, i) => ({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i })) }).catch(() => {});
     }
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
@@ -337,8 +336,9 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const atual = await prisma.implantacaoChecklistItem.findUnique({ where: { id: itemId }, include: { implantacao: { include: { checklist: { select: { grupo: true, feito: true } } } } } });
     if (!atual) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
     // Onboarding técnico primeiro: os outros grupos ficam travados até o primeiro contato estar concluído.
-    if (atual.grupo === 'ONBOARDING' && atual.titulo === ITEM_PERGUNTAS && body.data.feito && !perguntasRespondidas(atual.implantacao.coleta)) {
-      return reply.status(400).send({ status: 'error', message: 'Responda as 15 perguntas principais na aba Onboarding técnico; este item se marca sozinho.' });
+    const perfilItem = atual.grupo === 'ONBOARDING' && atual.titulo === ITEM_PERGUNTAS && body.data.feito ? await perfilDaImplantacao(prisma, atual.implantacao) : null;
+    if (perfilItem && !perguntasRespondidasDoPerfil(atual.implantacao.coleta, perfilItem)) {
+      return reply.status(400).send({ status: 'error', message: `Responda as ${perguntasDoPerfil(perfilItem).length} perguntas principais na aba Onboarding técnico; este item se marca sozinho.` });
     }
     if (atual.grupo !== 'ONBOARDING' && !onboardingOk(atual.implantacao, atual.implantacao.checklist)) {
       return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes dos outros passos.' });

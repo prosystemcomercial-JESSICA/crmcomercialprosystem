@@ -874,6 +874,16 @@ Toda implantação nova começa pelo **Onboarding técnico** (Portal Técnico �
 
 Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas principais durante a conversa com o cliente: máquinas, faturamento, caixas, impressora NFC-e, etiquetas, colaboradores, PBMs, financeiro, corretor tributário, gerencial, SNGPC, comunicação, banco único, preço único e TEF. Sem as 15 respondidas, o onboarding não conclui.
 
+### Atualização 26/10/2026: onboarding por segmento
+
+O onboarding e o checklist seguem o **segmento do cadastro do cliente** e o **tipo** (banco zerado ou conversão):
+
+- **Farmácia** (farmácia, drogaria, manipulação ou cliente sem segmento): igual a antes, 15 perguntas.
+- **Varejo e Padaria:** 13 perguntas (sem PBMs e SNGPC); sem Farmácias APP, SNGPC, PBM e prescritores no checklist.
+- **Banco zerado:** sem a parte de conversão e sem a aba Testes de conversão.
+
+O cabeçalho do card mostra o perfil (ex.: "Implantação · Varejo · banco zerado"). **Se aparecer item que não faz sentido, confira o segmento no cadastro do cliente.** Se trocar banco zerado ↔ conversão na ficha de coleta, o checklist se ajusta sozinho (item já marcado nunca sai).
+
 ### Atualização 02/10/2026: técnicos e recados no Portal Técnico
 
 - **Técnico entra direto no Portal Técnico** e não vê o resto do CRM. Para sair, usa o botão **Sair** no canto da tela.

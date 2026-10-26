@@ -246,7 +246,8 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico do card', MessageSquare], ['prints', 'Prints', FileText],
-    ...(!servico ? [['testes', `Testes de conversão${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length ? ` (${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length})` : ''}`, CheckCircle] as [Aba, string, any]] : []),
+    // Testes de conversão: só na conversão (banco zerado não tem, a não ser que já existam testes registrados).
+    ...(!servico && (d.implantacao.tipo_base !== 'BANCO_ZERADO' || (d.testes || []).length) ? [['testes', `Testes de conversão${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length ? ` (${(d.testes || []).filter((t: any) => ['PENDENTE', 'DIVERGENTE'].includes(t.resultado)).length})` : ''}`, CheckCircle] as [Aba, string, any]] : []),
     ['anexos', `Arquivos${(d.anexos || []).length ? ` (${d.anexos.length})` : ''}`, FileText], ['inventario', 'Inventário técnico', Settings],
     ['tarefascliente', `Tarefas do cliente${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length ? ` (${(d.tarefas_cliente || []).filter((t: any) => t.status !== 'CONCLUIDA').length})` : ''}`, FileText],
   ];
@@ -619,7 +620,7 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
   );
 }
 
-/** As 15 perguntas principais do primeiro contato: o técnico preenche durante a conversa com o cliente. */
+/** Perguntas principais do primeiro contato (as do segmento do cliente): o técnico preenche durante a conversa com o cliente. */
 function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () => void }) {
   const i = d.implantacao;
   const campos = (d.perguntas_primeiro_contato || []).map((k: string) => d.campos_coleta.find((c: any) => c.key === k)).filter(Boolean);
@@ -650,7 +651,7 @@ function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () =>
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button disabled={salvando} onClick={salvar} style={btn('#286397')}>{salvando ? <Loader2 size={13} className="animate-spin" /> : null} Salvar respostas</button>
-        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Com as 15 respondidas, o item "Perguntas principais" do roteiro se marca sozinho.</span>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Com as {campos.length} respondidas, o item "Perguntas principais" do roteiro se marca sozinho.{d.perfil ? ` Perguntas de ${d.perfil.segmento === 'FARMACIA' ? 'farmácia' : d.perfil.segmento === 'PADARIA' ? 'padaria' : 'varejo'} (segmento do cadastro do cliente).` : ''}</span>
       </div>
     </div>
   );

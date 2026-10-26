@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, fecharEsperaDeTarefa,
+  salvarArquivoCliente, criarTarefasClientePadrao, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -183,9 +183,15 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       }
     }
     // As 15 perguntas do primeiro contato respondidas: o item do onboarding se marca sozinho (e desmarca se apagarem alguma).
-    const { perguntasRespondidas, ITEM_PERGUNTAS } = await import('@/lib/implantacao/portal');
+    // Banco zerado ↔ conversão trocado na ficha: o checklist e os testes de conversão acompanham o novo perfil.
+    if (imp.modulo === 'IMPLANTACAO' && extra.tipo_base && extra.tipo_base !== imp.tipo_base) {
+      const r = await realinharAoPerfil(prisma, id, u.nome || u.id).catch(() => null);
+      if (r && (r.removidos || r.incluidos || r.testes)) await atividade(id, 'NOTA', `🧭 Checklist ajustado para ${descreverPerfil(r.perfil)} (${r.removidos} item(ns) tirado(s), ${r.incluidos} incluído(s))`, u);
+    }
+    const { perguntasRespondidasDoPerfil, ITEM_PERGUNTAS } = await import('@/lib/implantacao/portal');
+    const perfilColeta = await perfilDaImplantacao(prisma, { ...imp, tipo_base: extra.tipo_base || imp.tipo_base });
     await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: id, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS },
-      data: perguntasRespondidas(coleta) ? { feito: true, feito_por: u.nome || u.id, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
+      data: perguntasRespondidasDoPerfil(coleta, perfilColeta) ? { feito: true, feito_por: u.nome || u.id, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
     return reply.send({ status: 'success', data: { coleta, ...extra } });
   });
 
@@ -728,9 +734,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     // Dados antigos completos (endereço, IE, telefone…) ficam no evento da troca na ficha do cliente.
     const eventoTroca = imp.tipo_servico === 'TROCA_CNPJ' && cliHist
       ? await (prisma as any).eventoCliente.findFirst({ where: { cliente_id: cliHist, tipo: 'TROCA_CNPJ' }, orderBy: { created_at: 'desc' }, select: { metadados: true } }).catch(() => null) : null;
+    // Perfil da implantação: segmento do cliente + banco zerado/conversão decide perguntas, roteiro e ficha.
+    const perfil = perfilDe(cliente_ficha?.segmento, imp.tipo_base);
     const tipo_demanda = imp.modulo === 'SERVICO'
       ? `Serviço · ${(imp.tipo_servico && TIPOS_SERVICO[imp.tipo_servico]?.label) || 'Outro'}`
-      : `Implantação · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
+      : `Implantação · ${descreverPerfil(perfil).split(' · ')[0]} · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
     // Horas de treinamento por fase e de correção por ocorrência (cronômetro).
     const horasPorFase: Record<number, number> = {}, horasPorOcorrencia: Record<string, number> = {};
     for (const s of sessoes) {
@@ -741,8 +749,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send({ status: 'success', data: {
       implantacao: { ...imp, coluna: colunaDe(imp), progresso: progresso(imp, checklist) }, checklist, fases, ocorrencias, comunicacoes: comunicacoes.map(c => ({ ...c, texto: c.texto?.slice(0, 600) })),
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
-      link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: CAMPOS_COLETA,
-      onboarding_secoes: ONBOARDING_SECOES, onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: PERGUNTAS_PRIMEIRO_CONTATO,
+      link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: imp.modulo === 'SERVICO' ? CAMPOS_COLETA : camposColetaDoPerfil(perfil), perfil,
+      onboarding_secoes: onboardingSecoesDoPerfil(perfil), onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: perguntasDoPerfil(perfil),
       proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs, testes: testesConv }),
       testes: testesConv, pos_venda: posVenda,
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),

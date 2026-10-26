@@ -14,6 +14,7 @@ import {
   statusAssistida, type ModeloChecklist, type ExtraSistema,
   TAREFAS_CLIENTE_PADRAO, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
   prazoAjustado, type MetasIndicadores, INICIO_ASSISTIDA,
+  perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, perguntasRespondidasDoPerfil, ITEM_PERGUNTAS, type PerfilImplantacao,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -198,6 +199,55 @@ export async function garantirFasesTreinamento(prisma: PrismaClient, implantacao
   const semFase = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: implantacaoId, grupo: 'TREINAMENTO', fase: null }, select: { id: true, titulo: true } });
   for (const i of semFase) await prisma.implantacaoChecklistItem.update({ where: { id: i.id }, data: { fase: faseDoItemTreinamento(i.titulo) } });
   return fases;
+}
+
+// ─── Perfil da implantação (segmento + tipo de base) ─────────────────────────
+
+/** Testes de conversão: só existem na conversão. */
+export const TESTES_PADRAO = ['Produtos', 'Clientes', 'Fornecedores', 'Estoque', 'Financeiro (a pagar/receber)', 'Fiscal / NF-e', 'Vendas / Histórico'];
+
+/** Segmento do cliente da implantação (cadastro do cliente, pelo id ou CNPJ). */
+export async function segmentoDaImplantacao(prisma: PrismaClient, imp: { cliente_id?: string | null; cliente_cnpj?: string | null }): Promise<string | null> {
+  const cnpj = (imp.cliente_cnpj || '').replace(/\D/g, '');
+  const cli = imp.cliente_id ? await prisma.cliente.findUnique({ where: { id: imp.cliente_id }, select: { segmento: true } }).catch(() => null)
+    : imp.cliente_cnpj ? await prisma.cliente.findFirst({ where: { OR: [{ cnpj: imp.cliente_cnpj }, ...(cnpj ? [{ cnpj }] : [])] }, select: { segmento: true } }).catch(() => null) : null;
+  return cli?.segmento || null;
+}
+export async function perfilDaImplantacao(prisma: PrismaClient, imp: { cliente_id?: string | null; cliente_cnpj?: string | null; tipo_base?: string | null }): Promise<PerfilImplantacao> {
+  return perfilDe(await segmentoDaImplantacao(prisma, imp), imp.tipo_base);
+}
+
+/**
+ * Deixa o checklist e os testes de conversão da implantação do jeito do perfil (pedido da Jessica, 26/10/2026):
+ * tira itens padrão ainda não feitos que não cabem no segmento/tipo e acrescenta os que faltam.
+ * Item feito e item criado à mão nunca saem. Onboarding já concluído não ganha item novo.
+ */
+export async function realinharAoPerfil(prisma: PrismaClient, implantacaoId: string, por = 'Sistema') {
+  const imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId } });
+  if (!imp || imp.modulo !== 'IMPLANTACAO' || ehLegado(imp)) return null;
+  const segmento = await segmentoDaImplantacao(prisma, imp);
+  const p = perfilDe(segmento, imp.tipo_base);
+  const cfg = await obterConfigPortal(prisma);
+  const atuais = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: implantacaoId }, select: { id: true, grupo: true, titulo: true, feito: true } });
+  if (!atuais.length) return null; // ainda não designada: o checklist nasce na designação, já no perfil
+  const esperados = checklistDoPerfil(cfg.modelos, cfg.extras_sistema, segmento, imp.sistema_anterior, p);
+  if (!imp.onboarding_concluido_em && atuais.some(a => a.grupo === 'ONBOARDING')) esperados.unshift({ grupo: 'ONBOARDING', itens: onboardingItensDoPerfil(p) });
+  // Treinamento já em andamento ou loja virada: só tira o que não cabe, não acrescenta passo novo de preparação.
+  const r = realinhamento(atuais, esperados);
+  const incluir = imp.virada_fim_em ? r.incluir.filter(x => x.grupo === 'TREINAMENTO' || x.grupo === 'ONBOARDING') : r.incluir;
+  if (r.remover.length) await prisma.implantacaoChecklistItem.deleteMany({ where: { id: { in: r.remover }, feito: false } });
+  if (incluir.length) await prisma.implantacaoChecklistItem.createMany({ data: incluir.map(x => ({ implantacao_id: implantacaoId, grupo: x.grupo, titulo: x.titulo, ordem: x.ordem, fase: x.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(x.titulo) : null })) });
+  // Testes de conversão: banco zerado não tem (saem os ainda não conferidos); conversão ganha os padrão se não tiver nenhum.
+  let testes = 0;
+  if (p.zerado) testes = (await prisma.implantacaoTeste.deleteMany({ where: { implantacao_id: implantacaoId, resultado: 'PENDENTE' } })).count;
+  else if (!(await prisma.implantacaoTeste.count({ where: { implantacao_id: implantacaoId } }))) testes = -(await prisma.implantacaoTeste.createMany({ data: TESTES_PADRAO.map(item => ({ implantacao_id: implantacaoId, item })) })).count;
+  // Perguntas do primeiro contato: o item se marca/desmarca conforme as perguntas do perfil.
+  if (!imp.onboarding_concluido_em) {
+    const ok = perguntasRespondidasDoPerfil(imp.coleta, p);
+    await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: implantacaoId, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS, feito: !ok },
+      data: ok ? { feito: true, feito_por: por, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
+  }
+  return { perfil: p, removidos: r.remover.length, incluidos: incluir.length, testes };
 }
 
 // ─── Página e mensagens do cliente ───────────────────────────────────────────
