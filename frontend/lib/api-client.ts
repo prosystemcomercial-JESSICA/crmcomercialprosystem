@@ -189,11 +189,27 @@ class ApiClient {
     return this.client.get('/casos-churn', { params });
   }
 
+  async getCaso(id: string) {
+    return this.client.get(`/casos-churn/${id}`);
+  }
   async getAtualizacoesCaso(id: string) {
     return this.client.get(`/casos-churn/${id}/atualizacoes`);
   }
   async addAtualizacaoCaso(id: string, data: { tipo: string; texto: string; canal?: string; resultado?: string }) {
     return this.client.post(`/casos-churn/${id}/atualizacoes`, data);
+  }
+  // Etiqueta do caso (em observação / pediu cancelamento) e retorno marcado (26/10/2026).
+  async situacaoCaso(id: string, situacao: 'OBSERVACAO' | 'CANCELAMENTO' | null) {
+    return this.client.patch(`/casos-churn/${id}/situacao`, { situacao });
+  }
+  async marcarRetornoCaso(id: string, data: { em: string; tipo: string; obs?: string; responsavel_id?: string | null }) {
+    return this.client.put(`/casos-churn/${id}/retorno`, data);
+  }
+  async concluirRetornoCaso(id: string, texto?: string) {
+    return this.client.post(`/casos-churn/${id}/retorno/concluir`, { texto: texto || null });
+  }
+  async desmarcarRetornoCaso(id: string) {
+    return this.client.delete(`/casos-churn/${id}/retorno`);
   }
 
   async createCaso(clienteId: string, motivo_principal?: string, descricao?: string, retroativo?: boolean, data_abertura_real?: string) {
