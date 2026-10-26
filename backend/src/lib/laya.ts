@@ -47,14 +47,14 @@ export const TIPOS_SEM_IA = ['EQUIPE', 'PARCEIRO', 'FORNECEDOR', 'OUTRO', 'TERCE
 // Etiquetas que também tiram o contato dos robôs e agentes (pedido da Jessica, 01/10/2026).
 export const ETIQUETAS_SEM_IA = /equipe|prosystem|parceir|fornecedor|suporte|financeiro|^outro/i;
 
-/** O contato (qualquer conversa deste número) foi marcado como algo que não é lead nem cliente? */
+/** O contato (qualquer conversa deste número) foi marcado como algo que não é lead nem cliente, ou tirado do funil pela equipe? */
 export async function contatoSemAgentes(prisma: any, numero: string | null | undefined): Promise<boolean> {
   const fim = String(numero || '').replace(/\D/g, '').slice(-8);
   if (fim.length < 8) return false;
-  const cs: { tipo_contato: string | null; etiqueta: string | null }[] = await prisma.whatsappConversa.findMany({
-    where: { contato_numero: { endsWith: fim } }, select: { tipo_contato: true, etiqueta: true },
+  const cs: { tipo_contato: string | null; etiqueta: string | null; fora_do_funil_em: Date | null }[] = await prisma.whatsappConversa.findMany({
+    where: { contato_numero: { endsWith: fim } }, select: { tipo_contato: true, etiqueta: true, fora_do_funil_em: true },
   }).catch(() => []);
-  return cs.some(c => (c.tipo_contato && TIPOS_SEM_IA.includes(c.tipo_contato)) || (c.etiqueta && ETIQUETAS_SEM_IA.test(c.etiqueta)));
+  return cs.some(c => !!c.fora_do_funil_em || (c.tipo_contato && TIPOS_SEM_IA.includes(c.tipo_contato)) || (c.etiqueta && ETIQUETAS_SEM_IA.test(c.etiqueta)));
 }
 
 export const PERGUNTAS_LAYA = {

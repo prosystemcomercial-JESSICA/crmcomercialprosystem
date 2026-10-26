@@ -887,8 +887,9 @@ export async function leadsRoutes(fastify: FastifyInstance, options: { prisma: P
     await enviarAvisoGestao(prisma, 'lead_qualificado', [`🔥 *${novo ? 'Lead novo' : 'Lead voltou'} pela apresentação de ${d.material}* (atendimento prioritário)`, resumo.split('\n').slice(1).join('\n'), `WhatsApp: ${fone}`, '', novo ? 'Está em Leads para distribuir.' : 'Já estava no CRM: o lead foi reaquecido.'].join('\n')).catch(() => {});
     // A conversa do WhatsApp desse número (o cliente é levado ao WhatsApp em seguida) ganha prioridade crítica e o vínculo com o lead.
     const priorizar = async () => {
-      const conv = await prisma.whatsappConversa.findFirst({ where: { contato_numero: { endsWith: fim8 } }, orderBy: { ultima_em: 'desc' }, select: { id: true, lead_id: true } }).catch(() => null);
-      if (conv) await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { prioridade: 'CRITICA', ...(conv.lead_id ? {} : { lead_id: leadId }) } }).catch(() => {});
+      const conv = await prisma.whatsappConversa.findFirst({ where: { contato_numero: { endsWith: fim8 } }, orderBy: { ultima_em: 'desc' }, select: { id: true, lead_id: true, fora_do_funil_em: true } }).catch(() => null);
+      // Conversa que a equipe tirou do funil não é revinculada sozinha (quem decide é a pessoa, pelo "Identificar").
+      if (conv) await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { prioridade: 'CRITICA', ...(conv.lead_id || conv.fora_do_funil_em ? {} : { lead_id: leadId }) } }).catch(() => {});
       return !!conv;
     };
     if (!(await priorizar())) { setTimeout(() => { priorizar().catch(() => {}); }, 2 * 60_000); setTimeout(() => { priorizar().catch(() => {}); }, 10 * 60_000); }

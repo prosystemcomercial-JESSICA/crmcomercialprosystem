@@ -739,18 +739,19 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
 
   // Desvincula a conversa do funil: tira o lead_id e, se o lead foi criado
   // automaticamente via WhatsApp, faz soft-delete dele (sai do dashboard).
-  // Também desativa o bot (não é um lead comercial — ex.: suporte/fornecedor).
+  // Também desliga todos os agentes, agora e nas próximas mensagens (fora_do_funil_em).
   fastify.post('/whatsapp/conversas/:id/desvincular', async (request, reply) => {
     const { id } = request.params as { id: string };
     const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
     if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
 
-    await prisma.whatsappConversa.update({ where: { id }, data: await dadosSairDoFunil(conversa) });
-    return reply.send({ status: 'success' });
+    const upd = await prisma.whatsappConversa.update({ where: { id }, data: await dadosSairDoFunil(conversa, { semAgentes: true }) });
+    emitirEventoConversa(upd.dono_id, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', data: { fora_do_funil_em: upd.fora_do_funil_em } });
   });
 
   // Tira a conversa do funil / vincula ao cliente: ver whatsapp-vinculo.service.
-  const dadosSairDoFunil = (conversa: { lead_id: string | null }) => dadosSairDoFunilSvc(prisma, conversa);
+  const dadosSairDoFunil = (conversa: { id?: string; lead_id: string | null }, opcoes?: { semAgentes?: boolean }) => dadosSairDoFunilSvc(prisma, conversa, opcoes);
   const vincularContatoCliente = (
     conversa: { id: string; contato_nome: string | null; contato_numero: string },
     clienteId: string, nome: string | undefined, cargo: string | undefined, user: any,
@@ -827,6 +828,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       if (decisao.sairDoFunil) Object.assign(data, await dadosSairDoFunil(conversa));
 
       if (decisao.garantirLead) {
+        // Identificado como Lead: volta ao funil e os agentes voltam a poder atuar.
+        data.fora_do_funil_em = null;
         let leadId = conversa.lead_id;
         if (leadId) {
           const existe = await prisma.lead.findFirst({ where: { id: leadId, deleted_at: null }, select: { id: true } }).catch(() => null);
@@ -961,7 +964,8 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
         instanciaId: inst.id, dono_id: empresa ? user.id : inst.dono_id, contato_numero: numero,
         contato_nome: body.data.nome, lead_id: body.data.lead_id, ultima_em: new Date(),
       },
-      update: { contato_nome: body.data.nome || undefined, lead_id: body.data.lead_id || undefined },
+      // Aberta a partir de um lead: a pessoa pôs a conversa de volta no funil.
+      update: { contato_nome: body.data.nome || undefined, lead_id: body.data.lead_id || undefined, ...(body.data.lead_id ? { fora_do_funil_em: null } : {}) },
     });
     return reply.send({ status: 'success', data: conversa });
   });
@@ -1494,9 +1498,9 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const etiqueta = body.data.etiqueta || null;
     const data: any = { etiqueta, etiqueta_cor: body.data.etiqueta_cor || '#6b7280' };
 
-    // Tipo não-comercial → desvincula do funil (não conta como lead) e desliga o bot.
+    // Tipo não-comercial → desvincula do funil (não conta como lead) e desliga os agentes.
     if (etiqueta && TIPOS_NAO_COMERCIAIS.includes(etiqueta)) {
-      Object.assign(data, await dadosSairDoFunil(conversa));
+      Object.assign(data, await dadosSairDoFunil(conversa, { semAgentes: true }));
     }
 
     const upd = await prisma.whatsappConversa.update({ where: { id }, data });
@@ -2124,19 +2128,22 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       if (parecidas.length === 1) contato_numero = parecidas[0].contato_numero;
     }
 
+    const conversaExistente = await prisma.whatsappConversa.findUnique({
+      where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
+      // ultima_em/bot_* lidos ANTES do upsert (que atualiza ultima_em) — usados p/ detectar triagem abandonada.
+      select: { id: true, ultima_em: true, bot_ativo: true, bot_estado: true, fora_do_funil_em: true },
+    }).catch(() => null);
+    // A equipe tirou esta conversa do funil: não revincula lead e nenhum agente atua (só o "SAIR" de campanha vale).
+    const foraDoFunil = !!conversaExistente?.fora_do_funil_em;
+
     // Tenta vincular a um Lead existente pelo telefone — IGNORANDO máscara.
     // O telefone do lead pode estar salvo como "(27) 99999-8888"; comparar só
     // os dígitos evita não casar com o número cru do WhatsApp (5527999998888).
-    let lead: { id: string; nome: string; responsavel_id?: string | null } | null = await acharLeadPorTelefone(prisma, contato_numero);
+    let lead: { id: string; nome: string; responsavel_id?: string | null } | null = foraDoFunil ? null : await acharLeadPorTelefone(prisma, contato_numero);
 
     // EVO-4 — Captação automática: número desconhecido + conversa nova
     // vira um Lead novo no funil, atribuído ao dono da instância (o vendedor).
     // Na instância da empresa o lead nasce sem responsável (quem assumir a conversa vira o responsável).
-    const conversaExistente = await prisma.whatsappConversa.findUnique({
-      where: { uq_conversa: { instanciaId: inst.id, contato_numero } },
-      // ultima_em/bot_* lidos ANTES do upsert (que atualiza ultima_em) — usados p/ detectar triagem abandonada.
-      select: { id: true, ultima_em: true, bot_ativo: true, bot_estado: true },
-    }).catch(() => null);
 
     if (!lead && !conversaExistente) {
       // Nome do vendedor dono da instância p/ a etiqueta do card (cor + nome).
@@ -2222,7 +2229,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     console.log(`[WPP] Msg recebida de ${contato_numero} (instância ${inst.instancia_nome})`);
     emitirEventoConversa(conversa.dono_id, 'mensagem', { conversaId: conversa.id, mensagem: mensagemCriada });
     // IA Laya: sugere segmento/intenção/risco em segundo plano (não atrasa o webhook).
-    if (tipoMsg === 'TEXTO') agendarAnaliseIa(prisma, conversa.id);
+    if (tipoMsg === 'TEXTO' && !foraDoFunil) agendarAnaliseIa(prisma, conversa.id);
 
     // Lead respondeu: para a cadência automática (não incomodar mais).
     // Não cria atividade: atividades são só lançadas à mão (pedido da gestão, 24/09/2026).
@@ -2236,6 +2243,7 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       try {
         const { responderSaida } = await import('@/services/assistente-campanhas.service');
         if (tipoMsg === 'TEXTO' && await responderSaida(prisma, inst.instance_token || '', conversa.id, contato_numero, texto)) return;
+        if (foraDoFunil) return;
         if (dados.botao_id) {
           const { responderPesquisa } = await import('@/services/assistente-posvenda.service');
           if (await responderPesquisa(prisma, inst.instance_token || '', conversa.id, contato_numero, dados.botao_id)) return;

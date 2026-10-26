@@ -92,8 +92,8 @@ export async function textoParaIa(prisma: PrismaClient, conversaId: string): Pro
 }
 
 async function analisar(prisma: PrismaClient, conversaId: string): Promise<void> {
-  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true, tipo_contato: true, ia_sugestao: true, contato_nome: true, contato_numero: true, lead_id: true, etiqueta: true } });
-  if (!conversa || (conversa.tipo_contato && TIPOS_SEM_IA.includes(conversa.tipo_contato))) return;
+  const conversa = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true, tipo_contato: true, ia_sugestao: true, contato_nome: true, contato_numero: true, lead_id: true, etiqueta: true, fora_do_funil_em: true } });
+  if (!conversa || conversa.fora_do_funil_em || (conversa.tipo_contato && TIPOS_SEM_IA.includes(conversa.tipo_contato))) return;
   const estado = await textoParaIa(prisma, conversaId);
   if (!estado.includes('Cliente:')) return;
 

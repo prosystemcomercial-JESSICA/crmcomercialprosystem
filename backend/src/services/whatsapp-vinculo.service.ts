@@ -7,15 +7,25 @@ import type { PrismaClient } from '@prisma/client';
  * Tira a conversa do funil: soft-delete do lead SÓ se nasceu do WhatsApp
  * (captação automática — lead manual é preservado, só desvincula) e devolve
  * os campos da conversa a gravar (sem lead, robô desligado).
+ * `semAgentes`: a equipe decidiu que a conversa não é comercial ("Desvincular do funil"
+ * ou etiqueta não comercial). Marca fora_do_funil_em e para a cadência: nenhum agente
+ * atua mais nela, nem quando o contato escrever de novo. Cliente identificado não usa
+ * (continua recebendo o pós-venda).
  */
-export async function dadosSairDoFunil(prisma: PrismaClient, conversa: { lead_id: string | null }) {
+export async function dadosSairDoFunil(prisma: PrismaClient, conversa: { id?: string; lead_id: string | null }, opcoes: { semAgentes?: boolean } = {}) {
   if (conversa.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { origem: true } }).catch(() => null);
     if (lead?.origem === 'WHATSAPP') {
       await prisma.lead.update({ where: { id: conversa.lead_id }, data: { deleted_at: new Date() as any } }).catch(() => {});
     }
   }
-  return { lead_id: null, bot_ativo: false, bot_estado: null };
+  const base = { lead_id: null, bot_ativo: false, bot_estado: null };
+  if (!opcoes.semAgentes) return base;
+  // Agente (Caroline, Julio, Luiz Felipe) em andamento nesta conversa sai agora, sem esperar a próxima tentativa.
+  if (conversa.id) {
+    await prisma.sdrLead.updateMany({ where: { conversaId: conversa.id, status: { in: ['FILA', 'AGUARDANDO', 'CONVERSANDO'] } }, data: { status: 'HUMANO' } }).catch(() => {});
+  }
+  return { ...base, fora_do_funil_em: new Date(), cadencia_proxima_etapa: null, cadencia_proximo_envio: null };
 }
 
 /** Vincula a conversa a um cliente e cria/atualiza o contato na ficha dele (dedupe por telefone). */

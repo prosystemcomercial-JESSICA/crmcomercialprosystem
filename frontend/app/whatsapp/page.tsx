@@ -24,6 +24,7 @@ interface Conversa {
   contato_numero: string;
   contato_nome?: string | null;
   lead_id?: string | null;
+  fora_do_funil_em?: string | null; // a equipe tirou do funil: nenhum agente atua
   ultima_mensagem?: string | null;
   ultima_em?: string | null;
   nao_lidas: number;
@@ -548,11 +549,12 @@ export default function WhatsappPage() {
 
   const desvincularFunil = async () => {
     if (!ativa) return;
-    if (!confirm('Desvincular esta conversa do funil? Ela deixa de contar como lead no dashboard.')) return;
+    if (!confirm('Desvincular esta conversa do funil? Ela deixa de contar como lead no dashboard e nenhum agente (robô, Caroline, IA) fala mais com este contato.')) return;
     try {
+      const fora = new Date().toISOString();
       await apiClient.desvincularConversaFunil(ativa.id);
-      setAtiva(prev => prev?.id === ativa.id ? { ...prev, lead_id: null } : prev);
-      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null } : c));
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, lead_id: null, fora_do_funil_em: fora, atendente_ia: null } : prev);
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null, fora_do_funil_em: fora, atendente_ia: null } : c));
     } catch (e: any) { console.error('Falha ao desvincular', e); }
   };
 
@@ -598,7 +600,7 @@ export default function WhatsappPage() {
       const extra: any = {
         tipo_contato: upd.tipo_contato, contato_nome: upd.contato_nome, contato_cargo: upd.contato_cargo,
         contato_empresa: upd.contato_empresa, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor,
-        lead_id: upd.lead_id, bot_ativo: upd.bot_ativo, bot_estado: upd.bot_estado,
+        lead_id: upd.lead_id, bot_ativo: upd.bot_ativo, bot_estado: upd.bot_estado, fora_do_funil_em: upd.fora_do_funil_em,
       };
       if (tipoPedeCliente && vincSel) {
         // Etiqueta verde do cliente na hora (sem precisar recarregar): código + razão.
@@ -869,8 +871,8 @@ export default function WhatsappPage() {
     try {
       const res = await apiClient.etiquetarConversa(ativa.id, nome, cor);
       const upd = res.data.data; // backend pode ter desvinculado (lead_id null) se tipo não-comercial
-      setAtiva(prev => prev?.id === ativa.id ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : prev);
-      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id, fora_do_funil_em: upd.fora_do_funil_em } : prev);
+      setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id, fora_do_funil_em: upd.fora_do_funil_em } : c));
       setMenuEtiqueta(false);
     } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
@@ -880,8 +882,8 @@ export default function WhatsappPage() {
     try {
       const res = await apiClient.etiquetarConversa(convId, nome, cor);
       const upd = res.data.data;
-      setConversas(prev => prev.map(c => c.id === convId ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : c));
-      setAtiva(prev => prev?.id === convId ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id } : prev);
+      setConversas(prev => prev.map(c => c.id === convId ? { ...c, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id, fora_do_funil_em: upd.fora_do_funil_em } : c));
+      setAtiva(prev => prev?.id === convId ? { ...prev, etiqueta: upd.etiqueta, etiqueta_cor: upd.etiqueta_cor, lead_id: upd.lead_id, fora_do_funil_em: upd.fora_do_funil_em } : prev);
     } catch (e: any) { console.error('Falha ao etiquetar', e); }
   };
 
@@ -1184,7 +1186,7 @@ export default function WhatsappPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-400 truncate">{formatarNumero(ativa.contato_numero)}{ativa.lead_id ? ' · no funil' : ''}{!ativa.dono_id && !ativa.atendente_ia ? ' · sem dono' : ''}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{formatarNumero(ativa.contato_numero)}{ativa.lead_id ? ' · no funil' : ativa.fora_do_funil_em ? ' · fora do funil, agentes desligados' : ''}{!ativa.dono_id && !ativa.atendente_ia ? ' · sem dono' : ''}</p>
                       {ativa.atendente_ia && <div className="mt-0.5"><FarolCaroline pequeno nome={ativa.atendente_ia} /></div>}
                       <div className="flex items-center gap-1 flex-wrap mt-1">
                         {emTriagem(ativa) && <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">Em triagem: responda para o robô parar</span>}

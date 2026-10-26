@@ -1373,3 +1373,11 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - O pedido inicial ao cliente agora é: **certificado digital A1** (arquivo .pfx; a senha o técnico pega por telefone), **código CSC da NFC-e**, **dados do contador** (nome, CPF ou CNPJ, CRC e e-mail), **regime tributário** e **inscrição estadual**. Não pede mais os XMLs nem a lista de usuários.
 - Na página de acompanhamento, o cliente preenche cada item **campo a campo** (só o certificado é arquivo). A resposta aparece em Cliente › Tarefas do cliente, um campo por linha, e já preenche a ficha de coleta onde estava vazia.
 - **Lista de usuários:** depois do primeiro contato, o técnico clica em **Pedir a lista de usuários** (Cliente › Tarefas do cliente). O cliente recebe no WhatsApp o link de um formulário com nome e função de cada pessoa, e a lista chega organizada no card.
+
+### Novidade 26/10/2026: conversa desvinculada do funil fica sem agentes
+
+- Quando você clica em **Desvincular do funil** (menu … da conversa) ou põe uma etiqueta que não é venda (Financeiro, Renegociação, Serviço, Parceiro, Pessoal, Suporte), **nenhum agente fala mais com esse contato**: nem o robô da triagem, nem a Caroline, o Julio ou o Luiz Felipe, nem a IA que tira dúvidas, nem os lembretes de demonstração. Vale também quando o contato escrever de novo.
+- No topo da conversa aparece **"fora do funil, agentes desligados"**. As mensagens continuam chegando no Inbox normalmente; quem responde é a equipe.
+- O contato também não volta sozinho para o funil quando escreve de novo.
+- **Para pôr de volta no funil:** menu … › **Identificar** › **Lead**. A partir daí os agentes voltam a poder atuar.
+- Se o contato responder "SAIR" de uma campanha, o pedido continua sendo respeitado.

@@ -2775,6 +2775,10 @@ model WhatsappConversa {
   contato_nome   String?
   lead_id        String? // vínculo opcional ao Lead do funil
   cliente_id     String? // vínculo opcional ao Cliente da base (contato que já é cliente)
+  // A equipe tirou a conversa do funil ("Desvincular do funil" ou etiqueta não comercial):
+  // nenhum agente atua mais nela e a mensagem nova não revincula lead. Volta a null ao
+  // identificar o contato como Lead (pedido da Jessica, 26/10/2026).
+  fora_do_funil_em DateTime?
 
   ultima_mensagem String?   @db.Text
   ultima_em       DateTime?
