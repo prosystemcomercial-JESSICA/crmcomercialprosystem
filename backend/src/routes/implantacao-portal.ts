@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -329,7 +329,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const { id } = request.params as { id: string };
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
-    const b = z.object({ padrao: z.boolean().optional(), titulo: z.string().trim().min(3).max(200).optional(), descricao: z.string().trim().max(1000).optional(), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), exige_arquivo: z.boolean().optional() }).safeParse(request.body);
+    const b = z.object({ padrao: z.boolean().optional(), lista_usuarios: z.boolean().optional(), titulo: z.string().trim().min(3).max(200).optional(), descricao: z.string().trim().max(1000).optional(), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), exige_arquivo: z.boolean().optional() }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     if (!imp.token_cliente) await prisma.implantacao.update({ where: { id }, data: { token_cliente: novoTokenCliente() } });
     if (b.data.padrao) {
@@ -339,9 +339,17 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       await atividade(id, 'NOTA', `📎 ${n} tarefa(s) padrão do cliente criadas`, u);
       return reply.status(201).send({ status: 'success' });
     }
+    // Lista de usuários: o técnico pede depois do primeiro contato; o cliente preenche nome e função, linha a linha.
+    if (b.data.lista_usuarios) {
+      if (await prisma.implantacaoTarefaCliente.count({ where: { implantacao_id: id, titulo: TAREFA_LISTA_USUARIOS } })) return reply.status(400).send({ status: 'error', message: 'A lista de usuários já foi pedida.' });
+      const prazoL = somarDiasUteis(new Date(), PRAZO_TAREFA_CLIENTE_DIAS_UTEIS); prazoL.setUTCHours(20, 59, 0, 0);
+      await prisma.implantacaoTarefaCliente.create({ data: dadosTarefaCliente(id, TAREFA_LISTA_USUARIOS, prazoL, u.nome || u.id) });
+      await atividade(id, 'NOTA', `📎 Tarefa do cliente criada: ${TAREFA_LISTA_USUARIOS}`, u);
+      return reply.status(201).send({ status: 'success' });
+    }
     if (!b.data.titulo) return reply.status(400).send({ status: 'error', message: 'Diga o que o cliente precisa enviar.' });
     const prazo = b.data.prazo ? new Date(`${b.data.prazo}T17:59:00-03:00`) : null;
-    await prisma.implantacaoTarefaCliente.create({ data: { implantacao_id: id, titulo: b.data.titulo, descricao: b.data.descricao || null, prazo, exige_arquivo: b.data.exige_arquivo ?? true, criada_por: u.nome || u.id } });
+    await prisma.implantacaoTarefaCliente.create({ data: dadosTarefaCliente(id, b.data.titulo, prazo, u.nome || u.id, { descricao: b.data.descricao, exige_arquivo: b.data.exige_arquivo }) });
     await atividade(id, 'NOTA', `📎 Tarefa do cliente criada: ${b.data.titulo}`, u);
     return reply.status(201).send({ status: 'success' });
   });
@@ -1052,7 +1060,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const imp = await prisma.implantacao.findUnique({ where: { token_cliente: token } });
     if (!imp || imp.status === 'CANCELADA') return reply.status(404).send({ status: 'error', message: 'Página não encontrada' });
     const tarefas = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: imp.id }, orderBy: [{ status: 'asc' }, { created_at: 'asc' }], select: { id: true, titulo: true, descricao: true, prazo: true, status: true, exige_arquivo: true, enviada_em: true, arquivo_nome: true, devolvida_motivo: true } });
-    return reply.send({ status: 'success', data: { ...(await visaoCliente(prisma, imp)), tarefas_cliente: tarefas } });
+    const comForm = tarefas.map(t => { const f = formularioDaTarefa(t.titulo); return f && (f.campos || f.lista) ? { ...t, campos: f.campos, lista: f.lista } : t; });
+    return reply.send({ status: 'success', data: { ...(await visaoCliente(prisma, imp)), tarefas_cliente: comForm } });
   });
 
   // Cliente envia o que a implantação precisa (arquivo até 15 MB e/ou texto) pela página de acompanhamento.
@@ -1064,8 +1073,20 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const t = await prisma.implantacaoTarefaCliente.findUnique({ where: { id: tarefaId } });
     if (!t || t.implantacao_id !== imp.id) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
     if (t.status === 'CONCLUIDA') return reply.status(400).send({ status: 'error', message: 'Este item já foi conferido pela equipe.' });
-    const b = z.object({ nome: z.string().max(200).optional(), arquivo: z.string().max(22 * 1024 * 1024).optional(), texto: z.string().trim().max(3000).optional() }).safeParse(request.body);
-    if (!b.success || (!b.data.arquivo && !b.data.texto)) return reply.status(400).send({ status: 'error', message: 'Anexe o arquivo ou escreva a resposta.' });
+    const b = z.object({ nome: z.string().max(200).optional(), arquivo: z.string().max(22 * 1024 * 1024).optional(), texto: z.string().trim().max(3000).optional(),
+      campos: z.record(z.string().max(300)).optional(), linhas: z.array(z.record(z.string().max(300))).max(60).optional() }).safeParse(request.body);
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Anexe o arquivo ou escreva a resposta.' });
+    // Item com formulário: confere campo a campo, guarda um campo por linha e copia para a ficha de coleta (só o que está vazio).
+    const form = formularioDaTarefa(t.titulo);
+    if (form && (form.campos || form.lista) && !b.data.arquivo) {
+      const r = respostaDoFormulario(form, b.data.campos, b.data.linhas);
+      if ('erro' in r) return reply.status(400).send({ status: 'error', message: r.erro });
+      b.data.texto = r.texto;
+      const atual: Record<string, any> = (imp.coleta as any) || {};
+      const novos = Object.fromEntries(Object.entries(r.coleta).filter(([k, v]) => !String(atual[k] ?? '').trim() && String(v).trim()).map(([k, v]) => [k, String(v).slice(0, 2000)]));
+      if (Object.keys(novos).length) await prisma.implantacao.update({ where: { id: imp.id }, data: { coleta: { ...atual, ...novos } } });
+    }
+    if (!b.data.arquivo && !b.data.texto) return reply.status(400).send({ status: 'error', message: 'Anexe o arquivo ou escreva a resposta.' });
     if (t.exige_arquivo && !b.data.arquivo) return reply.status(400).send({ status: 'error', message: 'Este item precisa de um arquivo.' });
     let arq: Awaited<ReturnType<typeof salvarArquivoCliente>> | null = null;
     if (b.data.arquivo) {

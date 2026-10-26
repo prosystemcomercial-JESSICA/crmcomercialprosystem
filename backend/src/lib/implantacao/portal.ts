@@ -706,12 +706,98 @@ export function proximoPasso(i: DemandaPP, itens: ItemPP[], fases: { realizada_e
 
 // ─── Fase 3: tarefas do cliente, saúde do card e passagem ao suporte ─────
 
-/** O que a loja entrega no começo da implantação (editável em Configurações). */
+/** O que a loja entrega no começo da implantação (editável em Configurações). Pedido da Jessica em 26/10/2026. */
 export const TAREFAS_CLIENTE_PADRAO = [
+  'Certificado digital A1 (arquivo .pfx); a senha o técnico pega por telefone',
+  'Código CSC da NFC-e',
+  'Dados do contador',
+  'Regime tributário',
+  'Inscrição estadual',
+];
+/** Lista antiga (até 26/10/2026): configuração salva igual a ela passa a usar a nova. */
+export const TAREFAS_CLIENTE_ANTIGAS = [
   'Certificado digital A1 (arquivo .pfx); a senha o técnico pega por telefone',
   'XMLs das notas de entrada e saída do último mês',
   'Lista de quem vai usar o sistema (nome e função)',
 ];
+/** Pedida pelo técnico depois do primeiro contato (não entra no pedido inicial). */
+export const TAREFA_LISTA_USUARIOS = 'Lista de quem vai usar o sistema';
+
+export type CampoTarefa = { key: string; label: string; tipo?: 'texto' | 'email' | 'opcoes'; opcoes?: string[]; obrigatorio?: boolean };
+export type FormularioTarefa = {
+  descricao: string;
+  exige_arquivo: boolean;
+  detalhe?: string; // vai entre parênteses na mensagem do WhatsApp
+  campos?: CampoTarefa[]; // formulário de campos fixos
+  lista?: CampoTarefa[]; // uma linha por pessoa (ex.: nome e função)
+  /** Copia a resposta para a ficha de coleta (só preenche o que está vazio). */
+  coleta?: (v: Record<string, string>, linhas: Record<string, string>[]) => Record<string, string | number>;
+};
+const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+/** Itens com formulário próprio na página do cliente, achados pelo título. Título fora daqui: resposta livre ou arquivo. */
+export const FORMULARIOS_TAREFA: Record<string, FormularioTarefa> = {
+  'certificado digital a1 (arquivo .pfx); a senha o tecnico pega por telefone': {
+    descricao: 'Envie o arquivo .pfx. Não escreva a senha aqui: o técnico pega com você por telefone.', exige_arquivo: true,
+  },
+  'codigo csc da nfc-e': {
+    descricao: 'Código de segurança para emitir NFC-e. Se não tiver, peça ao seu contador ou gere no portal da SEFAZ.', exige_arquivo: false,
+    campos: [{ key: 'csc_id', label: 'ID do CSC (ex.: 000001)', obrigatorio: true }, { key: 'csc', label: 'Código CSC', obrigatorio: true }],
+    coleta: v => ({ csc: `ID ${v.csc_id} · CSC ${v.csc}` }),
+  },
+  'dados do contador': {
+    descricao: 'Quem cuida da contabilidade da loja.', exige_arquivo: false, detalhe: 'nome, CPF ou CNPJ, CRC e e-mail',
+    campos: [
+      { key: 'nome', label: 'Nome do contador ou do escritório', obrigatorio: true },
+      { key: 'documento', label: 'CPF ou CNPJ', obrigatorio: true },
+      { key: 'crc', label: 'CRC', obrigatorio: true },
+      { key: 'email', label: 'E-mail', tipo: 'email', obrigatorio: true },
+    ],
+    coleta: v => ({ contabilidade_nome: v.nome, contabilidade_contato: `CPF/CNPJ ${v.documento} · CRC ${v.crc}`, contabilidade_email: v.email }),
+  },
+  'regime tributario': {
+    descricao: 'Se tiver dúvida, o seu contador sabe.', exige_arquivo: false, detalhe: 'Simples Nacional, Lucro Presumido, Lucro Real ou MEI',
+    campos: [{ key: 'regime', label: 'Regime tributário', tipo: 'opcoes', opcoes: ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI'], obrigatorio: true }],
+    coleta: v => ({ regime_tributario: v.regime }),
+  },
+  'inscricao estadual': {
+    descricao: 'Número da inscrição estadual da loja (está no cartão do CNPJ ou com o contador).', exige_arquivo: false,
+    campos: [{ key: 'ie', label: 'Inscrição estadual', obrigatorio: true }],
+    coleta: v => ({ inscricao_estadual: v.ie }),
+  },
+  [semAcento(TAREFA_LISTA_USUARIOS)]: {
+    descricao: 'Uma linha por pessoa. Cada uma recebe o próprio acesso ao sistema.', exige_arquivo: false, detalhe: 'nome e função de cada pessoa',
+    lista: [{ key: 'nome', label: 'Nome', obrigatorio: true }, { key: 'funcao', label: 'Função (ex.: caixa, balconista, gerente)', obrigatorio: true }],
+    coleta: (_v, linhas) => ({ usuarios: linhas.length, treinamento_pessoas: linhas.map(l => `${l.nome} (${l.funcao})`).join(', ') }),
+  },
+};
+export const formularioDaTarefa = (titulo: string): FormularioTarefa | null => FORMULARIOS_TAREFA[semAcento(titulo)] || null;
+
+/**
+ * Confere a resposta do cliente num item com formulário e monta o texto que a equipe lê (um campo por linha).
+ * Devolve o erro para o cliente quando falta algo.
+ */
+export function respostaDoFormulario(f: FormularioTarefa, valores: Record<string, unknown> = {}, linhas: Record<string, unknown>[] = []):
+  { erro: string } | { texto: string; coleta: Record<string, string | number> } {
+  const limpo = (x: unknown) => String(x ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (f.campos) {
+    const v: Record<string, string> = {};
+    for (const c of f.campos) {
+      v[c.key] = limpo(valores[c.key]);
+      if (c.obrigatorio && !v[c.key]) return { erro: `Preencha: ${c.label}.` };
+      if (c.tipo === 'opcoes' && v[c.key] && !c.opcoes?.includes(v[c.key])) return { erro: `Escolha uma opção em: ${c.label}.` };
+      if (c.tipo === 'email' && v[c.key] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v[c.key])) return { erro: 'Confira o e-mail.' };
+    }
+    return { texto: f.campos.map(c => `${c.label}: ${v[c.key] || '—'}`).join('\n'), coleta: f.coleta ? f.coleta(v, []) : {} };
+  }
+  if (f.lista) {
+    const ls = linhas.slice(0, 60).map(l => Object.fromEntries(f.lista!.map(c => [c.key, limpo(l?.[c.key])]))).filter(l => Object.values(l).some(Boolean));
+    if (!ls.length) return { erro: 'Adicione pelo menos uma pessoa.' };
+    const falta = ls.find(l => f.lista!.some(c => c.obrigatorio && !l[c.key]));
+    if (falta) return { erro: `Preencha ${f.lista.map(c => c.label.split(' (')[0].toLowerCase()).join(' e ')} de todas as linhas.` };
+    return { texto: ls.map((l, k) => `${k + 1}. ${f.lista!.map(c => l[c.key]).join(' · ')}`).join('\n'), coleta: f.coleta ? f.coleta({}, ls) : {} };
+  }
+  return { erro: 'Este item não tem formulário.' };
+}
 export const PRAZO_TAREFA_CLIENTE_DIAS_UTEIS = 3;
 export const MAX_LEMBRETES_TAREFA = 3; // depois do aviso inicial; acabou, a supervisão é avisada
 /** Espera "Cliente" aberta sozinha por tarefa vencida: começa com este texto (para fechar sozinha também). */

@@ -12,7 +12,7 @@ import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
   statusAssistida, type ModeloChecklist, type ExtraSistema,
-  TAREFAS_CLIENTE_PADRAO, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
+  TAREFAS_CLIENTE_PADRAO, TAREFAS_CLIENTE_ANTIGAS, formularioDaTarefa, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
   prazoAjustado, type MetasIndicadores, INICIO_ASSISTIDA,
   perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, perguntasRespondidasDoPerfil, ITEM_PERGUNTAS, type PerfilImplantacao,
 } from '@/lib/implantacao/portal';
@@ -55,7 +55,7 @@ export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPor
     catalogo: Array.isArray(salvo.catalogo) ? salvo.catalogo : [],
     modelos: Array.isArray(salvo.modelos) ? salvo.modelos : [],
     extras_sistema: Array.isArray(salvo.extras_sistema) ? salvo.extras_sistema : [],
-    tarefas_cliente: Array.isArray(salvo.tarefas_cliente) ? salvo.tarefas_cliente : TAREFAS_CLIENTE_PADRAO,
+    tarefas_cliente: Array.isArray(salvo.tarefas_cliente) && salvo.tarefas_cliente.join('\n') !== TAREFAS_CLIENTE_ANTIGAS.join('\n') ? salvo.tarefas_cliente : TAREFAS_CLIENTE_PADRAO,
   };
   if (!cfg.programacao.token) { // link do Sinval: gerado uma vez
     cfg.programacao.token = randomBytes(18).toString('base64url');
@@ -516,8 +516,14 @@ export async function criarTarefasClientePadrao(prisma: PrismaClient, imp: any, 
   const prazo = somarDiasUteis(new Date(), PRAZO_TAREFA_CLIENTE_DIAS_UTEIS);
   prazo.setUTCHours(20, 59, 0, 0); // fim do dia (17h59 de Brasília)
   const lista = (cfg.tarefas_cliente || []).filter(t => t.trim().length >= 2);
-  if (lista.length) await prisma.implantacaoTarefaCliente.createMany({ data: lista.map(titulo => ({ implantacao_id: imp.id, titulo: titulo.trim(), prazo, criada_por: por })) });
+  if (lista.length) await prisma.implantacaoTarefaCliente.createMany({ data: lista.map(t => dadosTarefaCliente(imp.id, t.trim(), prazo, por)) });
   return lista.length;
+}
+
+/** Item pedido ao cliente: se o título tem formulário próprio, já sai com a explicação e sem exigir arquivo. */
+export function dadosTarefaCliente(implantacaoId: string, titulo: string, prazo: Date | null, por: string, extra: { descricao?: string | null; exige_arquivo?: boolean } = {}) {
+  const f = formularioDaTarefa(titulo);
+  return { implantacao_id: implantacaoId, titulo, prazo, criada_por: por, descricao: extra.descricao || f?.descricao || null, exige_arquivo: f ? f.exige_arquivo : extra.exige_arquivo ?? true };
 }
 
 /** Ninguém mais devendo nada vencido: fecha a espera "Cliente" aberta sozinha por tarefa vencida. */
@@ -530,7 +536,7 @@ export async function fecharEsperaDeTarefa(prisma: PrismaClient, implantacaoId: 
 const textoTarefasCliente = (imp: any, tarefas: { titulo: string; prazo: Date | null }[], lembrete: boolean) => {
   const link = `${URL_FRONT()}/acompanhamento/${imp.token_cliente}`;
   const prazo = tarefas.map(t => t.prazo).filter(Boolean).sort((a, b) => a!.getTime() - b!.getTime())[0];
-  return `${saudacaoCliente(imp)} ${lembrete ? 'Lembrete da Prosystem: ainda' : 'Aqui é da Prosystem. Para seguir com a implantação da'} ${lembrete ? `falta${tarefas.length > 1 ? 'm' : ''} para a implantação da ${imp.cliente_razao_social}:` : `${imp.cliente_razao_social}, precisamos de:`}\n${tarefas.map(t => `• ${t.titulo}`).join('\n')}\n\n${prazo && !lembrete ? `Prazo: *${prazo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}*. ` : ''}Envie pela sua página de acompanhamento, em "O que precisamos de você": ${link}`;
+  return `${saudacaoCliente(imp)} ${lembrete ? 'Lembrete da Prosystem: ainda' : 'Aqui é da Prosystem. Para seguir com a implantação da'} ${lembrete ? `falta${tarefas.length > 1 ? 'm' : ''} para a implantação da ${imp.cliente_razao_social}:` : `${imp.cliente_razao_social}, precisamos de:`}\n${tarefas.map(t => { const d = formularioDaTarefa(t.titulo)?.detalhe; return `• ${t.titulo}${d ? ` (${d})` : ''}`; }).join('\n')}\n\n${prazo && !lembrete ? `Prazo: *${prazo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}*. ` : ''}Envie pela sua página de acompanhamento, em "O que precisamos de você": ${link}`;
 };
 
 const saudacaoCliente = (imp: any) => { const n = ((imp.coleta as any)?.contato_nome || '').split(' ')[0]; return n ? `Olá, ${n}!` : 'Olá!'; };

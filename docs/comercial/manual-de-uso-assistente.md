@@ -1367,3 +1367,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Na conversa do WhatsApp, abra o menu **…** › **Pedir análise ao Rafael**. Se quiser, escreva o que ele deve olhar (ex.: "não houve fluxo de conversa").
 - Em 1 a 2 minutos a análise aparece em **Escritório › Rafael**: onde o agente errou, mensagem por mensagem, como deveria ter sido e a regra para não repetir. A correção vai na hora para o agente e a lição para o time.
 - **Regra nova dos agentes no contato ativo (lojas que nós chamamos):** primeiro se apresentam e entendem a loja; a demonstração só é oferecida depois que a pessoa conta uma dificuldade ou pede para ver o sistema. Confirmar o nome da loja não é interesse. Se perguntarem "com quem estou falando?", o agente se apresenta de novo, sem mandar horários.
+
+### Novidade 26/10/2026: o que a implantação pede ao cliente
+
+- O pedido inicial ao cliente agora é: **certificado digital A1** (arquivo .pfx; a senha o técnico pega por telefone), **código CSC da NFC-e**, **dados do contador** (nome, CPF ou CNPJ, CRC e e-mail), **regime tributário** e **inscrição estadual**. Não pede mais os XMLs nem a lista de usuários.
+- Na página de acompanhamento, o cliente preenche cada item **campo a campo** (só o certificado é arquivo). A resposta aparece em Cliente › Tarefas do cliente, um campo por linha, e já preenche a ficha de coleta onde estava vazia.
+- **Lista de usuários:** depois do primeiro contato, o técnico clica em **Pedir a lista de usuários** (Cliente › Tarefas do cliente). O cliente recebe no WhatsApp o link de um formulário com nome e função de cada pessoa, e a lista chega organizada no card.

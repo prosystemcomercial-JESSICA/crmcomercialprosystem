@@ -185,7 +185,8 @@ function TarefasDoCliente({ token, tarefas, recarregar }: { token: string; taref
             {t.prazo && t.status === 'PENDENTE' && <div style={{ fontSize: 13, color: '#5B7A99' }}>Prazo: {fmtData(t.prazo)}</div>}
             {t.devolvida_motivo && t.status === 'PENDENTE' && <div style={{ fontSize: 14, color: '#b45309', background: '#fff7ed', borderRadius: 8, padding: '8px 10px' }}>Precisamos que reenvie: {t.devolvida_motivo}</div>}
             {t.status === 'ENVIADA' && t.arquivo_nome && <div style={{ fontSize: 13, color: '#5B7A99' }}>Arquivo: {t.arquivo_nome}</div>}
-            {t.status !== 'CONCLUIDA' && (
+            {t.status !== 'CONCLUIDA' && (t.campos || t.lista) && <FormularioDaTarefa token={token} t={t} recarregar={recarregar} />}
+            {t.status !== 'CONCLUIDA' && !(t.campos || t.lista) && (
               <div style={{ display: 'grid', gap: 8 }}>
                 {!t.exige_arquivo && <textarea rows={2} value={texto[t.id] || ''} onChange={e => setTexto(p => ({ ...p, [t.id]: e.target.value }))} placeholder="Escreva aqui" style={{ width: '100%', fontSize: 15, padding: 10, borderRadius: 10, border: '1px solid #CFE0F2', fontFamily: 'inherit' }} />}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -201,6 +202,58 @@ function TarefasDoCliente({ token, tarefas, recarregar }: { token: string; taref
         );
       })}
     </section>
+  );
+}
+
+const campoEstilo = { width: '100%', fontSize: 15, padding: 10, minHeight: 44, borderRadius: 10, border: '1px solid #CFE0F2', fontFamily: 'inherit', background: '#fff' } as const;
+
+/** Item com formulário (CSC, contador, regime, inscrição estadual, lista de usuários): o cliente preenche campo a campo. */
+function FormularioDaTarefa({ token, t, recarregar }: { token: string; t: any; recarregar: () => void }) {
+  const [v, setV] = useState<Record<string, string>>({});
+  const [linhas, setLinhas] = useState<Record<string, string>[]>([{}, {}, {}]);
+  const [enviando, setEnviando] = useState(false);
+  const enviar = async () => {
+    setEnviando(true);
+    try {
+      await axios.post(`${API_URL}/publico/acompanhamento/${token}/tarefas/${t.id}`, t.lista ? { linhas: linhas.filter(l => Object.values(l).some(x => x?.trim())) } : { campos: v });
+      recarregar();
+    } catch (e: any) { alert(e?.response?.data?.message || 'Não foi possível enviar agora. Tente de novo.'); }
+    finally { setEnviando(false); }
+  };
+  const botao = (
+    <button disabled={enviando} onClick={enviar} style={{ justifySelf: 'start', minHeight: 44, padding: '0 18px', borderRadius: 10, border: 'none', background: '#2E6EAB', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', opacity: enviando ? 0.6 : 1 }}>
+      {enviando ? 'Enviando…' : t.status === 'ENVIADA' ? 'Enviar de novo' : 'Enviar'}
+    </button>
+  );
+  if (t.lista) return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {linhas.map((l, k) => (
+        <div key={k} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {t.lista.map((c: any) => (
+            <input key={c.key} value={l[c.key] || ''} placeholder={c.label} aria-label={`${c.label}, pessoa ${k + 1}`}
+              onChange={e => setLinhas(p => p.map((x, j) => (j === k ? { ...x, [c.key]: e.target.value } : x)))} style={{ ...campoEstilo, flex: '1 1 180px', width: 'auto' }} />
+          ))}
+        </div>
+      ))}
+      <button onClick={() => setLinhas(p => [...p, {}])} style={{ justifySelf: 'start', minHeight: 40, padding: '0 14px', borderRadius: 10, border: '1px solid #2E6EAB', background: '#fff', color: '#2E6EAB', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>+ Mais uma pessoa</button>
+      {botao}
+    </div>
+  );
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {t.campos.map((c: any) => (
+        <label key={c.key} style={{ display: 'grid', gap: 4, fontSize: 14, color: '#23384D' }}>
+          {c.label}
+          {c.tipo === 'opcoes'
+            ? <select value={v[c.key] || ''} onChange={e => setV(p => ({ ...p, [c.key]: e.target.value }))} style={campoEstilo}>
+                <option value="">Escolha…</option>
+                {c.opcoes.map((o: string) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            : <input type={c.tipo === 'email' ? 'email' : 'text'} value={v[c.key] || ''} onChange={e => setV(p => ({ ...p, [c.key]: e.target.value }))} style={campoEstilo} />}
+        </label>
+      ))}
+      {botao}
+    </div>
   );
 }
 

@@ -1346,6 +1346,14 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
           })}
         </div>
       )}
+      {i.modulo === 'IMPLANTACAO' && !lista.some(t => t.titulo === 'Lista de quem vai usar o sistema') && (
+        <div style={{ ...cartao, padding: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 220, fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
+            <b style={{ color: 'var(--t-text-primary)' }}>Lista de usuários.</b> Depois do primeiro contato, peça ao cliente: ele recebe no WhatsApp um formulário para preencher nome e função de cada pessoa, e a resposta chega aqui, uma pessoa por linha.
+          </span>
+          <button disabled={ocupado} onClick={() => run(() => apiClient.criarTarefaCliente(i.id, { lista_usuarios: true }))} style={{ ...btn('#286397'), minHeight: 36 }}>Pedir a lista de usuários</button>
+        </div>
+      )}
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 8 }}>
         <div style={rotulo}>Pedir mais um item ao cliente</div>
         <input value={nova.titulo} onChange={e => setNova(p => ({ ...p, titulo: e.target.value }))} placeholder="O que o cliente precisa enviar (ex.: planilha de preços)" className="ps-input w-full" style={{ minHeight: 40 }} />
