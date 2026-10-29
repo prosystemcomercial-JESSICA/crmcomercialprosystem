@@ -1523,3 +1523,11 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 
 - No topo do Portal Técnico, ao lado do sino, há agora o botão da **lua** (modo escuro) e do **sol** (modo claro), igual ao do CRM.
 - A escolha é a mesma do CRM: se você usa o CRM no escuro, o portal já abre escuro; trocar em um troca no outro (fica salvo neste navegador).
+
+### Atualização 29/10/2026: modo escuro mais confortável para os olhos
+
+- O modo escuro (botão da **lua** no topo, ou Configurações > Aparência > Escuro) foi revisado para quem passa o dia inteiro na tela.
+- Não há mais áreas brancas no escuro: a **Agenda**, a área da conversa do **WhatsApp**, os avisos amarelos, os selos coloridos ("Ativa", "Atrasada" etc.) e as janelas que ficavam claras agora seguem o fundo escuro.
+- As letras ficaram um pouco menos brancas e as cores (verde, vermelho, azul, roxo) ficaram mais suaves, sem perder o significado: verde continua sendo bom, vermelho continua sendo alerta.
+- Fotos e prints ficam levemente atenuados, e o logo da Prosystem aparece melhor no topo.
+- O modo claro continua igual. Vale para as seis paletas.
