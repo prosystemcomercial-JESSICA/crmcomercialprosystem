@@ -11,7 +11,8 @@ import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, Conf
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import SidebarMenu from '@/components/dashboard/SidebarMenu';
-import { Menu as IconeMenu } from 'lucide-react';
+import { Menu as IconeMenu, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/lib/theme-context';
 import {
   Wrench, Rocket, Headphones, CalendarCheck, Clock,
   CheckCircle, X, Loader2, FileText, Briefcase, Coins, BookOpen,
@@ -356,6 +357,7 @@ type Tab = 'inicio' | 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | '
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading, user } = useAuth();
+  const { mode, toggleMode } = useTheme();
   // Sem sessão (navegador sem login ou sessão vencida): vai para o login, como as outras telas. Antes o portal
   // mostrava o menu e ficava em "Carregando…" para sempre (15/10/2026).
   const roteador = useRouter();
@@ -911,6 +913,11 @@ export default function PortalTecnicoPage() {
         <BuscaGlobal onAbrir={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         <CronometroBarra />
         <SinoAvisos onAbrir={() => setTab('avisos')} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
+        {/* Modo escuro: o mesmo do CRM (mesma preferência salva no navegador). */}
+        <button onClick={toggleMode} title={mode === 'claro' ? 'Modo escuro' : 'Modo claro'} aria-label={mode === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
+          style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
+          {mode === 'claro' ? <Moon size={14} /> : <Sun size={14} />}
+        </button>
         <button onClick={() => window.close()} title="Fechar portal" aria-label="Fechar portal"
           style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           <X size={14} />
@@ -1590,8 +1597,8 @@ export default function PortalTecnicoPage() {
                             {ob.etapas.map((etapa, idx) => (
                               <button key={idx} onClick={() => toggleEtapa(ob, idx)} disabled={obSaving}
                                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 6, cursor: 'pointer',
-                                  border: `1px solid ${etapa.concluido ? '#bbf7d0' : 'var(--t-card-border)'}`,
-                                  background: etapa.concluido ? '#f0fdf4' : 'var(--t-card-bg)', textAlign: 'left' }}>
+                                  border: `1px solid ${etapa.concluido ? 'rgba(22,163,74,0.35)' : 'var(--t-card-border)'}`,
+                                  background: etapa.concluido ? 'rgba(22,163,74,0.10)' : 'var(--t-card-bg)', textAlign: 'left' }}>
                                 <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                                   background: etapa.concluido ? '#16a34a' : 'transparent', border: etapa.concluido ? 'none' : '2px solid #d1d5db', color: '#fff', fontSize: 11 }}>
                                   {etapa.concluido && '✓'}

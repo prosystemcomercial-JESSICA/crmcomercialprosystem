@@ -1517,3 +1517,8 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - No Portal de Implantação, ao abrir o card, o cabeçalho mostra agora uma **etiqueta com o segmento do cliente** antes do tipo da demanda: 💊 Farmácia (verde), 🥖 Padaria (âmbar) ou 🛒 Varejo (roxo). O texto é o do cadastro do cliente (ex.: "Drogaria", "Manipulação"); a cor segue o perfil usado nas perguntas e no checklist.
 - Se o cadastro estiver sem segmento, aparece **"Farmácia (padrão)"**: é o perfil que o portal usa nesse caso. Para corrigir, preencha o segmento no cadastro do cliente.
 - O texto azul ao lado fica só com o tipo (ex.: "Implantação · banco zerado"), sem repetir o segmento.
+
+### Atualização 29/10/2026: modo escuro no Portal Técnico
+
+- No topo do Portal Técnico, ao lado do sino, há agora o botão da **lua** (modo escuro) e do **sol** (modo claro), igual ao do CRM.
+- A escolha é a mesma do CRM: se você usa o CRM no escuro, o portal já abre escuro; trocar em um troca no outro (fica salvo neste navegador).
