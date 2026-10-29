@@ -221,6 +221,25 @@ function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
   return <span style={{ fontSize: 10, fontWeight: 600, color: cor, background: `${cor}0d`, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>;
 }
 
+// Segmento do cliente em destaque no cabeçalho da ficha (cor pelo perfil, texto do cadastro).
+const SEGMENTO_CAB: Record<string, { nome: string; cor: string; emoji: string }> = {
+  FARMACIA: { nome: 'Farmácia', cor: '#059669', emoji: '💊' },
+  PADARIA: { nome: 'Padaria', cor: '#d97706', emoji: '🥖' },
+  VAREJO: { nome: 'Varejo', cor: '#7c3aed', emoji: '🛒' },
+};
+
+function EtqSegmento({ segmentoCadastro, perfil }: { segmentoCadastro?: string | null; perfil?: string }) {
+  const s = SEGMENTO_CAB[perfil || ''];
+  if (!s) return null;
+  const semCadastro = !segmentoCadastro?.trim();
+  return (
+    <span title={semCadastro ? 'Segmento não preenchido no cadastro do cliente: vale Farmácia (padrão).' : `Segmento do cliente: ${segmentoCadastro}`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: s.cor, background: `${s.cor}14`, border: `1px solid ${s.cor}55`, padding: '2px 10px', borderRadius: 999, whiteSpace: 'nowrap', letterSpacing: '.01em' }}>
+      <span aria-hidden>{s.emoji}</span>{semCadastro ? `${s.nome} (padrão)` : segmentoCadastro}
+    </span>
+  );
+}
+
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
 type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico' | 'prints';
@@ -271,7 +290,10 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       <style>{CSS_FICHA}</style>
       <header className="pf-cab">
         <div className="pf-id">
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)' }}>{d.tipo_demanda}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <EtqSegmento segmentoCadastro={d.cliente_ficha?.segmento} perfil={d.perfil?.segmento} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)' }}>{d.perfil?.segmento && SEGMENTO_CAB[d.perfil.segmento] ? String(d.tipo_demanda || '').replace(` · ${SEGMENTO_CAB[d.perfil.segmento].nome}`, '') : d.tipo_demanda}</span>
+          </div>
           <h2 title={i.cliente_razao_social}>{i.cliente_razao_social}</h2>
           <div className="pf-meta">
             {[i.cliente_cnpj, i.plano, i.tecnico_nome ? `Técnico ${i.tecnico_nome}` : 'Sem técnico', d.prazo_ajuste_ms >= 36e5 ? `prazo pausado +${Math.round(d.prazo_ajuste_ms / 36e5)}h (espera do cliente)` : null].filter(Boolean).map((t, k) => <span key={k}>{k ? <span style={{ marginRight: 8, opacity: .5 }}>·</span> : null}{t}</span>)}
