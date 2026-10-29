@@ -666,6 +666,7 @@ async function loadRoutes() {
     ['painel-tv',             () => import('./routes/painel-tv'),             'painelTvRoutes'],
     ['push',                  () => import('./routes/push'),                  'pushRoutes'],
     ['desempenho',            () => import('./routes/desempenho'),            'desempenhoRoutes'],
+    ['ia-modelos',            () => import('./routes/ia-modelos'),            'iaModelosRoutes'],
     ['cronometro',            () => import('./routes/cronometro'),            'cronometroRoutes'],
     ['especialista',          () => import('./routes/especialista'),          'especialistaRoutes'],
     ['heitor',                () => import('./routes/heitor'),                'heitorRoutes'],

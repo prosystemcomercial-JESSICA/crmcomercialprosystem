@@ -7,7 +7,7 @@ import { cotaGroqVazia, type CotaGroq } from '@/lib/ia-groq';
 // Por assistente (29/10/2026): requisições, falhas e tokens em 'ia.agentes.AAAA-MM-DD' ({ agente: uso }).
 // Groq grátis (29/10/2026): conta como 'groq'; a última cota lida do Groq fica em 'ia.groq.cota'.
 
-export type FonteIa = 'openai' | 'grok' | 'laya' | 'evitada' | 'whisper' | 'groq';
+export type FonteIa = 'openai' | 'grok' | 'laya' | 'evitada' | 'whisper' | 'groq' | 'gemini';
 const pendente: Record<string, Record<FonteIa, number>> = {};
 const pendenteAgentes: Record<string, Record<string, UsoAgente>> = {};
 
@@ -15,7 +15,7 @@ const hojeSP = (d = new Date()) => d.toLocaleDateString('sv-SE', { timeZone: 'Am
 
 export function registrarUsoIa(fonte: FonteIa) {
   const dia = hojeSP();
-  pendente[dia] ||= { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0 };
+  pendente[dia] ||= { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0, gemini: 0 };
   pendente[dia][fonte]++;
 }
 
@@ -59,9 +59,9 @@ export async function gravarUsoIa(prisma: PrismaClient) {
     delete pendente[dia];
     const chave = `ia.uso.${dia}`;
     const atual = await prisma.configuracaoIntegracao.findUnique({ where: { chave } }).catch(() => null);
-    let base: Record<FonteIa, number> = { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0 };
+    let base: Record<FonteIa, number> = { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0, gemini: 0 };
     try { if (atual?.valor) base = { ...base, ...JSON.parse(atual.valor) }; } catch { /* valor antigo inválido: recomeça */ }
-    const valor = JSON.stringify({ openai: base.openai + soma.openai, grok: base.grok + soma.grok, laya: base.laya + soma.laya, evitada: (base.evitada || 0) + (soma.evitada || 0), whisper: (base.whisper || 0) + (soma.whisper || 0), groq: (base.groq || 0) + (soma.groq || 0) });
+    const valor = JSON.stringify({ openai: base.openai + soma.openai, grok: base.grok + soma.grok, laya: base.laya + soma.laya, evitada: (base.evitada || 0) + (soma.evitada || 0), whisper: (base.whisper || 0) + (soma.whisper || 0), groq: (base.groq || 0) + (soma.groq || 0), gemini: (base.gemini || 0) + (soma.gemini || 0) });
     await prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: 'sistema' }, update: { valor } }).catch(() => {});
   }
   for (const dia of Object.keys(pendenteAgentes)) {
@@ -81,14 +81,14 @@ export async function gravarUsoIa(prisma: PrismaClient) {
 
 /** Últimos N dias (mais recente primeiro), já com o que ainda está em memória. */
 export async function usoIaUltimosDias(prisma: PrismaClient, dias = 7) {
-  const out: { dia: string; openai: number; grok: number; laya: number; evitada: number; whisper: number; groq: number }[] = [];
+  const out: { dia: string; openai: number; grok: number; laya: number; evitada: number; whisper: number; groq: number; gemini: number }[] = [];
   for (let i = 0; i < dias; i++) {
     const dia = hojeSP(new Date(Date.now() - i * 864e5));
     const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `ia.uso.${dia}` } }).catch(() => null);
-    let v = { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0 };
+    let v = { openai: 0, grok: 0, laya: 0, evitada: 0, whisper: 0, groq: 0, gemini: 0 };
     try { if (r?.valor) v = { ...v, ...JSON.parse(r.valor) }; } catch { /* ignora */ }
     const mem = pendente[dia];
-    out.push({ dia, openai: v.openai + (mem?.openai || 0), grok: v.grok + (mem?.grok || 0), laya: v.laya + (mem?.laya || 0), evitada: (v.evitada || 0) + (mem?.evitada || 0), whisper: (v.whisper || 0) + (mem?.whisper || 0), groq: (v.groq || 0) + (mem?.groq || 0) });
+    out.push({ dia, openai: v.openai + (mem?.openai || 0), grok: v.grok + (mem?.grok || 0), laya: v.laya + (mem?.laya || 0), evitada: (v.evitada || 0) + (mem?.evitada || 0), whisper: (v.whisper || 0) + (mem?.whisper || 0), groq: (v.groq || 0) + (mem?.groq || 0), gemini: (v.gemini || 0) + (mem?.gemini || 0) });
   }
   return out;
 }

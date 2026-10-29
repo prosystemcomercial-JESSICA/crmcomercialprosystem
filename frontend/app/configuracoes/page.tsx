@@ -11,6 +11,7 @@ import { apiClient, ResumoBackup } from '@/lib/api-client';
 import PainelTvConfig from '@/components/dashboard/PainelTvConfig';
 import AssistenteWhatsapp from '@/components/configuracoes/AssistenteWhatsapp';
 import NumerosWhatsapp from '@/components/configuracoes/NumerosWhatsapp';
+import ModelosIa from '@/components/configuracoes/ModelosIa';
 
 // ─── Config sections ──────────────────────────────────────
 
@@ -523,6 +524,8 @@ export default function ConfiguracoesPage() {
           {gestaoWpp && <NumerosWhatsapp />}
 
           {gestaoWpp && <AssistenteWhatsapp />}
+
+          {gestaoWpp && <ModelosIa />}
 
           {/* ══ TRIAGEM AUTOMÁTICA (só gestão) ════════════════ */}
           {gestaoWpp && (

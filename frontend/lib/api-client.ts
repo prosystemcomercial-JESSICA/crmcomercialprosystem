@@ -1594,6 +1594,8 @@ class ApiClient {
   async cronometroFinalizar(id: string, resultado?: string | null) { return this.client.post(`/cronometros/${id}/finalizar`, { resultado }); }
   async cronometroRelatorio(dias: number) { return this.client.get('/cronometros/relatorio', { params: { dias } }); }
   async relatorioDesempenho(dias: number) { return this.client.get('/relatorios/desempenho', { params: { dias } }); }
+  async getIaModelos() { return this.client.get('/configuracoes/ia-modelos'); }
+  async salvarIaModelos(rotas: Record<string, { principal: string; reserva: string }>) { return this.client.put('/configuracoes/ia-modelos', { rotas }); }
   async midiaMensagem(id: string) { return this.client.get(`/whatsapp/mensagens/${id}/midia`); }
   // ── App no celular: notificações, bolinha no ícone e tela "Aprovar" ──
   async pushChave() { return this.client.get('/push/chave'); }

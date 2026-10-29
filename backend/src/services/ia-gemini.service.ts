@@ -3,6 +3,7 @@ import { registrarUsoIa, registrarChamadaIa, registrarReservaGroq, carregarCotaG
 import { cabeNoGroq, lerCotaGroq } from '@/lib/ia-groq';
 import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
+import { catalogo, funcaoDoAgente, planoDaRota, validarRotas, type Modelo, type Provedor, type Rota } from '@/lib/ia-rotas';
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
@@ -56,8 +57,9 @@ export async function chaveGemini(prisma: PrismaClient): Promise<string | null> 
 }
 
 /** Uma tentativa no Groq grátis. Devolve o texto, ou null quando não vale tentar ou ele não deu conta. */
-async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string }): Promise<string | null> {
-  if (!chaveGroq() || groqFora().some(a => p.agente === a || p.agente === `conversa-${a}`)) return null;
+// `escolhido` = modelo escolhido em Configurações › Modelos de IA (vale mesmo com GROQ_FORA).
+async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string; modelo?: string; escolhido?: boolean }): Promise<string | null> {
+  if (!chaveGroq() || (!p.escolhido && groqFora().some(a => p.agente === a || p.agente === `conversa-${a}`))) return null;
   const cota = await carregarCotaGroq(prisma);
   if (!cabeNoGroq(cota, p.sistema + p.texto, { maxEntrada: GROQ_MAX_ENTRADA })) { registrarReservaGroq(p.agente); return null; }
   try {
@@ -65,7 +67,7 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chaveGroq()}` },
       body: jsonParaIa({
-        model: MODELO_GROQ,
+        model: p.modelo || MODELO_GROQ,
         messages: [{ role: 'system', content: p.sistema }, { role: 'user', content: p.json ? `${p.texto}\n\nResponda em JSON.` : p.texto }],
         temperature: p.temperatura ?? 0.3,
         reasoning_effort: process.env.GROQ_RACIOCINIO || 'low',
@@ -89,14 +91,14 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
   }
 }
 
-async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string }): Promise<any> {
+async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string; modelo?: string }): Promise<any> {
   const fonte = p.grok ? 'grok' : 'openai';
   registrarUsoIa(fonte);
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
     body: jsonParaIa({
-      model: p.grok ? MODELO_XAI : MODELO_OPENAI,
+      model: p.modelo || (p.grok ? MODELO_XAI : MODELO_OPENAI),
       instructions: p.sistema,
       // No modo JSON a OpenAI exige a palavra "json" na mensagem (não basta nas instruções).
       input: [{ role: 'user', content: p.json ? [...p.conteudo, { type: 'input_text', text: 'Responda em JSON.' }] : p.conteudo }],
@@ -152,31 +154,37 @@ function textoOpenAI(data: any): { texto: string; fontes: { titulo: string; url:
 }
 
 type Parte = { text: string } | { inline_data: { mime_type: string; data: string } };
+type Resultado = { texto: string; fontes: { titulo: string; url: string }[] };
 
-/** Uma chamada ao Gemini. Devolve o texto da resposta ou lança erro com mensagem clara. */
-/** Chamada com busca no Google (grounding): devolve o texto e as fontes consultadas. */
-// `agente` = quem pediu (conta no uso por assistente); sem ele, vale o arquivo que chamou.
-export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number; agente?: string }): Promise<{ texto: string; fontes: { titulo: string; url: string }[] }> {
-  const agente = p.agente || agenteDaPilha(new Error().stack);
-  if (chaveOpenAI()) {
-    const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000, agente }));
-    if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
-    return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
-  }
-  const chave = await chaveSoGemini(prisma);
-  if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
+/** Partes do pedido no formato da API Responses (OpenAI/Grok). Áudio vira um marcador: tem caminho próprio. */
+function conteudoOpenAI(partes: Parte[]): any[] {
+  return partes.map(x => {
+    if ('text' in x) return { type: 'input_text', text: x.text };
+    const { mime_type, data } = x.inline_data;
+    if (mime_type.startsWith('image/')) return { type: 'input_image', image_url: `data:${mime_type};base64,${data}` };
+    if (mime_type.startsWith('audio/')) return { type: 'audio', mime_type, data };
+    return { type: 'input_file', filename: 'arquivo', file_data: `data:${mime_type};base64,${data}` };
+  });
+}
+
+/** Uma chamada à API do Gemini (texto, imagem, PDF ou busca no Google). Conta no uso por assistente. */
+async function chamarApiGemini(chave: string, p: { modelo: string; sistema: string; partes: Parte[]; json?: boolean; busca?: boolean; temperatura?: number; timeoutMs: number; agente: string }): Promise<Resultado> {
+  registrarUsoIa('gemini');
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${p.modelo}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
     body: jsonParaIa({
       systemInstruction: { parts: [{ text: p.sistema }] },
-      contents: [{ role: 'user', parts: [{ text: p.pergunta }] }],
-      tools: [{ google_search: {} }],
-      generationConfig: { temperature: 0.3 },
+      contents: [{ role: 'user', parts: p.partes }],
+      ...(p.busca ? { tools: [{ google_search: {} }] } : {}),
+      generationConfig: { temperature: p.temperatura ?? 0.3, ...(p.json && !p.busca ? { responseMimeType: 'application/json' } : {}) },
     }),
-    signal: AbortSignal.timeout(p.timeoutMs ?? 120_000),
-  });
+    signal: AbortSignal.timeout(p.timeoutMs),
+  }).catch(e => { registrarChamadaIa(p.agente, 'gemini', { ok: false }); throw e; });
   if (!res.ok) {
+    registrarChamadaIa(p.agente, 'gemini', { ok: false });
+    const corpo = await res.text().catch(() => '');
+    if (res.status === 400 && /API key/i.test(corpo)) throw new Error('A chave da IA é inválida. Confira em Configurações.');
     if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
     throw new Error(`IA indisponível (HTTP ${res.status}).`);
   }
@@ -186,15 +194,98 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   const fontes = ((cand?.groundingMetadata?.groundingChunks || []) as any[])
     .map(c => ({ titulo: String(c?.web?.title || c?.web?.uri || ''), url: String(c?.web?.uri || '') }))
     .filter(f => f.url);
-  if (!texto) throw new Error('A pesquisa não devolveu resultado.');
-  return { texto, fontes: fontes.slice(0, 15) };
+  const u = data?.usageMetadata || {};
+  registrarChamadaIa(p.agente, 'gemini', { ok: true, tokensEntrada: Number(u.promptTokenCount) || 0, tokensSaida: Number(u.candidatesTokenCount) || 0 });
+  return { texto, fontes };
+}
+
+// ── Modelo por função (Configurações › Modelos de IA, 29/10/2026) ──
+export const CHAVE_ROTAS = 'ia.rotas';
+let rotasCache: { em: number; rotas: Record<string, Rota> } | null = null;
+/** Chamado ao salvar a tela, para a escolha valer na hora. */
+export function esquecerRotasIa() { rotasCache = null; }
+export async function rotasIa(prisma: PrismaClient): Promise<Record<string, Rota>> {
+  if (rotasCache && Date.now() - rotasCache.em < 30_000) return rotasCache.rotas;
+  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_ROTAS } }).catch(() => null);
+  let rotas: Record<string, Rota> = {};
+  try { rotas = validarRotas(JSON.parse(r?.valor || '{}'), catalogo(process.env)); } catch { /* valor inválido: tudo automático */ }
+  rotasCache = { em: Date.now(), rotas };
+  return rotas;
+}
+
+/** Quais provedores têm chave agora (a tela mostra "sem chave" nos outros). */
+export async function provedoresComChave(prisma: PrismaClient): Promise<Record<Provedor, boolean>> {
+  return { groq: !!chaveGroq(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!(await chaveSoGemini(prisma)) };
+}
+
+type Pedido = { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; busca?: boolean };
+
+async function executarModelo(prisma: PrismaClient, m: Modelo, q: Pedido, agente: string, chaveG: string | null): Promise<Resultado> {
+  if (m.provedor === 'groq') {
+    const texto = await tentarGroq(prisma, { sistema: q.sistema, texto: q.partes.map(x => ('text' in x ? x.text : '')).join('\n\n'), json: q.json, temperatura: q.temperatura, agente, modelo: m.modelo, escolhido: true });
+    if (!texto) throw new Error('o Groq não deu conta (limite ou pedido grande demais)');
+    return { texto, fontes: [] };
+  }
+  if (m.provedor === 'gemini') return chamarApiGemini(chaveG || '', { modelo: m.modelo, sistema: q.sistema, partes: q.partes, json: q.json, busca: q.busca, temperatura: q.temperatura, timeoutMs: q.timeoutMs ?? 90_000, agente });
+  return textoOpenAI(await chamarOpenAI({ sistema: q.sistema, conteudo: conteudoOpenAI(q.partes), json: q.json, busca: q.busca, timeoutMs: q.timeoutMs ?? 90_000, grok: m.provedor === 'grok', modelo: m.modelo, agente }));
+}
+
+/**
+ * Segue o principal e a reserva escolhidos para o assistente. `auto` = se nada respondeu, seguir a ordem
+ * automática; sem ele (reserva "Nenhuma"), o pedido para com o erro do último modelo.
+ */
+async function seguirRota(prisma: PrismaClient, agente: string, q: Pedido): Promise<{ resultado: Resultado | null; auto: boolean; erro?: Error }> {
+  const rota = (await rotasIa(prisma))[funcaoDoAgente(agente)];
+  if (!rota) return { resultado: null, auto: true };
+  const chaveG = await chaveSoGemini(prisma);
+  const chaves: Record<Provedor, boolean> = { groq: !!chaveGroq(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!chaveG };
+  const plano = planoDaRota(rota, catalogo(process.env), { imagem: !q.partes.every(x => 'text' in x), busca: q.busca, temChave: pv => chaves[pv] });
+  let erro: Error | undefined;
+  for (const m of plano.tentar) {
+    try {
+      const r = await executarModelo(prisma, m, q, agente, chaveG);
+      if (r.texto) return { resultado: r, auto: plano.auto };
+      erro = new Error(`${m.nome} não devolveu resposta.`);
+    } catch (e) {
+      erro = e as Error;
+      console.warn(`[IA] ${m.nome} não respondeu para ${agente}:`, erro?.message);
+    }
+  }
+  return { resultado: null, auto: plano.auto, erro };
+}
+
+/** Chamada com busca na internet: devolve o texto e as fontes consultadas. */
+// `agente` = quem pediu (conta no uso por assistente); sem ele, vale o arquivo que chamou.
+export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number; agente?: string }): Promise<Resultado> {
+  const agente = p.agente || agenteDaPilha(new Error().stack);
+  const rota = await seguirRota(prisma, agente, { sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 180_000 });
+  if (rota.resultado) return { texto: rota.resultado.texto, fontes: rota.resultado.fontes.slice(0, 15) };
+  if (!rota.auto) throw rota.erro || new Error('O modelo escolhido para esta função não respondeu (Configurações › Modelos de IA).');
+  if (chaveOpenAI()) {
+    const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000, agente }));
+    if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
+    return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
+  }
+  const chave = await chaveSoGemini(prisma);
+  if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
+  const r = await chamarApiGemini(chave, { modelo: MODELO, sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 120_000, agente });
+  if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
+  return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
 }
 
 export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; simples?: boolean; agente?: string }): Promise<string> {
   const soTexto = p.partes.every(x => 'text' in x);
   // Lido antes de qualquer await: depois dele a pilha perde quem chamou. Áudio conta como transcrição.
   const agente = p.agente || (p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) ? 'transcricao' : agenteDaPilha(new Error().stack));
-  // Primeiro o Groq grátis; a IA paga só entra se ele não der conta.
+  const parteAudio = p.partes.find(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) as Extract<Parte, { inline_data: unknown }> | undefined;
+  const temAudio = !!parteAudio;
+  // Primeiro o modelo escolhido para a função (se houver); áudio segue sempre o caminho da transcrição.
+  if (!temAudio) {
+    const rota = await seguirRota(prisma, agente, p);
+    if (rota.resultado) return rota.resultado.texto;
+    if (!rota.auto) throw rota.erro || new Error('O modelo escolhido para esta função não respondeu (Configurações › Modelos de IA).');
+  }
+  // Automático: primeiro o Groq grátis; a IA paga só entra se ele não der conta.
   if (soTexto) {
     const texto = await tentarGroq(prisma, { sistema: p.sistema, texto: p.partes.map(x => (x as { text: string }).text).join('\n\n'), json: p.json, temperatura: p.temperatura, agente });
     if (texto) return texto;
@@ -208,8 +299,6 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
       if (!chaveOpenAI() && !(await chaveSoGemini(prisma))) throw e;
     }
   }
-  const parteAudio = p.partes.find(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) as Extract<Parte, { inline_data: unknown }> | undefined;
-  const temAudio = !!parteAudio;
   // Áudio (o único uso é transcrever): primeiro o Whisper local, sem custo.
   if (parteAudio && transcritorLocalLigado()) {
     try {
@@ -221,13 +310,7 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
   }
   const chaveG = await chaveSoGemini(prisma);
   if (chaveOpenAI() && !(temAudio && chaveG)) {
-    const conteudo = p.partes.map(x => {
-      if ('text' in x) return { type: 'input_text', text: x.text };
-      const { mime_type, data } = x.inline_data;
-      if (mime_type.startsWith('image/')) return { type: 'input_image', image_url: `data:${mime_type};base64,${data}` };
-      if (mime_type.startsWith('audio/')) return { type: 'audio', mime_type, data };
-      return { type: 'input_file', filename: 'arquivo', file_data: `data:${mime_type};base64,${data}` };
-    });
+    const conteudo = conteudoOpenAI(p.partes);
     // Áudio: transcrição da OpenAI (o único uso de áudio é transcrever).
     const audio = conteudo.find((c: any) => c.type === 'audio') as any;
     if (audio) return transcreverOpenAI(audio.mime_type, audio.data, p.timeoutMs ?? 90_000, agente);
@@ -235,26 +318,8 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     if (!texto) throw new Error('A IA não devolveu resposta.');
     return texto;
   }
-  const chave = chaveG;
-  if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-    body: jsonParaIa({
-      systemInstruction: { parts: [{ text: p.sistema }] },
-      contents: [{ role: 'user', parts: p.partes }],
-      generationConfig: { temperature: p.temperatura ?? 0.3, ...(p.json ? { responseMimeType: 'application/json' } : {}) },
-    }),
-    signal: AbortSignal.timeout(p.timeoutMs ?? 45_000),
-  });
-  if (!res.ok) {
-    const corpo = await res.text().catch(() => '');
-    if (res.status === 400 && /API key/i.test(corpo)) throw new Error('A chave da IA é inválida. Confira em Configurações.');
-    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
-    throw new Error(`IA indisponível (HTTP ${res.status}).`);
-  }
-  const data: any = await res.json();
-  const texto = (data?.candidates?.[0]?.content?.parts || []).map((x: any) => x.text || '').join('').trim();
+  if (!chaveG) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
+  const { texto } = await chamarApiGemini(chaveG, { modelo: MODELO, sistema: p.sistema, partes: p.partes, json: p.json, temperatura: p.temperatura, timeoutMs: p.timeoutMs ?? 45_000, agente });
   if (!texto) throw new Error('A IA não devolveu resposta.');
   return texto;
 }
