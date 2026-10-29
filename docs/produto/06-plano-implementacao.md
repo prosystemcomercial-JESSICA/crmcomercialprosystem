@@ -18,6 +18,7 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 | Groq grátis na frente das IAs pagas, com medição de uso e cota | 29/10 |
 | Configurações › Modelos de IA (principal e reserva por assistente) e Gemini ligado | 29/10 |
 | OpenRouter grátis como segunda camada (depois do Groq) | 29/10 |
+| Gemini grátis como terceira camada (imagem, PDF e pesquisa inclusos; fora dos leads) | 29/10 |
 | Caderno da Laya (aprendizado imediato, níveis, cópia diária), Laya age sozinha a partir de Assistente | 25/09 |
 | Caroline (SDR), aprovação/ajuste/refazer, termômetro, botões, "Me chama depois" | 25/09 |
 | Julio e Luiz Felipe (retomada de propostas) com limite anti-bloqueio único | 25/09 |
@@ -2052,3 +2053,11 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Uso da IA:** clicar num assistente (barras ou linha da tabela) mostra "de onde vieram as respostas" dele (Groq, OpenRouter, Whisper, Gemini, OpenAI, Grok, falhas); sem escolha, barras de tokens por assistente. Caixa **"Só quem teve falhas"**.
 - **Tabelas ordenáveis:** clicar no título da coluna ordena (de novo inverte; ▲/▼ indica a ordem). Agentes começam por Efetivos; uso da IA começa por OpenAI.
 - **Para a Jessica:** abra Escritório › 📊 Métricas da IA, escolha "Hoje" para acompanhar ao vivo, clique nos cartões e nos nomes para ver os detalhes.
+
+### Atualização 29/10/2026: Gemini grátis como terceira camada (antes da IA paga)
+
+- **Pedido da Jessica:** "coloca o gemini para economizarmos a paga também".
+- **Ordem automática nova:** pedido só de texto → Groq grátis → OpenRouter grátis → **Gemini grátis** (`gemini-2.5-flash`, chave `GEMINI_API_KEY`) → Grok (tarefas simples) → OpenAI. Pedidos com **imagem ou PDF** e as **pesquisas na internet** (Sofia, Rafael, Olívia, Mila, com busca no Google) também tentam o Gemini grátis antes da OpenAI paga (`tentarGeminiGratis` em `ia-gemini.service.ts`). Áudio continua no Whisper local.
+- **Fora das conversas com leads:** `GEMINI_GRATIS_FORA` (padrão `caroline,julio,luiz_felipe`), porque o plano grátis do Google pode usar o conteúdo para treino. Vazio no `.env` = inclui os leads.
+- **Limite:** um 429 do Gemini pausa a camada por 10 minutos e a paga cobre. Uso e falhas aparecem na coluna "Gemini" e em "Falhas" de Desempenho.
+- **Painel Modelos de IA:** "Automático" agora diz que tenta as três grátis primeiro.

@@ -59,7 +59,7 @@ export default function ModelosIa() {
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Modelos de IA</h2>
           <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
-            Escolha a IA de cada assistente e a reserva, usada quando a principal falha. <b>Automático</b> tenta primeiro o Groq e depois a OpenRouter (os dois grátis) e só usa a paga quando nenhum dá conta.
+            Escolha a IA de cada assistente e a reserva, usada quando a principal falha. <b>Automático</b> tenta as grátis primeiro (Groq, OpenRouter e Gemini; o Gemini fica fora das conversas com leads) e só usa a paga quando nenhuma dá conta.
           </p>
         </div>
       </div>

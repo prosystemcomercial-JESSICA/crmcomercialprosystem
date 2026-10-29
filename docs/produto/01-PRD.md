@@ -2067,3 +2067,11 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Uso da IA:** clicar num assistente (barras ou linha da tabela) mostra "de onde vieram as respostas" dele (Groq, OpenRouter, Whisper, Gemini, OpenAI, Grok, falhas); sem escolha, barras de tokens por assistente. Caixa **"Só quem teve falhas"**.
 - **Tabelas ordenáveis:** clicar no título da coluna ordena (de novo inverte; ▲/▼ indica a ordem). Agentes começam por Efetivos; uso da IA começa por OpenAI.
 - **Para a Jessica:** abra Escritório › 📊 Métricas da IA, escolha "Hoje" para acompanhar ao vivo, clique nos cartões e nos nomes para ver os detalhes.
+
+### Atualização 29/10/2026: Gemini grátis como terceira camada (antes da IA paga)
+
+- **Pedido da Jessica:** "coloca o gemini para economizarmos a paga também".
+- **Ordem automática nova:** pedido só de texto → Groq grátis → OpenRouter grátis → **Gemini grátis** (`gemini-2.5-flash`, chave `GEMINI_API_KEY`) → Grok (tarefas simples) → OpenAI. Pedidos com **imagem ou PDF** e as **pesquisas na internet** (Sofia, Rafael, Olívia, Mila, com busca no Google) também tentam o Gemini grátis antes da OpenAI paga (`tentarGeminiGratis` em `ia-gemini.service.ts`). Áudio continua no Whisper local.
+- **Fora das conversas com leads:** `GEMINI_GRATIS_FORA` (padrão `caroline,julio,luiz_felipe`), porque o plano grátis do Google pode usar o conteúdo para treino. Vazio no `.env` = inclui os leads.
+- **Limite:** um 429 do Gemini pausa a camada por 10 minutos e a paga cobre. Uso e falhas aparecem na coluna "Gemini" e em "Falhas" de Desempenho.
+- **Painel Modelos de IA:** "Automático" agora diz que tenta as três grátis primeiro.

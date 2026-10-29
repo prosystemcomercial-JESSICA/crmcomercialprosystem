@@ -33,6 +33,12 @@ const chaveOpenRouter = () => (process.env.OPENROUTER_API_KEY || '').trim() || n
 const MODELOS_OPENROUTER = () => (process.env.OPENROUTER_MODELOS || 'recursive/flint-v1.0:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free').split(',').map(x => x.trim()).filter(Boolean);
 const OPENROUTER_LIMITE_DIA = Number(process.env.OPENROUTER_LIMITE_DIA) || 50;
 const openRouter = { dia: '', usados: 0, bloqueadoAte: 0 };
+// Gemini grátis como terceira camada (pedido da Jessica, 29/10/2026: "para economizarmos a paga também"):
+// depois do Groq e da OpenRouter e antes do Grok/OpenAI. Lê imagem/PDF e pesquisa na internet, então também
+// cobre pedidos que antes iam direto para a paga. O plano grátis do Google pode usar o conteúdo para treino:
+// por isso fica fora das conversas com leads (GEMINI_GRATIS_FORA, padrão caroline,julio,luiz_felipe).
+const geminiGratisFora = () => (process.env.GEMINI_GRATIS_FORA ?? 'caroline,julio,luiz_felipe').split(',').map(x => x.trim()).filter(Boolean);
+const geminiGratis = { bloqueadoAte: 0 };
 const hojeSP = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
 // Transcrição de áudio no próprio servidor (Whisper local, pm2 "transcritor", só em 127.0.0.1), sem custo.
@@ -138,6 +144,22 @@ async function tentarOpenRouter(p: { sistema: string; texto: string; json?: bool
   } catch (e) {
     console.warn('[OPENROUTER] não respondeu:', (e as Error)?.message);
     registrarChamadaIa(p.agente, 'openrouter', { ok: false });
+    return null;
+  }
+}
+
+/** Uma tentativa no Gemini grátis (ordem automática). Devolve o resultado, ou null quando não vale tentar ou ele não deu conta. */
+async function tentarGeminiGratis(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; busca?: boolean; temperatura?: number; timeoutMs?: number; agente: string }): Promise<Resultado | null> {
+  if (geminiGratis.bloqueadoAte > Date.now() || geminiGratisFora().some(a => p.agente === a || p.agente === `conversa-${a}`)) return null;
+  const chave = await chaveSoGemini(prisma);
+  if (!chave) return null;
+  try {
+    const r = await chamarApiGemini(chave, { modelo: MODELO, sistema: p.sistema, partes: p.partes, json: p.json, busca: p.busca, temperatura: p.temperatura, timeoutMs: p.timeoutMs ?? 90_000, agente: p.agente });
+    return r.texto ? r : null;
+  } catch (e) {
+    // Limite do plano grátis: pausa 10 minutos e deixa a paga cobrir.
+    if (/Limite de uso/.test((e as Error)?.message || '')) geminiGratis.bloqueadoAte = Date.now() + 10 * 60_000;
+    console.warn('[GEMINI] não respondeu, usando a IA paga:', (e as Error)?.message);
     return null;
   }
 }
@@ -317,6 +339,9 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   const rota = await seguirRota(prisma, agente, { sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 180_000 });
   if (rota.resultado) return { texto: rota.resultado.texto, fontes: rota.resultado.fontes.slice(0, 15) };
   if (!rota.auto) throw rota.erro || new Error('O modelo escolhido para esta função não respondeu (Configurações › Modelos de IA).');
+  // Automático: Gemini grátis (com busca no Google) antes da OpenAI paga.
+  const gratis = await tentarGeminiGratis(prisma, { sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 180_000, agente });
+  if (gratis) return { texto: gratis.texto, fontes: gratis.fontes.slice(0, 15) };
   if (chaveOpenAI()) {
     const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000, agente }));
     if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
@@ -346,6 +371,11 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     const pedido = { sistema: p.sistema, texto: p.partes.map(x => (x as { text: string }).text).join('\n\n'), json: p.json, temperatura: p.temperatura, agente };
     const texto = (await tentarGroq(prisma, pedido)) || (await tentarOpenRouter(pedido));
     if (texto) return texto;
+  }
+  // Depois, o Gemini grátis (também para imagem e PDF); fora das conversas com leads.
+  if (!temAudio) {
+    const r = await tentarGeminiGratis(prisma, { sistema: p.sistema, partes: p.partes, json: p.json, temperatura: p.temperatura, timeoutMs: p.timeoutMs, agente });
+    if (r) return r.texto;
   }
   if (p.simples && soTexto && chaveXai()) {
     try {
