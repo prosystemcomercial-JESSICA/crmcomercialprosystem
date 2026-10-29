@@ -935,7 +935,7 @@ export default function ContratosPage() {
                               className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
                               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} /></div>
                           <div className="col-span-2"><label className="text-[10px]" style={{ color: 'var(--t-text-muted)' }}>Segmento</label>
-                            <input value={gcForm.segmento} onChange={e => setGcForm((f: any) => ({ ...f, segmento: e.target.value }))} placeholder="Farmácia, Padaria…"
+                            <input value={gcForm.segmento} onChange={e => setGcForm((f: any) => ({ ...f, segmento: e.target.value }))} placeholder="Em branco = segmento da proposta"
                               className="w-full px-2 py-1.5 text-xs rounded-lg outline-none"
                               style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} /></div>
                         </div>

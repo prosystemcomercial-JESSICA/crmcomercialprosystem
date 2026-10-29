@@ -207,15 +207,43 @@ export async function garantirFasesTreinamento(prisma: PrismaClient, implantacao
 /** Testes de conversão: só existem na conversão. */
 export const TESTES_PADRAO = ['Produtos', 'Clientes', 'Fornecedores', 'Estoque', 'Financeiro (a pagar/receber)', 'Fiscal / NF-e', 'Vendas / Histórico'];
 
-/** Segmento do cliente da implantação (cadastro do cliente, pelo id ou CNPJ). */
-export async function segmentoDaImplantacao(prisma: PrismaClient, imp: { cliente_id?: string | null; cliente_cnpj?: string | null }): Promise<string | null> {
+type ImpSegmento = { proposta_id?: string | null; lead_id?: string | null; cliente_id?: string | null; cliente_cnpj?: string | null };
+export type SegmentoComOrigem = { segmento: string | null; origem: 'PROPOSTA' | 'LEAD' | 'CADASTRO' | null; cadastro: string | null; cliente_id: string | null };
+
+/**
+ * Segmento da implantação (pedido da Jessica, 29/10/2026: o segmento vale da proposta até o fim).
+ * Ordem: segmento da proposta assinada → do lead → do cadastro do cliente (pelo id ou CNPJ).
+ */
+export async function segmentoComOrigem(prisma: PrismaClient, imp: ImpSegmento): Promise<SegmentoComOrigem> {
   const cnpj = (imp.cliente_cnpj || '').replace(/\D/g, '');
-  const cli = imp.cliente_id ? await prisma.cliente.findUnique({ where: { id: imp.cliente_id }, select: { segmento: true } }).catch(() => null)
-    : imp.cliente_cnpj ? await prisma.cliente.findFirst({ where: { OR: [{ cnpj: imp.cliente_cnpj }, ...(cnpj ? [{ cnpj }] : [])] }, select: { segmento: true } }).catch(() => null) : null;
-  return cli?.segmento || null;
+  const cli = imp.cliente_id ? await prisma.cliente.findUnique({ where: { id: imp.cliente_id }, select: { id: true, segmento: true } }).catch(() => null)
+    : imp.cliente_cnpj ? await prisma.cliente.findFirst({ where: { OR: [{ cnpj: imp.cliente_cnpj }, ...(cnpj ? [{ cnpj }] : [])] }, select: { id: true, segmento: true } }).catch(() => null) : null;
+  const cadastro = cli?.segmento?.trim() || null;
+  const base = { cadastro, cliente_id: cli?.id || null };
+  const prop = imp.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: imp.proposta_id }, select: { segmento: true } }).catch(() => null) : null;
+  if (prop?.segmento?.trim()) return { segmento: prop.segmento.trim(), origem: 'PROPOSTA', ...base };
+  const lead = imp.lead_id ? await prisma.lead.findUnique({ where: { id: imp.lead_id }, select: { segmento_proposta: true, segmento: true } }).catch(() => null) : null;
+  const doLead = lead?.segmento_proposta?.trim() || lead?.segmento?.trim();
+  if (doLead) return { segmento: doLead, origem: 'LEAD', ...base };
+  return { segmento: cadastro, origem: cadastro ? 'CADASTRO' : null, ...base };
 }
-export async function perfilDaImplantacao(prisma: PrismaClient, imp: { cliente_id?: string | null; cliente_cnpj?: string | null; tipo_base?: string | null }): Promise<PerfilImplantacao> {
+export async function segmentoDaImplantacao(prisma: PrismaClient, imp: ImpSegmento): Promise<string | null> {
+  return (await segmentoComOrigem(prisma, imp)).segmento;
+}
+export async function perfilDaImplantacao(prisma: PrismaClient, imp: ImpSegmento & { tipo_base?: string | null }): Promise<PerfilImplantacao> {
   return perfilDe(await segmentoDaImplantacao(prisma, imp), imp.tipo_base);
+}
+
+/**
+ * Implantações abertas antes de o segmento vir da proposta montaram o checklist pelo cadastro (vazio = Farmácia).
+ * Quando o perfil pelo cadastro e o perfil pela proposta divergem, realinha o checklist e, se o cadastro estiver
+ * vazio, grava nele o segmento da proposta (assim o perfil fica igual em todo o CRM). Devolve o realinhamento feito.
+ */
+export async function corrigirSegmentoDaProposta(prisma: PrismaClient, implantacaoId: string, s: SegmentoComOrigem, tipoBase: string | null | undefined, por = 'Sistema') {
+  if (!s.segmento || s.origem === 'CADASTRO') return null;
+  if (!s.cadastro && s.cliente_id) await prisma.cliente.update({ where: { id: s.cliente_id }, data: { segmento: s.segmento } }).catch(() => null);
+  if (perfilDe(s.cadastro, tipoBase).segmento === perfilDe(s.segmento, tipoBase).segmento) return null;
+  return realinharAoPerfil(prisma, implantacaoId, por).catch(() => null);
 }
 
 /**

@@ -1517,6 +1517,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - No Portal de Implantação, ao abrir o card, o cabeçalho mostra agora uma **etiqueta com o segmento do cliente** antes do tipo da demanda: 💊 Farmácia (verde), 🥖 Padaria (âmbar) ou 🛒 Varejo (roxo). O texto é o do cadastro do cliente (ex.: "Drogaria", "Manipulação"); a cor segue o perfil usado nas perguntas e no checklist.
 - Se o cadastro estiver sem segmento, aparece **"Farmácia (padrão)"**: é o perfil que o portal usa nesse caso. Para corrigir, preencha o segmento no cadastro do cliente.
 - O texto azul ao lado fica só com o tipo (ex.: "Implantação · banco zerado"), sem repetir o segmento.
+- **Correção (29/10/2026): o segmento agora vem da proposta.** A etiqueta, as perguntas e o checklist usam o segmento escolhido na proposta comercial assinada; só se a proposta não tiver segmento vale o do cadastro do cliente. Passe o mouse na etiqueta para ver de onde veio. Cards antigos que estavam como Farmácia por engano se ajustam sozinhos ao serem abertos (o histórico registra o ajuste do checklist). Ao gerar o cadastro do cliente pelo contrato, deixar o segmento em branco usa o da proposta.
 
 ### Atualização 29/10/2026: modo escuro no Portal Técnico
 

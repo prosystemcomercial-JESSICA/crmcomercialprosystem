@@ -1020,6 +1020,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const ct: any = await prisma.contratoComercial.findUnique({ where: { id } });
     if (!ct) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
     const b = body.data;
+    // Segmento: o informado pela gestão ou o da proposta assinada (vale da proposta até o fim, 29/10/2026).
+    const segProposta = ct.proposta_comercial_id
+      ? (await prisma.propostaComercial.findUnique({ where: { id: ct.proposta_comercial_id }, select: { segmento: true } }).catch(() => null))?.segmento?.trim() || null : null;
 
     // Setup total: usa valor_setup_total, ou entrada + (parcelas × valor parcela).
     const setupTotal = ct.valor_setup_total
@@ -1039,7 +1042,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       mensalidade_base: ct.mensalidade ?? null,
       valor_instalacao: setupTotal,
       situacao: 'ATIVA',
-      segmento: b.segmento || null,
+      segmento: b.segmento || segProposta,
       grupo_tecnico: b.grupo_tecnico || null,
       observacoes: b.observacoes || `Cadastro gerado do contrato ${ct.numero_contrato || id}.`,
       data_entrada: new Date(),

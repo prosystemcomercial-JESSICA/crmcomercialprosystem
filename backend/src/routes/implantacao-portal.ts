@@ -10,7 +10,7 @@ import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -708,6 +708,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id);
     // Cards abertos antes do roteiro automático: ao abrir, os itens que a ficha já cobre se marcam.
     if (imp.modulo === 'IMPLANTACAO' && await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0)) imp = (await demanda(u, id)) || imp;
+    // Segmento vem da proposta (29/10/2026); card montado pelo cadastro errado se acerta ao abrir.
+    const segInfo = imp.modulo === 'IMPLANTACAO' ? await segmentoComOrigem(prisma, imp) : null;
+    if (segInfo) {
+      const r = await corrigirSegmentoDaProposta(prisma, id, segInfo, imp.tipo_base, u.nome || u.id);
+      if (r && (r.removidos || r.incluidos || r.testes)) await atividade(id, 'NOTA', `🧭 Checklist ajustado ao segmento da proposta: ${descreverPerfil(r.perfil)} (${r.removidos} item(ns) tirado(s), ${r.incluidos} incluído(s))`);
+    }
     const [checklist, fases, ocorrencias, comunicacoes, sessoes, esperas] = await Promise.all([
       prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, orderBy: [{ grupo: 'asc' }, { ordem: 'asc' }] }),
       prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, orderBy: { ordem: 'asc' } }),
@@ -750,7 +756,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const eventoTroca = imp.tipo_servico === 'TROCA_CNPJ' && cliHist
       ? await (prisma as any).eventoCliente.findFirst({ where: { cliente_id: cliHist, tipo: 'TROCA_CNPJ' }, orderBy: { created_at: 'desc' }, select: { metadados: true } }).catch(() => null) : null;
     // Perfil da implantação: segmento do cliente + banco zerado/conversão decide perguntas, roteiro e ficha.
-    const perfil = perfilDe(cliente_ficha?.segmento, imp.tipo_base);
+    const perfil = perfilDe(segInfo ? segInfo.segmento : cliente_ficha?.segmento, imp.tipo_base);
     const tipo_demanda = imp.modulo === 'SERVICO'
       ? `Serviço · ${(imp.tipo_servico && TIPOS_SERVICO[imp.tipo_servico]?.label) || 'Outro'}`
       : `Implantação · ${descreverPerfil(perfil).split(' · ')[0]} · ${imp.tipo_base === 'BANCO_ZERADO' ? 'banco zerado' : `conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''}`}`;
@@ -764,7 +770,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send({ status: 'success', data: {
       implantacao: { ...imp, coluna: colunaDe(imp), progresso: progresso(imp, checklist) }, checklist, fases, ocorrencias, comunicacoes: comunicacoes.map(c => ({ ...c, texto: c.texto?.slice(0, 600) })),
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
-      link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: imp.modulo === 'SERVICO' ? CAMPOS_COLETA : camposColetaDoPerfil(perfil), perfil,
+      link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: imp.modulo === 'SERVICO' ? CAMPOS_COLETA : camposColetaDoPerfil(perfil), perfil, segmento_info: segInfo ? { segmento: segInfo.segmento, origem: segInfo.origem, cadastro: segInfo.cadastro } : null,
       onboarding_secoes: onboardingSecoesDoPerfil(perfil), onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: perguntasDoPerfil(perfil),
       // Itens do roteiro marcados pela ficha: campos que pedem e os que faltam (com o rótulo de cada um).
       onboarding_pela_ficha: Object.fromEntries(checklist.filter(c => c.grupo === 'ONBOARDING').flatMap(c => {

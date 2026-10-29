@@ -228,14 +228,17 @@ const SEGMENTO_CAB: Record<string, { nome: string; cor: string; emoji: string }>
   VAREJO: { nome: 'Varejo', cor: '#7c3aed', emoji: '🛒' },
 };
 
-function EtqSegmento({ segmentoCadastro, perfil }: { segmentoCadastro?: string | null; perfil?: string }) {
+function EtqSegmento({ info, segmentoCadastro, perfil }: { info?: { segmento: string | null; origem: string | null; cadastro: string | null } | null; segmentoCadastro?: string | null; perfil?: string }) {
   const s = SEGMENTO_CAB[perfil || ''];
   if (!s) return null;
-  const semCadastro = !segmentoCadastro?.trim();
+  // Segmento vale da proposta até o fim (29/10/2026): proposta → lead → cadastro do cliente.
+  const texto = (info ? info.segmento : segmentoCadastro)?.trim();
+  const origem = info?.origem === 'PROPOSTA' ? 'da proposta' : info?.origem === 'LEAD' ? 'do lead' : 'do cadastro do cliente';
+  const diverge = info?.cadastro && texto && info.origem !== 'CADASTRO' && info.cadastro !== texto ? ` (o cadastro do cliente diz ${info.cadastro})` : '';
   return (
-    <span title={semCadastro ? 'Segmento não preenchido no cadastro do cliente: vale Farmácia (padrão).' : `Segmento do cliente: ${segmentoCadastro}`}
+    <span title={!texto ? 'Segmento não informado na proposta nem no cadastro do cliente: vale Farmácia (padrão).' : `Segmento ${origem}: ${texto}${diverge}`}
       style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: s.cor, background: `${s.cor}14`, border: `1px solid ${s.cor}55`, padding: '2px 10px', borderRadius: 999, whiteSpace: 'nowrap', letterSpacing: '.01em' }}>
-      <span aria-hidden>{s.emoji}</span>{semCadastro ? `${s.nome} (padrão)` : segmentoCadastro}
+      <span aria-hidden>{s.emoji}</span>{!texto ? `${s.nome} (padrão)` : texto}
     </span>
   );
 }
@@ -297,7 +300,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
       <header className="pf-cab">
         <div className="pf-id">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <EtqSegmento segmentoCadastro={d.cliente_ficha?.segmento} perfil={d.perfil?.segmento} />
+            <EtqSegmento info={d.segmento_info} segmentoCadastro={d.cliente_ficha?.segmento} perfil={d.perfil?.segmento} />
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-link)' }}>{d.perfil?.segmento && SEGMENTO_CAB[d.perfil.segmento] ? String(d.tipo_demanda || '').replace(` · ${SEGMENTO_CAB[d.perfil.segmento].nome}`, '') : d.tipo_demanda}</span>
           </div>
           <h2 title={i.cliente_razao_social}>{i.cliente_razao_social}</h2>
@@ -900,7 +903,7 @@ function PerguntasPrimeiroContato({ d, recarregar }: { d: any; recarregar: () =>
           </div>
         ))}
       </section>
-      <span style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Com as {campos.length} respondidas, o item "Perguntas principais" do roteiro se marca sozinho.{d.perfil ? ` Perguntas de ${d.perfil.segmento === 'FARMACIA' ? 'farmácia' : d.perfil.segmento === 'PADARIA' ? 'padaria' : 'varejo'} (segmento do cadastro do cliente).` : ''}</span>
+      <span style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Com as {campos.length} respondidas, o item "Perguntas principais" do roteiro se marca sozinho.{d.perfil ? ` Perguntas de ${d.perfil.segmento === 'FARMACIA' ? 'farmácia' : d.perfil.segmento === 'PADARIA' ? 'padaria' : 'varejo'} (segmento da proposta).` : ''}</span>
       <RodapeSalvar auto={auto} rotulo="Salvar respostas">
         <b style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'var(--t-text-primary)' }}>{respondidas} de {campos.length}</b>
         {respondidas < campos.length && <button onClick={proxima} style={btn('#286397', false)}>Próxima sem resposta ↓</button>}
@@ -1501,7 +1504,7 @@ function ModelosChecklist({ c, setC }: { c: any; setC: (f: (p: any) => any) => v
       <div>
         <div style={rotulo}>Modelos de checklist por segmento</div>
         <div style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-          Quando a demanda é designada, o checklist vem do modelo do segmento do cliente (cadastro). Sem modelo, vale o padrão. Um item por linha.
+          Quando a demanda é designada, o checklist vem do modelo do segmento da proposta (sem proposta, o do cadastro do cliente). Sem modelo, vale o padrão. Um item por linha.
           Itens com "certificado", "backup/Copy", "Conversão dos dados", "Validar Produtos" e "NFCE em Operação" no texto continuam travando a virada.
         </div>
       </div>
