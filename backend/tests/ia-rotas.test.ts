@@ -36,10 +36,10 @@ describe('planoDaRota', () => {
     expect(planoDaRota(undefined, modelos, { temChave: todas })).toEqual({ tentar: [], auto: true });
   });
   it('principal e reserva, depois automático só se a reserva for Automático', () => {
-    expect(ids(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'openai:gpt-x' }, modelos, { temChave: todas }))).toEqual(['gemini:gemini-2.5-flash', 'openai:gpt-x']);
-    expect(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'openai:gpt-x' }, modelos, { temChave: todas }).auto).toBe(false);
-    expect(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'auto' }, modelos, { temChave: todas }).auto).toBe(true);
-    expect(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'nenhuma' }, modelos, { temChave: todas }).auto).toBe(false);
+    expect(ids(planoDaRota({ principal: 'gemini:gemini-flash-latest', reserva: 'openai:gpt-x' }, modelos, { temChave: todas }))).toEqual(['gemini:gemini-flash-latest', 'openai:gpt-x']);
+    expect(planoDaRota({ principal: 'gemini:gemini-flash-latest', reserva: 'openai:gpt-x' }, modelos, { temChave: todas }).auto).toBe(false);
+    expect(planoDaRota({ principal: 'gemini:gemini-flash-latest', reserva: 'auto' }, modelos, { temChave: todas }).auto).toBe(true);
+    expect(planoDaRota({ principal: 'gemini:gemini-flash-latest', reserva: 'nenhuma' }, modelos, { temChave: todas }).auto).toBe(false);
   });
   it('OpenRouter grátis como principal, Groq de reserva', () => {
     const p = planoDaRota({ principal: 'openrouter:recursive/flint-v1.0:free', reserva: 'groq:openai/gpt-oss-120b' }, modelos, { temChave: todas });
@@ -47,14 +47,14 @@ describe('planoDaRota', () => {
     expect(ids(planoDaRota({ principal: 'openrouter:recursive/flint-v1.0:free', reserva: 'auto' }, modelos, { imagem: true, temChave: todas }))).toEqual([]);
   });
   it('Groq não lê imagem nem pesquisa: pula para quem consegue', () => {
-    const rota = { principal: 'groq:openai/gpt-oss-120b', reserva: 'gemini:gemini-2.5-flash' };
-    expect(ids(planoDaRota(rota, modelos, { imagem: true, temChave: todas }))).toEqual(['gemini:gemini-2.5-flash']);
-    expect(ids(planoDaRota(rota, modelos, { busca: true, temChave: todas }))).toEqual(['gemini:gemini-2.5-flash']);
+    const rota = { principal: 'groq:openai/gpt-oss-120b', reserva: 'gemini:gemini-flash-latest' };
+    expect(ids(planoDaRota(rota, modelos, { imagem: true, temChave: todas }))).toEqual(['gemini:gemini-flash-latest']);
+    expect(ids(planoDaRota(rota, modelos, { busca: true, temChave: todas }))).toEqual(['gemini:gemini-flash-latest']);
   });
   it('nada escolhido serve ou tem chave: volta ao automático em vez de deixar sem IA', () => {
     const p = planoDaRota({ principal: 'groq:openai/gpt-oss-120b', reserva: 'nenhuma' }, modelos, { imagem: true, temChave: todas });
     expect(p).toEqual({ tentar: [], auto: true });
-    const semChave = planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'nenhuma' }, modelos, { temChave: pv => pv !== 'gemini' });
+    const semChave = planoDaRota({ principal: 'gemini:gemini-flash-latest', reserva: 'nenhuma' }, modelos, { temChave: pv => pv !== 'gemini' });
     expect(semChave).toEqual({ tentar: [], auto: true });
   });
   it('mesmo modelo nas duas: tenta uma vez', () => {

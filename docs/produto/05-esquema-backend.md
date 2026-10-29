@@ -2041,3 +2041,4 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Fora das conversas com leads:** `GEMINI_GRATIS_FORA` (padrão `caroline,julio,luiz_felipe`), porque o plano grátis do Google pode usar o conteúdo para treino. Vazio no `.env` = inclui os leads.
 - **Limite:** um 429 do Gemini pausa a camada por 10 minutos e a paga cobre. Uso e falhas aparecem na coluna "Gemini" e em "Falhas" de Desempenho.
 - **Painel Modelos de IA:** "Automático" agora diz que tenta as três grátis primeiro.
+- **Correção do mesmo dia:** o `gemini-2.5-flash` não é mais liberado para contas novas. O modelo padrão passou a ser `gemini-flash-latest` (`GEMINI_MODEL`), também no painel Modelos de IA. Erros 402 (projeto com cobrança pré-paga e sem crédito), 401, 403 e 404 pausam o Gemini grátis por 1 hora, e a paga cobre. A chave atual deu 402: a cota grátis exige uma chave de projeto sem cobrança.

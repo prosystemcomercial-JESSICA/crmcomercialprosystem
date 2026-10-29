@@ -10,8 +10,9 @@ export const AUTO = 'auto';
 export const NENHUMA = 'nenhuma';
 
 /** Modelos que o CRM sabe chamar. O modelo da OpenAI e do Grok vem do .env (OPENAI_MODEL, XAI_MODEL). */
-export function catalogo(env: { OPENAI_MODEL?: string; XAI_MODEL?: string } = {}): Modelo[] {
+export function catalogo(env: { OPENAI_MODEL?: string; XAI_MODEL?: string; GEMINI_MODEL?: string } = {}): Modelo[] {
   const openai = env.OPENAI_MODEL || 'gpt-6-luna';
+  const gemini = env.GEMINI_MODEL || 'gemini-flash-latest';
   const grok = env.XAI_MODEL || 'grok-4.7';
   return [
     { id: 'groq:openai/gpt-oss-120b', provedor: 'groq', modelo: 'openai/gpt-oss-120b', nome: 'Groq: GPT-OSS 120B', gratis: true, imagem: false, busca: false },
@@ -21,7 +22,7 @@ export function catalogo(env: { OPENAI_MODEL?: string; XAI_MODEL?: string } = {}
     { id: 'openrouter:recursive/flint-v1.0:free', provedor: 'openrouter', modelo: 'recursive/flint-v1.0:free', nome: 'OpenRouter: Flint', gratis: true, imagem: false, busca: false },
     { id: 'openrouter:dots-studio/dots-3-note-preview:free', provedor: 'openrouter', modelo: 'dots-studio/dots-3-note-preview:free', nome: 'OpenRouter: Dots 3', gratis: true, imagem: false, busca: false },
     { id: 'openrouter:google/gemma-4-31b-it:free', provedor: 'openrouter', modelo: 'google/gemma-4-31b-it:free', nome: 'OpenRouter: Gemma 4 31B', gratis: true, imagem: false, busca: false },
-    { id: 'gemini:gemini-2.5-flash', provedor: 'gemini', modelo: 'gemini-2.5-flash', nome: 'Google: Gemini 2.5 Flash', gratis: true, imagem: true, busca: true },
+    { id: `gemini:${gemini}`, provedor: 'gemini', modelo: gemini, nome: `Google: ${gemini === 'gemini-flash-latest' ? 'Gemini Flash (mais recente)' : gemini}`, gratis: true, imagem: true, busca: true },
     { id: `openai:${openai}`, provedor: 'openai', modelo: openai, nome: `OpenAI: ${openai}`, gratis: false, imagem: true, busca: true },
     { id: `grok:${grok}`, provedor: 'grok', modelo: grok, nome: `xAI: ${grok}`, gratis: false, imagem: false, busca: false },
   ];

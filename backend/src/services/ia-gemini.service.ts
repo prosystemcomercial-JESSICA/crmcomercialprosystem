@@ -9,7 +9,8 @@ import { catalogo, funcaoDoAgente, planoDaRota, validarRotas, type Modelo, type 
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
 
 export const CHAVE_GEMINI = 'assistente.gemini_chave';
-const MODELO = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// gemini-2.5-flash não é mais liberado para contas novas (29/10/2026): o padrão é o apelido que o Google mantém atualizado.
+const MODELO = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
 // Quando OPENAI_API_KEY existe (só no .env do servidor), a IA usa o ChatGPT
 // (modelo OPENAI_MODEL, padrão gpt-6-luna). Áudio continua no Gemini, se houver chave.
@@ -157,8 +158,10 @@ async function tentarGeminiGratis(prisma: PrismaClient, p: { sistema: string; pa
     const r = await chamarApiGemini(chave, { modelo: MODELO, sistema: p.sistema, partes: p.partes, json: p.json, busca: p.busca, temperatura: p.temperatura, timeoutMs: p.timeoutMs ?? 90_000, agente: p.agente });
     return r.texto ? r : null;
   } catch (e) {
-    // Limite do plano grátis: pausa 10 minutos e deixa a paga cobrir.
-    if (/Limite de uso/.test((e as Error)?.message || '')) geminiGratis.bloqueadoAte = Date.now() + 10 * 60_000;
+    // Limite do plano grátis: pausa 10 minutos; chave sem crédito, inválida ou modelo fora do ar: 1 hora.
+    const msg = (e as Error)?.message || '';
+    if (/Limite de uso/.test(msg)) geminiGratis.bloqueadoAte = Date.now() + 10 * 60_000;
+    else if (/402|inválida|HTTP 40[34]/.test(msg)) geminiGratis.bloqueadoAte = Date.now() + 60 * 60_000;
     console.warn('[GEMINI] não respondeu, usando a IA paga:', (e as Error)?.message);
     return null;
   }
@@ -259,6 +262,8 @@ async function chamarApiGemini(chave: string, p: { modelo: string; sistema: stri
     const corpo = await res.text().catch(() => '');
     if (res.status === 400 && /API key/i.test(corpo)) throw new Error('A chave da IA é inválida. Confira em Configurações.');
     if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    // 402 = projeto do Google com cobrança pré-paga e sem crédito (a cota grátis só vale em projeto sem cobrança).
+    if (res.status === 402) throw new Error('Gemini sem crédito: a chave é de um projeto com cobrança pré-paga (HTTP 402).');
     throw new Error(`IA indisponível (HTTP ${res.status}).`);
   }
   const data: any = await res.json();

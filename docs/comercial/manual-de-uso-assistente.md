@@ -1498,3 +1498,4 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Limite:** um 429 do Gemini pausa a camada por 10 minutos e a paga cobre. Uso e falhas aparecem na coluna "Gemini" e em "Falhas" de Desempenho.
 - **Painel Modelos de IA:** "Automático" agora diz que tenta as três grátis primeiro.
 - **Para a Jessica:** agora são três IAs grátis antes da paga: Groq, OpenRouter e Gemini. O Gemini também lê prints e PDFs e faz as pesquisas na internet de graça. Ele não entra nas conversas com os leads.
+- **Correção do mesmo dia:** o `gemini-2.5-flash` não é mais liberado para contas novas. O modelo padrão passou a ser `gemini-flash-latest` (`GEMINI_MODEL`), também no painel Modelos de IA. Erros 402 (projeto com cobrança pré-paga e sem crédito), 401, 403 e 404 pausam o Gemini grátis por 1 hora, e a paga cobre. A chave atual deu 402: a cota grátis exige uma chave de projeto sem cobrança.

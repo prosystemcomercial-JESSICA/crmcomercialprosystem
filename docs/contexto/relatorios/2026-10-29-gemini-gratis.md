@@ -15,3 +15,10 @@
 
 ## Pendências
 - Acompanhar a coluna "Gemini" e a coluna "Falhas" em Desempenho.
+
+## Teste em produção
+- `gemini-2.5-flash`: 404, "no longer available to new users".
+- `gemini-3.8-flash`, `gemini-flash-latest`, `gemini-3.5-flash`, `gemini-3.1-flash-lite` e `gemma-4-31b-it`: todos deram 402, "Your prepayment credits are depleted". O projeto da chave tem cobrança pré-paga ligada e está sem crédito, então não tem a cota grátis.
+- Correção: o modelo padrão passou a ser `gemini-flash-latest`, e os erros 402, 401, 403 e 404 pausam a camada por 1 hora. Sem isso, cada pedido tentaria o Gemini à toa antes da paga.
+- A Jessica precisa criar uma chave em um projeto sem cobrança no AI Studio. Com ela no `.env` (`GEMINI_API_KEY`), a camada passa a funcionar sem mudar código.
+
