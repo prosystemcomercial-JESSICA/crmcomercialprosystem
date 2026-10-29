@@ -262,7 +262,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   const servico = i.modulo === 'SERVICO';
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
-    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Ficha do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
+    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Cadastro do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico do card', MessageSquare], ['prints', 'Prints', FileText],
@@ -284,6 +284,12 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   // Até o onboarding terminar, estas seções ficam travadas (o conteúdo explica o porquê).
   const travadas: Aba[] = !servico && !d.onboarding_ok ? ['checklist', 'testes', 'virada', 'assistida', 'treinamento'] : [];
   const abaDoPasso = d.proximo_passo?.quem !== 'NINGUEM' ? d.proximo_passo?.aba : null;
+  // Campo que falta no roteiro: as perguntas ficam no onboarding, o resto na ficha de coleta.
+  const irParaCampo = (k: string) => {
+    const pergunta = (d.perguntas_primeiro_contato || []).includes(k);
+    setAba(pergunta ? 'onboarding' : 'ficha');
+    focarCampo(pergunta ? `pc-${k}` : `fc-${k}`);
+  };
   const tituloAba = dispo.get(aba)?.l || '';
   return (
     <Gaveta onClose={onClose}>
@@ -334,7 +340,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
           </div>
           <div className="pf-conteudo-in">
           <h3 className="pf-titulo">{tituloAba}</h3>
-        {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} />}
+        {aba === 'onboarding' && <AbaOnboarding d={d} recarregar={carregar} irPara={setAba} irParaCampo={irParaCampo} />}
         {aba === 'fichacliente' && <AbaFichaCliente d={d} />}
         {aba === 'tarefascliente' && <AbaTarefasCliente d={d} recarregar={carregar} />}
         {aba === 'testes' && <AbaTestes d={d} recarregar={carregar} />}
@@ -342,7 +348,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'inventario' && <AbaInventario d={d} />}
         {aba === 'observacoes' && <AbaObservacoes id={d.implantacao.id} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
-        {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} />}
+        {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
         {aba === 'virada' && <AbaVirada d={d} gestao={gestao} recarregar={carregar} />}
         {aba === 'assistida' && <AbaAssistida d={d} recarregar={carregar} />}
@@ -416,6 +422,9 @@ const CSS_FICHA = `
 .pf-chk{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;min-height:48px;font-size:14px;line-height:1.45;cursor:pointer;border-radius:8px;transition:background-color .12s}
 .pf-chk:hover{background:var(--t-content-bg)}
 .pf-chk input{margin-top:1px;flex-shrink:0}
+.pf-auto{display:inline-block;font-size:12.5px;color:var(--t-text-muted);text-decoration:none}
+.pf-link{background:none;border:none;padding:0;font:inherit;color:#286397;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.pf-foco{outline:2px solid #286397;outline-offset:3px;border-radius:6px}
 @media (max-width:1180px){
   .pf-corpo{grid-template-columns:220px minmax(0,1fr)}
   .pf-lateral{display:none;position:absolute;right:0;top:0;bottom:0;width:min(360px,92%);z-index:5;box-shadow:-12px 0 32px rgba(0,0,0,.18)}
@@ -439,6 +448,19 @@ const CSS_FICHA = `
   .pf-campos{grid-template-columns:minmax(0,1fr);padding:14px}
 }
 `;
+
+/** Leva até um campo de outra seção: espera a seção abrir, rola até ele e destaca por um instante. */
+function focarCampo(id: string) {
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus({ preventScroll: true });
+    const caixa = el.closest('.pf-campo, .pf-perg') || el;
+    caixa.classList.add('pf-foco');
+    setTimeout(() => caixa.classList.remove('pf-foco'), 2000);
+  }, 80);
+}
 
 function Gaveta({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
@@ -693,7 +715,7 @@ function Mini({ l, v, s, cor }: { l: string; v: string; s?: string; cor?: string
   );
 }
 
-function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
+function AbaFicha({ d, recarregar, irPara }: { d: any; recarregar: () => void; irPara: (a: Aba) => void }) {
   const i = d.implantacao;
   const inicial = useMemo(() => {
     const c = { ...(i.coleta || {}) };
@@ -704,19 +726,22 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
   const [f, setF] = useState<Record<string, any>>(inicial);
   const auto = useAutoSalvar(async () => { await apiClient.salvarColeta(i.id, f); recarregar(); });
   const mudar = (k: string) => (v: string, imediato: boolean) => { setF(p => ({ ...p, [k]: v })); if (imediato) auto.agendar(); else auto.marcar(); };
-  const [tela, setTela] = useState<string | null>(null);
-  const grupos = Array.from(new Set<string>(d.campos_coleta.map((c: any) => c.grupo)));
-  const preenchidos = (g: string) => d.campos_coleta.filter((c: any) => c.grupo === g && String(f[c.key] ?? '').trim() !== '').length;
-  const enviarTela = async (arq: File) => {
-    if (arq.size > 8 * 1024 * 1024) return alert('Arquivo grande demais (máx. 8 MB).');
-    const url = await new Promise<string>((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = erro; r.readAsDataURL(arq); });
-    try { await apiClient.enviarTelaSuporte(i.id, arq.name, url); recarregar(); } catch (e) { alert(erroDe(e)); }
-  };
-  const verTela = async () => { try { const r = await apiClient.getTelaSuporte(i.id); setTela(r.data.data.url); } catch (e) { alert(erroDe(e)); } };
+  // As perguntas do primeiro contato ficam só no onboarding (decisão da Jessica, 29/10/2026): aqui, o resto do diagnóstico.
+  const perguntas: string[] = d.perguntas_primeiro_contato || [];
+  const campos = d.campos_coleta.filter((c: any) => !perguntas.includes(c.key));
+  const grupos = Array.from(new Set<string>(campos.map((c: any) => c.grupo)));
+  const preenchidos = (g: string) => campos.filter((c: any) => c.grupo === g && String(f[c.key] ?? '').trim() !== '').length;
+  const respondidas = perguntas.filter(k => String(f[k] ?? '').trim() !== '').length;
   return (
     <div style={{ display: 'grid', gap: 18 }}>
+      {perguntas.length > 0 && (
+        <div style={{ ...cartao, padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', fontSize: 14, color: 'var(--t-text-secondary)' }}>
+          <span style={{ flex: '1 1 260px', lineHeight: 1.5 }}>As <b style={{ fontWeight: 600 }}>{perguntas.length} perguntas do primeiro contato</b> ficam na seção Onboarding técnico: <span style={{ fontVariantNumeric: 'tabular-nums', color: respondidas === perguntas.length ? '#16a34a' : undefined }}>{respondidas} de {perguntas.length} respondidas</span>. O que você preenche aqui marca sozinho os itens do roteiro.</span>
+          <button onClick={() => irPara('onboarding')} style={btn('#286397', false)}>Abrir as perguntas</button>
+        </div>
+      )}
       {grupos.map(g => {
-        const doGrupo = d.campos_coleta.filter((c: any) => c.grupo === g);
+        const doGrupo = campos.filter((c: any) => c.grupo === g);
         return (
           <section key={g} className="pf-grupo">
             <header><b>{g}</b><span>{preenchidos(g)} de {doGrupo.length} preenchidos</span></header>
@@ -740,35 +765,62 @@ function AbaFicha({ d, recarregar }: { d: any; recarregar: () => void }) {
         );
       })}
       <RodapeSalvar auto={auto} rotulo="Salvar ficha" />
-      <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
-        <div style={rotulo}>Tela do Suporte (liberação do sistema)</div>
-        <div style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>{i.tela_suporte_arquivo_id ? '✅ Tela anexada. Pode substituir enviando outra.' : 'Obrigatória para iniciar a virada.'}</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <label style={{ ...btn('#286397', false), cursor: 'pointer' }}><ImageIcon size={13} /> Enviar imagem ou PDF
-            <input type="file" accept="image/*,application/pdf" hidden onChange={e => e.target.files?.[0] && enviarTela(e.target.files[0])} /></label>
-          {i.tela_suporte_arquivo_id && <button onClick={verTela} style={btn('#64748b', false)}>Ver tela</button>}
-        </div>
-        {tela && (tela.startsWith('data:application/pdf') ? <a href={tela} download="tela-suporte.pdf" style={{ fontSize: 13 }}>Baixar PDF</a> : <img src={tela} alt="Tela do Suporte" style={{ maxWidth: '100%', borderRadius: 6, border: '1px solid var(--t-card-border)' }} />)}
-      </div>
     </div>
   );
 }
 
-function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => void; irPara: (a: Aba) => void }) {
+/** Tela do Suporte (liberação do sistema): fica na Virada, que é onde ela é exigida. */
+function TelaSuporte({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const i = d.implantacao;
+  const [tela, setTela] = useState<string | null>(null);
+  const enviarTela = async (arq: File) => {
+    if (arq.size > 8 * 1024 * 1024) return alert('Arquivo grande demais (máx. 8 MB).');
+    const url = await new Promise<string>((ok, erro) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = erro; r.readAsDataURL(arq); });
+    try { await apiClient.enviarTelaSuporte(i.id, arq.name, url); recarregar(); } catch (e) { alert(erroDe(e)); }
+  };
+  const verTela = async () => { try { const r = await apiClient.getTelaSuporte(i.id); setTela(r.data.data.url); } catch (e) { alert(erroDe(e)); } };
+  return (
+    <span style={{ display: 'grid', gap: 8 }}>
+      <span>{i.tela_suporte_arquivo_id ? 'Pronta. Pode substituir enviando outra.' : 'Obrigatória para iniciar a virada.'}</span>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <label style={{ ...btn('#286397', false), cursor: 'pointer' }}><ImageIcon size={13} /> {i.tela_suporte_arquivo_id ? 'Substituir' : 'Enviar imagem ou PDF'}
+          <input type="file" accept="image/*,application/pdf" hidden onChange={e => e.target.files?.[0] && enviarTela(e.target.files[0])} /></label>
+        {i.tela_suporte_arquivo_id && <button onClick={verTela} style={btn('#64748b', false)}>Ver tela</button>}
+      </span>
+      {tela && (tela.startsWith('data:application/pdf') ? <a href={tela} download="tela-suporte.pdf" style={{ fontSize: 13 }}>Baixar PDF</a> : <img src={tela} alt="Tela do Suporte" style={{ maxWidth: '100%', borderRadius: 6, border: '1px solid var(--t-card-border)' }} />)}
+    </span>
+  );
+}
+
+function AbaOnboarding({ d, recarregar, irPara, irParaCampo }: { d: any; recarregar: () => void; irPara: (a: Aba) => void; irParaCampo: (k: string) => void }) {
   const itens = d.checklist.filter((c: any) => c.grupo === 'ONBOARDING');
   const [salvando, setSalvando] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const i = d.implantacao;
   const feitos = itens.filter((c: any) => c.feito).length;
+  const pelaFicha: Record<string, { campos: { key: string; label: string }[]; faltam: string[] }> = d.onboarding_pela_ficha || {};
   const marcar = async (item: any) => { setSalvando(item.id); try { await apiClient.marcarChecklistImplantacao(item.id, !item.feito); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setSalvando(null); } };
   const copiarLink = async () => {
     let link = d.link_cliente;
     if (!link) { try { const r = await apiClient.gerarPaginaCliente(i.id); link = r.data.data.link; recarregar(); } catch (e) { return alert(erroDe(e)); } }
     try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch { prompt('Copie o link:', link); }
   };
-  if (!itens.length) return <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>O roteiro do onboarding é criado quando a gestão designa o técnico.</div>;
+  // Item que só confirma dado da ficha: marca sozinho; mostra o que falta, cada campo leva até ele.
+  const faltaNaFicha = (c: any) => {
+    const s = pelaFicha[c.titulo];
+    if (!s) return null;
+    const faltam = s.campos.filter(x => s.faltam.includes(x.key));
+    if (c.titulo === 'Perguntas principais do primeiro contato respondidas') return <span className="pf-auto"> · automático: responda as perguntas acima</span>;
+    if (!faltam.length) return <span className="pf-auto"> · automático pela ficha</span>;
+    return (
+      <span className="pf-auto"> · automático, falta na ficha:{' '}
+        {faltam.map((x, k) => <span key={x.key}>{k ? ', ' : ''}<button type="button" className="pf-link" onClick={e => { e.preventDefault(); irParaCampo(x.key); }}>{x.label}</button></span>)}
+      </span>
+    );
+  };
   return (
     <div style={{ display: 'grid', gap: 18 }}>
+      {itens.length > 0 && (
       <div style={{ ...cartao, padding: '16px 18px', display: 'grid', gap: 10, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
         <b style={{ fontSize: 15, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
         <div style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--t-text-secondary)', maxWidth: '75ch' }}>
@@ -782,8 +834,14 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
           {i.onboarding_aprovado_em && <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }}>Aprovado pelo cliente: {i.onboarding_aprovado_por} em {fmtDataHora(i.onboarding_aprovado_em)}</span>}
         </div>
       </div>
+      )}
       <PerguntasPrimeiroContato d={d} recarregar={recarregar} />
-      <div className="pf-menu-grupo" style={{ padding: '6px 0 0' }}>Roteiro do primeiro contato</div>
+      {!itens.length && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>O roteiro do primeiro contato é criado quando a gestão designa o técnico. As perguntas acima já podem ser respondidas.</div>}
+      {itens.length > 0 && <>
+      <div style={{ display: 'grid', gap: 4, padding: '6px 0 0' }}>
+        <div className="pf-menu-grupo" style={{ padding: 0 }}>Roteiro do primeiro contato</div>
+        <span style={{ fontSize: 13, color: 'var(--t-text-muted)', lineHeight: 1.5 }}>Os itens marcados como <b style={{ fontWeight: 600 }}>automático</b> se marcam sozinhos quando a ficha de coleta tiver os dados. Os outros são ações do técnico: marque ao fazer.</span>
+      </div>
       {d.onboarding_secoes.map((s: any) => {
         const its = s.itens.map((t: string) => itens.find((x: any) => x.titulo === t)).filter(Boolean);
         if (!its.length) return null;
@@ -791,11 +849,12 @@ function AbaOnboarding({ d, recarregar, irPara }: { d: any; recarregar: () => vo
           <section key={s.secao} className="pf-grupo">
             <header><b>{s.secao}</b><span>{its.filter((c: any) => c.feito).length} de {its.length}</span></header>
             <div style={{ padding: 6 }}>
-              {its.map((c: any) => <ItemChecklist key={c.id} c={c} salvando={salvando === c.id} marcar={() => marcar(c)} />)}
+              {its.map((c: any) => <ItemChecklist key={c.id} c={c} salvando={salvando === c.id} marcar={() => marcar(c)} travado={!!pelaFicha[c.titulo]} extra={faltaNaFicha(c)} />)}
             </div>
           </section>
         );
       })}
+      </>}
     </div>
   );
 }
@@ -976,7 +1035,7 @@ function AbaVirada({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
       {!i.virada_fim_em && passo(pendViradas.length === 0, 'Pré-requisitos da virada', pendViradas.length === 0 ? 'Completos.' : (
         <span style={{ display: 'grid', gap: 2 }}>{pendViradas.map(t => <span key={t}>• {t}</span>)}{gestao && <span style={{ color: 'var(--t-text-muted)', marginTop: 2 }}>Como supervisão, você pode liberar mesmo assim.</span>}</span>
       ))}
-      {passo(!!i.tela_suporte_arquivo_id, 'Tela do Suporte anexada', i.tela_suporte_arquivo_id ? 'Pronta.' : 'Anexe na aba Ficha de coleta. Sem ela a virada não começa.')}
+      {passo(!!i.tela_suporte_arquivo_id, 'Tela do Suporte anexada', <TelaSuporte d={d} recarregar={recarregar} />)}
       {passo(!!i.virada_inicio_em, 'Iniciar virada', i.virada_inicio_em ? `Iniciada em ${fmtDataHora(i.virada_inicio_em)}. Neste dia a jornada do técnico começa às 7h.` : (
         <button disabled={ocupado || (pendViradas.length > 0 && !gestao)} onClick={() => acaoVirada(f => apiClient.iniciarVirada(i.id, f), 'Iniciar a virada da loja agora?')} style={{ ...btn('#7c3aed'), marginTop: 6, opacity: pendViradas.length && !gestao ? 0.5 : 1 }}><Rocket size={13} /> Iniciar virada</button>
       ))}

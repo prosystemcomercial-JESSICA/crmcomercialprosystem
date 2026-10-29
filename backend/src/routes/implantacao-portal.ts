@@ -5,12 +5,12 @@ import { getUser, podeVerTudo } from '@/lib/scope';
 import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -195,10 +195,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       const r = await realinharAoPerfil(prisma, id, u.nome || u.id).catch(() => null);
       if (r && (r.removidos || r.incluidos || r.testes)) await atividade(id, 'NOTA', `🧭 Checklist ajustado para ${descreverPerfil(r.perfil)} (${r.removidos} item(ns) tirado(s), ${r.incluidos} incluído(s))`, u);
     }
-    const { perguntasRespondidasDoPerfil, ITEM_PERGUNTAS } = await import('@/lib/implantacao/portal');
-    const perfilColeta = await perfilDaImplantacao(prisma, { ...imp, tipo_base: extra.tipo_base || imp.tipo_base });
-    await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: id, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS },
-      data: perguntasRespondidasDoPerfil(coleta, perfilColeta) ? { feito: true, feito_por: u.nome || u.id, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
+    // Roteiro do onboarding: os itens que só confirmam dados da ficha se marcam (ou desmarcam) sozinhos.
+    await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0);
     return reply.send({ status: 'success', data: { coleta, ...extra } });
   });
 
@@ -468,7 +466,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const a = await prisma.implantacaoArquivo.findUnique({ where: { id: (request.params as any).aid } });
     const imp = a ? await demanda(u, a.implantacao_id) : null;
     if (!a || !imp) return reply.status(404).send({ status: 'error', message: 'Arquivo não encontrado' });
-    if (imp.tela_suporte_arquivo_id === a.id) return reply.status(400).send({ status: 'error', message: 'Esta é a tela do Suporte da virada: troque-a na Ficha de coleta.' });
+    if (imp.tela_suporte_arquivo_id === a.id) return reply.status(400).send({ status: 'error', message: 'Esta é a tela do Suporte da virada: troque-a na seção Virada e cobrança.' });
     await prisma.implantacaoArquivo.delete({ where: { id: a.id } });
     if (a.url.startsWith('disk:')) { const { unlink } = await import('fs/promises'); await unlink(a.url.slice(5)).catch(() => {}); }
     await atividade(imp.id, 'ARQUIVO', `🗑️ Anexo removido: ${a.nome}`, u);
@@ -705,9 +703,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/:id/portal', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const { id } = request.params as { id: string };
-    const imp = await demanda(u, id);
+    let imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id);
+    // Cards abertos antes do roteiro automático: ao abrir, os itens que a ficha já cobre se marcam.
+    if (imp.modulo === 'IMPLANTACAO' && await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0)) imp = (await demanda(u, id)) || imp;
     const [checklist, fases, ocorrencias, comunicacoes, sessoes, esperas] = await Promise.all([
       prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: id }, orderBy: [{ grupo: 'asc' }, { ordem: 'asc' }] }),
       prisma.implantacaoTreinamentoFase.findMany({ where: { implantacao_id: id }, orderBy: { ordem: 'asc' } }),
@@ -766,6 +766,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       tempos, esperas, horas_por_fase: horasPorFase, horas_por_ocorrencia: horasPorOcorrencia,
       link_cliente: imp.token_cliente ? `${URL_FRONT()}/acompanhamento/${imp.token_cliente}` : null, campos_coleta: imp.modulo === 'SERVICO' ? CAMPOS_COLETA : camposColetaDoPerfil(perfil), perfil,
       onboarding_secoes: onboardingSecoesDoPerfil(perfil), onboarding_ok: onboardingOk(imp, checklist), perguntas_primeiro_contato: perguntasDoPerfil(perfil),
+      // Itens do roteiro marcados pela ficha: campos que pedem e os que faltam (com o rótulo de cada um).
+      onboarding_pela_ficha: Object.fromEntries(checklist.filter(c => c.grupo === 'ONBOARDING').flatMap(c => {
+        const s = itemPelaFicha(c.titulo, perfil, dadosDaFicha(imp!));
+        return s ? [[c.titulo, { campos: s.campos.map(k => ({ key: k, label: rotuloCampoColeta(k) })), faltam: s.faltam }]] : [];
+      })),
       proximo_passo: proximoPasso(imp, checklist, fases, ocorrencias.filter(o => o.situacao !== 'RESOLVIDA').length, { assistida: assistidaRegs, testes: testesConv }),
       testes: testesConv, pos_venda: posVenda,
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),

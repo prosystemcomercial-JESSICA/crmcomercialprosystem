@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, colunaDaEtapa, onboardingItensDoPerfil, perfilDe, onboardingOk, ehLegado, ITEM_PERGUNTAS, perguntasRespondidasDoPerfil, perguntasDoPerfil, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
-import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, TESTES_PADRAO } from '@/services/implantacao-portal.service';
+import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, colunaDaEtapa, onboardingItensDoPerfil, perfilDe, onboardingOk, ehLegado, ITEM_PERGUNTAS, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
+import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, sincronizarOnboardingPelaFicha, TESTES_PADRAO } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -205,6 +205,8 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     if (imp.modulo === 'IMPLANTACAO' && temChk > 0 && !(await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id, grupo: 'ONBOARDING' } })) && !ehLegado(imp)) {
       await prisma.implantacaoChecklistItem.createMany({ data: onboardingItensDoPerfil(perfil).map((titulo, i) => ({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i })) }).catch(() => {});
     }
+    // Ficha já preenchida antes da designação: o roteiro nasce com esses itens marcados.
+    if (imp.modulo === 'IMPLANTACAO') await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0);
     await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
     if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
     // Tarefas padrão do cliente (certificado, XMLs, usuários): o robô avisa o cliente com o link da página.
@@ -336,9 +338,16 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const atual = await prisma.implantacaoChecklistItem.findUnique({ where: { id: itemId }, include: { implantacao: { include: { checklist: { select: { grupo: true, feito: true } } } } } });
     if (!atual) return reply.status(404).send({ status: 'error', message: 'Item não encontrado' });
     // Onboarding técnico primeiro: os outros grupos ficam travados até o primeiro contato estar concluído.
-    const perfilItem = atual.grupo === 'ONBOARDING' && atual.titulo === ITEM_PERGUNTAS && body.data.feito ? await perfilDaImplantacao(prisma, atual.implantacao) : null;
-    if (perfilItem && !perguntasRespondidasDoPerfil(atual.implantacao.coleta, perfilItem)) {
-      return reply.status(400).send({ status: 'error', message: `Responda as ${perguntasDoPerfil(perfilItem).length} perguntas principais na aba Onboarding técnico; este item se marca sozinho.` });
+    // Itens do roteiro que confirmam dados da ficha: quem marca é a ficha (pedido da Jessica, 29/10/2026).
+    const pelaFicha = atual.grupo === 'ONBOARDING' ? itemPelaFicha(atual.titulo, await perfilDaImplantacao(prisma, atual.implantacao), dadosDaFicha(atual.implantacao)) : null;
+    if (pelaFicha && body.data.feito && pelaFicha.faltam.length) {
+      const msg = atual.titulo === ITEM_PERGUNTAS
+        ? `Responda as ${pelaFicha.campos.length} perguntas principais na aba Onboarding técnico; este item se marca sozinho.`
+        : `Este item se marca sozinho quando a ficha de coleta tiver: ${pelaFicha.faltam.map(rotuloCampoColeta).join(', ')}.`;
+      return reply.status(400).send({ status: 'error', message: msg });
+    }
+    if (pelaFicha && !body.data.feito && !pelaFicha.faltam.length) {
+      return reply.status(400).send({ status: 'error', message: 'Este item é marcado pela ficha de coleta. Para desmarcar, corrija o dado na ficha.' });
     }
     if (atual.grupo !== 'ONBOARDING' && !onboardingOk(atual.implantacao, atual.implantacao.checklist)) {
       return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes dos outros passos.' });

@@ -14,7 +14,8 @@ import {
   statusAssistida, type ModeloChecklist, type ExtraSistema,
   TAREFAS_CLIENTE_PADRAO, TAREFAS_CLIENTE_ANTIGAS, formularioDaTarefa, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
   prazoAjustado, type MetasIndicadores, INICIO_ASSISTIDA,
-  perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, perguntasRespondidasDoPerfil, ITEM_PERGUNTAS, type PerfilImplantacao,
+  perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, ITEM_PERGUNTAS, type PerfilImplantacao,
+  dadosDaFicha, itemPelaFicha, MARCADO_PELA_FICHA,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -241,13 +242,42 @@ export async function realinharAoPerfil(prisma: PrismaClient, implantacaoId: str
   let testes = 0;
   if (p.zerado) testes = (await prisma.implantacaoTeste.deleteMany({ where: { implantacao_id: implantacaoId, resultado: 'PENDENTE' } })).count;
   else if (!(await prisma.implantacaoTeste.count({ where: { implantacao_id: implantacaoId } }))) testes = -(await prisma.implantacaoTeste.createMany({ data: TESTES_PADRAO.map(item => ({ implantacao_id: implantacaoId, item })) })).count;
-  // Perguntas do primeiro contato: o item se marca/desmarca conforme as perguntas do perfil.
-  if (!imp.onboarding_concluido_em) {
-    const ok = perguntasRespondidasDoPerfil(imp.coleta, p);
-    await prisma.implantacaoChecklistItem.updateMany({ where: { implantacao_id: implantacaoId, grupo: 'ONBOARDING', titulo: ITEM_PERGUNTAS, feito: !ok },
-      data: ok ? { feito: true, feito_por: por, feito_em: new Date() } : { feito: false, feito_por: null, feito_em: null } });
-  }
+  // Itens do roteiro que dependem da ficha (as perguntas incluídas) acompanham o novo perfil.
+  await sincronizarOnboardingPelaFicha(prisma, implantacaoId);
   return { perfil: p, removidos: r.remover.length, incluidos: incluir.length, testes };
+}
+
+/**
+ * Roteiro do onboarding marcado pela ficha (pedido da Jessica, 29/10/2026): cada item que só confirma dados da
+ * ficha de coleta se marca quando os campos estão preenchidos e se desmarca se apagarem um deles (só o que a ficha
+ * marcou; o que o técnico marcou à mão antes fica). Onboarding já concluído não desmarca nada.
+ * Fecha o onboarding quando o roteiro inteiro fica feito. Devolve quantos itens mudaram.
+ */
+export async function sincronizarOnboardingPelaFicha(prisma: PrismaClient, implantacaoId: string): Promise<number> {
+  const imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId } });
+  if (!imp || imp.modulo !== 'IMPLANTACAO' || ehLegado(imp)) return 0;
+  const itens = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: implantacaoId, grupo: 'ONBOARDING' }, select: { id: true, titulo: true, feito: true, feito_por: true } });
+  if (!itens.length) return 0;
+  const p = await perfilDaImplantacao(prisma, imp);
+  const dados = dadosDaFicha(imp);
+  let mudou = 0;
+  for (const it of itens) {
+    const s = itemPelaFicha(it.titulo, p, dados);
+    if (!s) continue;
+    const ok = !s.faltam.length;
+    if (ok && !it.feito) {
+      await prisma.implantacaoChecklistItem.update({ where: { id: it.id }, data: { feito: true, feito_por: MARCADO_PELA_FICHA, feito_em: new Date() } });
+      it.feito = true; mudou++;
+    } else if (!ok && it.feito && !imp.onboarding_concluido_em && (it.feito_por === MARCADO_PELA_FICHA || it.titulo === ITEM_PERGUNTAS)) {
+      await prisma.implantacaoChecklistItem.update({ where: { id: it.id }, data: { feito: false, feito_por: null, feito_em: null } });
+      it.feito = false; mudou++;
+    }
+  }
+  if (mudou && !imp.onboarding_concluido_em && itens.every(x => x.feito)) {
+    await prisma.implantacao.update({ where: { id: implantacaoId }, data: { onboarding_concluido_em: new Date() } });
+    await prisma.implantacaoAtividade.create({ data: { implantacao_id: implantacaoId, tipo: 'NOTA', descricao: '✅ Onboarding técnico concluído: implantação liberada para começar', autor_nome: 'Sistema' } }).catch(() => null);
+  }
+  return mudou;
 }
 
 // ─── Página e mensagens do cliente ───────────────────────────────────────────

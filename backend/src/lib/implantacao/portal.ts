@@ -120,7 +120,7 @@ export function resumoDaDemanda(imp: { modulo?: string | null; tipo_servico?: st
     const t = dadosTrocaCnpj(venda, historico, extra?.antes, extra?.cliente);
     const ant = fmtCnpj(t.antigo.cnpj), novo = fmtCnpj(t.novo.cnpj);
     const acao = ant && novo ? `Realizar a troca de CNPJ de ${ant} para ${novo}`
-      : novo ? `Realizar a troca de CNPJ para ${novo}` : 'Realizar a troca de CNPJ (novos dados na ficha do cliente)';
+      : novo ? `Realizar a troca de CNPJ para ${novo}` : 'Realizar a troca de CNPJ (novos dados no cadastro do cliente)';
     const grupos: GrupoDados[] = [
       { titulo: 'Dados antigos', itens: itensEmpresa(t.antigo) },
       { titulo: t.jaTrocado ? 'Dados novos (já no cadastro do CRM)' : 'Dados novos', itens: itensEmpresa(t.novo) },
@@ -494,6 +494,46 @@ export const onboardingSecoesDoPerfil = (p: PerfilImplantacao) => ONBOARDING_SEC
 export const onboardingItensDoPerfil = (p: PerfilImplantacao) => onboardingSecoesDoPerfil(p).flatMap(s => s.itens);
 export const perguntasDoPerfil = (p: PerfilImplantacao) => PERGUNTAS_PRIMEIRO_CONTATO.filter(k => p.segmento === 'FARMACIA' || !CAMPOS_SO_FARMACIA.includes(k));
 export const perguntasRespondidasDoPerfil = (coleta: any, p: PerfilImplantacao) => perguntasDoPerfil(p).every(k => coleta && String(coleta[k] ?? '').trim() !== '');
+
+// ─── Roteiro do onboarding marcado pela ficha (pedido da Jessica, 29/10/2026) ─────
+// Itens do roteiro que só confirmam dados da ficha de coleta: marcam sozinhos quando os campos estão preenchidos.
+// Os demais (apresentar-se, testar computadores, pendências, aprovação do cliente) são ações e continuam à mão.
+export const ONBOARDING_PELA_FICHA: Record<string, string[]> = {
+  'Confirmar o contato principal (nome, telefone e e-mail) e o canal de comunicação': ['contato_nome', 'contato_telefone', 'contato_email'],
+  'Inscrição estadual, regime tributário e endereço completo': ['inscricao_estadual', 'regime_tributario'],
+  'Contador responsável e contato da contabilidade': ['contabilidade_nome', 'contabilidade_contato'],
+  'Nº de lojas (única, matriz ou filiais), caixas, computadores e usuários': ['filiais', 'caixas', 'maquinas', 'usuarios'],
+  'Responsável pela administração do sistema na loja definido': ['responsavel_sistema'],
+  'Rede e internet testadas (velocidade registrada)': ['internet'],
+  'Equipamentos do caixa conferidos (leitor, impressora térmica, gaveta, Pin Pad, nobreak)': ['impressora_nfce', 'gaveta'],
+  'Outros equipamentos conferidos (impressora de etiquetas, balança, coletor)': ['etiquetas', 'balanca'],
+  'Certificado digital (A1/A3), CSC, inscrição estadual e ambiente (produção/homologação)': ['certificado', 'csc', 'inscricao_estadual'],
+  'Sistema anterior, escopo da migração e volume aproximado de produtos': ['sistema_anterior', 'volume_produtos'],
+  'Controle de lote, validade e medicamentos controlados definido': ['controle_lote'],
+  'Módulos financeiros usados e formas de pagamento mapeados': ['financeiro', 'tef'],
+  'Integrações mapeadas (TEF, PBM, Farmácia Popular, convênios, e-commerce)': ['integracoes'],
+  'Horário de funcionamento, dias de pico e melhor janela para a implantação': ['horario_funcionamento', 'janela_implantacao'],
+  'Quem será treinado, quantas pessoas e modalidade (presencial ou remoto)': ['treinamento_pessoas', 'treinamento_modalidade'],
+};
+/** Quem marcou o item quando foi a ficha (assim só o que a ficha marcou ela desmarca). */
+export const MARCADO_PELA_FICHA = 'Ficha de coleta (automático)';
+const ROTULO_EXTRA: Record<string, string> = { contato_email: 'E-mail para avisos e boletos' };
+export const rotuloCampoColeta = (k: string) => CAMPOS_COLETA.find(c => c.key === k)?.label || ROTULO_EXTRA[k] || k;
+/** Ficha da demanda como o roteiro lê: a coleta + o e-mail do contato (guardado fora da coleta). */
+export const dadosDaFicha = (i: { coleta?: any; contato_email?: string | null }) => ({ ...((i.coleta as any) || {}), contato_email: i.contato_email || '' });
+/** Campos da ficha que marcam este item do roteiro, no perfil (ou null quando o item é marcado à mão). */
+export function camposDoItemOnboarding(titulo: string, p: PerfilImplantacao): string[] | null {
+  if (titulo === ITEM_PERGUNTAS) return perguntasDoPerfil(p);
+  const orig = Object.keys(ONBOARDING_PELA_FICHA).find(o => o === titulo || SO_FARMACIA[o] === titulo || SO_CONVERSAO[o] === titulo);
+  if (!orig) return null;
+  return ONBOARDING_PELA_FICHA[orig].filter(k => (p.segmento === 'FARMACIA' || !CAMPOS_SO_FARMACIA.includes(k)) && (!p.zerado || !CAMPOS_SO_CONVERSAO.includes(k)));
+}
+/** Situação de um item automático: os campos que ele pede e os que ainda faltam na ficha. */
+export function itemPelaFicha(titulo: string, p: PerfilImplantacao, dados: Record<string, any>): { campos: string[]; faltam: string[] } | null {
+  const campos = camposDoItemOnboarding(titulo, p);
+  if (!campos) return null;
+  return { campos, faltam: campos.filter(k => String(dados[k] ?? '').trim() === '') };
+}
 export function camposColetaDoPerfil(p: PerfilImplantacao) {
   return CAMPOS_COLETA
     .filter(c => (p.segmento === 'FARMACIA' || !CAMPOS_SO_FARMACIA.includes(c.key)) && (!p.zerado || !CAMPOS_SO_CONVERSAO.includes(c.key)))

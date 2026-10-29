@@ -813,7 +813,7 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 
 **Técnico (Portal Técnico):**
 1. **Quadro:** as mesmas colunas do Trello. Arraste o card ou abra para ver tudo da demanda. **Serviços** fica numa aba própria e só recebe o serviço quando a vendedora move o card para "Em execução".
-2. **Ficha de coleta:** preencha no lugar da descrição do Trello (tipo, máquinas, regime, contabilidade, contato, e-mail e WhatsApp para os avisos) e anexe a **tela do Suporte**.
+2. **Ficha de coleta:** preencha no lugar da descrição do Trello (tipo, regime, contabilidade, contato, e-mail e WhatsApp para os avisos). A **tela do Suporte** é anexada na seção Virada e cobrança.
 3. **Checklist:** marque cada passo. O cliente acompanha o percentual: 30%, 50% e 80% geram aviso automático para ele.
 4. **Virada:** na aba Virada e cobrança, toque em **Iniciar virada** (exige a tela do Suporte) e, ao terminar, em **Loja virada**. O sistema:
    - calcula o 1º vencimento;
@@ -874,6 +874,18 @@ Toda implantação nova começa pelo **Onboarding técnico** (Portal Técnico �
 ### Atualização 02/10/2026: perguntas do primeiro contato
 
 Na aba **Onboarding técnico** da demanda, o técnico responde as 15 perguntas principais durante a conversa com o cliente: máquinas, faturamento, caixas, impressora NFC-e, etiquetas, colaboradores, PBMs, financeiro, corretor tributário, gerencial, SNGPC, comunicação, banco único, preço único e TEF. Sem as 15 respondidas, o onboarding não conclui.
+
+### Atualização 29/10/2026: card da implantação sem repetição
+
+- **Perguntas do primeiro contato:** ficam só na seção **Onboarding técnico**. A Ficha de coleta não repete mais essas perguntas; ela mostra quantas foram respondidas e tem o botão **Abrir as perguntas**.
+- **Roteiro que se marca sozinho:** os itens do roteiro do primeiro contato que só confirmam dados (contato, inscrição estadual e regime, contador, lojas e caixas, internet, equipamentos, certificado e CSC, sistema anterior e volume, controle de lote, financeiro, integrações, horário e treinamento) **se marcam sozinhos** quando a Ficha de coleta tem esses dados.
+  - Enquanto falta algo, o item diz **"automático, falta na ficha:"** e o nome do campo. Toque no nome e o CRM abre o campo certo.
+  - Esses itens não se marcam à mão. Se um dado for apagado antes de o onboarding terminar, o item volta a ficar desmarcado.
+  - Ao terminar, o onboarding não trava mais por causa da ficha.
+- **Itens que continuam à mão:** apresentar-se, explicar etapas e prazos, razão social e CNPJ confirmados, computadores e Windows, pendências e a aprovação do cliente.
+- **Cards que já estavam abertos:** ao abrir o card, os itens que a ficha já cobre se marcam sozinhos. Nada que já estava marcado é perdido.
+- **Tela do Suporte:** agora é anexada em **Virada e cobrança**, no passo "Tela do Suporte anexada".
+- **Cadastro do cliente:** a antiga seção "Ficha do cliente" passou a se chamar **Cadastro do cliente**, para não confundir com a Ficha de coleta.
 
 ### Atualização 26/10/2026: onboarding por segmento
 

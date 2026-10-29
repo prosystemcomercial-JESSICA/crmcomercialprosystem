@@ -771,7 +771,7 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - **Quadro** e **Serviços**: arrastar e soltar, etiquetas, progresso, prazo, espera e correção;
   - **Avisos**, com sino no topo;
   - para a gestão: **Painel da implantação** (aproveitamento e horas por técnico, esperas e o que mais trava, prazos, viradas, prazo médio, horas por cliente, cobranças a lançar) e **Configurações**.
-- **Ficha da demanda** (gaveta lateral): Resumo (tempos, paradas, prazos, aviso ao técnico), Ficha de coleta (com a tela do Suporte), Checklist, Virada e cobrança, Treinamento (fases, Play por fase), Correções (Play por correção), Tempos, Cliente (link e mensagens enviadas) e Histórico.
+- **Ficha da demanda** (gaveta lateral): Resumo (tempos, paradas, prazos, aviso ao técnico), Ficha de coleta (a tela do Suporte passou para Virada e cobrança em 29/10/2026), Checklist, Virada e cobrança, Treinamento (fases, Play por fase), Correções (Play por correção), Tempos, Cliente (link e mensagens enviadas) e Histórico.
 - **Páginas públicas:** `/acompanhamento/<link>` (cliente) e `/programacao/<link>` (Sinval).
 - **Escritório:** Otávio na sala, com painel (abre as configurações do portal).
 
@@ -2060,3 +2060,50 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Limite:** um 429 do Gemini pausa a camada por 10 minutos e a paga cobre. Uso e falhas aparecem na coluna "Gemini" e em "Falhas" de Desempenho.
 - **Painel Modelos de IA:** "Automático" agora diz que tenta as três grátis primeiro.
 - **Correção do mesmo dia:** o `gemini-2.5-flash` não é mais liberado para contas novas. O modelo padrão passou a ser `gemini-flash-latest` (`GEMINI_MODEL`), também no painel Modelos de IA. Erros 402 (projeto com cobrança pré-paga e sem crédito), 401, 403 e 404 pausam o Gemini grátis por 1 hora, e a paga cobre. A chave atual deu 402: a cota grátis exige uma chave de projeto sem cobrança.
+
+### Atualização 29/10/2026: card da implantação sem repetição (roteiro do onboarding marcado pela ficha)
+
+- **Pedido da Jessica:** o Onboarding técnico repetia o que a Ficha de coleta já tinha. As 15 perguntas apareciam nas duas abas, e vários itens do roteiro só confirmavam dados que o técnico já tinha digitado na ficha, o que obrigava a fazer o trabalho duas vezes.
+- **Perguntas do primeiro contato só no Onboarding técnico.** A Ficha de coleta não mostra mais esses campos (os do perfil, `perguntas_primeiro_contato`). No lugar, um aviso mostra quantas foram respondidas e tem o botão "Abrir as perguntas". Os dados continuam no mesmo lugar (`Implantacao.coleta`) e salvar a ficha não apaga as respostas, porque o formulário envia a coleta inteira.
+- **Roteiro marcado pela ficha.** `ONBOARDING_PELA_FICHA` (`lib/implantacao/portal.ts`) liga cada item do roteiro que só confirma dados aos campos da ficha:
+  - contato principal: nome, telefone e e-mail (o e-mail fica em `contato_email`, fora da coleta);
+  - IE e regime: inscrição estadual e regime tributário;
+  - contador: contabilidade e contato;
+  - nº de lojas, caixas, computadores e usuários: filiais, caixas, máquinas e usuários;
+  - responsável pelo sistema;
+  - rede e internet: velocidade;
+  - equipamentos do caixa: impressora NFC-e e gaveta;
+  - outros equipamentos: etiquetas e balança;
+  - fiscal: certificado, CSC e IE;
+  - sistema anterior e volume (no banco zerado, só o volume);
+  - controle de lote;
+  - financeiro e formas de pagamento: financeiro e TEF;
+  - integrações;
+  - horário e janela;
+  - treinamento: pessoas e modalidade;
+  - "Perguntas principais respondidas": as perguntas do perfil.
+- **Itens que continuam à mão:** apresentar-se, explicar etapas e prazos, razão social e CNPJ confirmados, computadores e Windows, pendências registradas e a aprovação do cliente (marcada pela página de acompanhamento).
+- **Funções novas:**
+  - `camposDoItemOnboarding(titulo, perfil)` reconhece também os textos trocados por perfil (`SO_FARMACIA`, `SO_CONVERSAO`) e tira os campos que não cabem no perfil;
+  - `itemPelaFicha` devolve `{ campos, faltam }`;
+  - `dadosDaFicha` junta a coleta com o `contato_email`;
+  - `rotuloCampoColeta` devolve o rótulo de cada campo.
+- **Sincronização:** `sincronizarOnboardingPelaFicha(prisma, id)` (`services/implantacao-portal.service.ts`) marca o item quando os campos estão preenchidos, com `feito_por = "Ficha de coleta (automático)"`.
+  - **Quando desmarca:** se um campo for apagado. Isso vale só para o que a própria ficha marcou e para o item das perguntas; marcações feitas à mão antes continuam.
+  - **Onboarding já concluído:** nunca desmarca nada. Assim a implantação em andamento não trava de novo.
+  - **Fecha o onboarding:** quando todo o roteiro fica feito, grava `onboarding_concluido_em` e registra no histórico. Antes, a marcação automática das perguntas não fechava o onboarding.
+  - **Quando roda:**
+    - ao salvar a ficha (`PUT /implantacoes/:id/coleta`, no lugar da regra antiga que só marcava as perguntas);
+    - ao abrir o card (`GET /implantacoes/:id/portal`), o que ajusta sozinho os cards que já estavam abertos;
+    - na designação do técnico;
+    - no realinhamento ao perfil.
+- **Marcar à mão:** `PATCH /implantacoes/checklist/:itemId` recusa marcar um item automático com campo faltando ("Este item se marca sozinho quando a ficha de coleta tiver: …") e recusa desmarcar com a ficha completa ("corrija o dado na ficha").
+- **Na tela:**
+  - o GET do portal devolve `onboarding_pela_ficha` (`{ [titulo]: { campos: [{ key, label }], faltam } }`);
+  - no Onboarding técnico, o item automático fica com a caixinha travada e mostra "automático pela ficha" ou "automático, falta na ficha: …";
+  - cada campo que falta é um link (`focarCampo`) que abre a seção certa, rola até o campo e o destaca por 2 s; as perguntas ficam no Onboarding e o resto na Ficha de coleta;
+  - as perguntas aparecem mesmo antes de o técnico ser designado.
+- **Outras arrumações do card:**
+  - a **Tela do Suporte** saiu da Ficha de coleta e foi para **Virada e cobrança**, no passo "Tela do Suporte anexada" (componente `TelaSuporte`), que é onde ela é exigida;
+  - a seção "Ficha do cliente" passou a se chamar **Cadastro do cliente**, para não confundir com a Ficha de coleta.
+- **Banco:** sem mudança. **Testes:** `backend/tests/implantacao-onboarding-ficha.test.ts`.
