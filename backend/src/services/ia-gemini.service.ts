@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { registrarUsoIa } from './uso-ia.service';
+import { registrarUsoIa, registrarChamadaIa } from './uso-ia.service';
+import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
@@ -22,10 +23,11 @@ const chaveXai = () => (process.env.XAI_API_KEY || '').trim() || null;
 const urlTranscritor = () => (process.env.TRANSCRITOR_URL || 'http://127.0.0.1:8766').trim();
 const transcritorLocalLigado = () => urlTranscritor() !== 'desligado';
 
-async function transcreverLocal(mime: string, base64: string, timeoutMs: number): Promise<string> {
+async function transcreverLocal(mime: string, base64: string, timeoutMs: number, agente: string): Promise<string> {
   const res = await fetch(`${urlTranscritor()}/transcrever`, {
     method: 'POST', headers: { 'Content-Type': mime }, body: Buffer.from(base64, 'base64'), signal: AbortSignal.timeout(timeoutMs),
   }).catch(() => null);
+  registrarChamadaIa(agente, 'whisper', { ok: !!res?.ok });
   if (!res) throw new Error('O transcritor local não respondeu.');
   if (!res.ok) throw new Error(`Transcritor local indisponível (HTTP ${res.status}).`);
   registrarUsoIa('whisper');
@@ -44,8 +46,9 @@ export async function chaveGemini(prisma: PrismaClient): Promise<string | null> 
   return chaveOpenAI() || chaveXai() || (await chaveSoGemini(prisma));
 }
 
-async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean }): Promise<any> {
-  registrarUsoIa(p.grok ? 'grok' : 'openai');
+async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string }): Promise<any> {
+  const fonte = p.grok ? 'grok' : 'openai';
+  registrarUsoIa(fonte);
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
@@ -58,18 +61,22 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
       ...(p.json ? { text: { format: { type: 'json_object' } } } : {}),
     }),
     signal: AbortSignal.timeout(p.timeoutMs),
-  });
+  }).catch(e => { registrarChamadaIa(p.agente, fonte, { ok: false }); throw e; });
   if (!res.ok) {
+    registrarChamadaIa(p.agente, fonte, { ok: false });
     if (res.status === 401) throw new Error('A chave da IA é inválida. Confira no servidor.');
     if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
     // O motivo que a IA devolveu vai junto: "indisponível" sozinho escondia o pedido recusado (14/10/2026).
     const motivo = await res.json().then((j: any) => j?.error?.code || j?.error?.message || '').catch(() => '');
     throw new Error(`IA indisponível (HTTP ${res.status}${motivo ? `: ${String(motivo).slice(0, 120)}` : ''}).`);
   }
-  return res.json();
+  const data = await res.json();
+  const t = tokensDaResposta(data);
+  registrarChamadaIa(p.agente, fonte, { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+  return data;
 }
 
-async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number): Promise<string> {
+async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number, agente: string): Promise<string> {
   registrarUsoIa('openai');
   const ext = extensaoAudio(mime);
   const form = new FormData();
@@ -78,12 +85,16 @@ async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number
   form.append('language', 'pt');
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST', headers: { Authorization: `Bearer ${chaveOpenAI()}` }, body: form, signal: AbortSignal.timeout(timeoutMs),
-  });
+  }).catch(e => { registrarChamadaIa(agente, 'openai', { ok: false }); throw e; });
   if (!res.ok) {
+    registrarChamadaIa(agente, 'openai', { ok: false });
     if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
     throw new Error(`Transcrição indisponível (HTTP ${res.status}).`);
   }
-  const texto = String(((await res.json()) as any)?.text || '').trim();
+  const data: any = await res.json();
+  const t = tokensDaResposta(data);
+  registrarChamadaIa(agente, 'openai', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+  const texto = String(data?.text || '').trim();
   if (!texto) throw new Error('A transcrição veio vazia.');
   return texto;
 }
@@ -101,9 +112,11 @@ type Parte = { text: string } | { inline_data: { mime_type: string; data: string
 
 /** Uma chamada ao Gemini. Devolve o texto da resposta ou lança erro com mensagem clara. */
 /** Chamada com busca no Google (grounding): devolve o texto e as fontes consultadas. */
-export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number }): Promise<{ texto: string; fontes: { titulo: string; url: string }[] }> {
+// `agente` = quem pediu (conta no uso por assistente); sem ele, vale o arquivo que chamou.
+export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number; agente?: string }): Promise<{ texto: string; fontes: { titulo: string; url: string }[] }> {
+  const agente = p.agente || agenteDaPilha(new Error().stack);
   if (chaveOpenAI()) {
-    const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000 }));
+    const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000, agente }));
     if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
     return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
   }
@@ -134,12 +147,14 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   return { texto, fontes: fontes.slice(0, 15) };
 }
 
-export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; simples?: boolean }): Promise<string> {
+export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; simples?: boolean; agente?: string }): Promise<string> {
   const soTexto = p.partes.every(x => 'text' in x);
+  // Lido antes de qualquer await: depois dele a pilha perde quem chamou. Áudio conta como transcrição.
+  const agente = p.agente || (p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) ? 'transcricao' : agenteDaPilha(new Error().stack));
   if (p.simples && soTexto && chaveXai()) {
     try {
       const conteudo = p.partes.map(x => ({ type: 'input_text', text: (x as { text: string }).text }));
-      const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 60_000, grok: true }));
+      const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 60_000, grok: true, agente }));
       if (texto) return texto;
     } catch (e) {
       if (!chaveOpenAI() && !(await chaveSoGemini(prisma))) throw e;
@@ -150,7 +165,7 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
   // Áudio (o único uso é transcrever): primeiro o Whisper local, sem custo.
   if (parteAudio && transcritorLocalLigado()) {
     try {
-      return await transcreverLocal(parteAudio.inline_data.mime_type, parteAudio.inline_data.data, p.timeoutMs ?? 90_000);
+      return await transcreverLocal(parteAudio.inline_data.mime_type, parteAudio.inline_data.data, p.timeoutMs ?? 90_000, agente);
     } catch (e) {
       if (process.env.TRANSCRICAO_RESERVA !== 'paga') throw e;
       console.warn('[TRANSCRICAO] local falhou, usando a IA paga:', (e as Error)?.message);
@@ -167,8 +182,8 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     });
     // Áudio: transcrição da OpenAI (o único uso de áudio é transcrever).
     const audio = conteudo.find((c: any) => c.type === 'audio') as any;
-    if (audio) return transcreverOpenAI(audio.mime_type, audio.data, p.timeoutMs ?? 90_000);
-    const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 90_000 }));
+    if (audio) return transcreverOpenAI(audio.mime_type, audio.data, p.timeoutMs ?? 90_000, agente);
+    const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 90_000, agente }));
     if (!texto) throw new Error('A IA não devolveu resposta.');
     return texto;
   }

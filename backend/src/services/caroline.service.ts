@@ -572,7 +572,7 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
   if (fase === 'resposta' && dm && dm.base64.length < 6_000_000) partes.push({ inline_data: { mime_type: dm.mime, data: dm.base64 } });
   for (let i = 0; i < 2; i++) {
     try {
-      const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000 });
+      const bruto = await chamarGemini(prisma, { sistema: p.sistema, partes, json: true, temperatura: 0.5, timeoutMs: 90_000, agente: agenteDe(sdr) });
       const r = lerRespostaCaroline(JSON.parse(bruto.replace(/^```(json)?|```$/g, '').trim()), valoresProposta);
       if (r) return comApresentacao(r, ap);
     } catch (e: any) { console.warn('[CAROLINE] IA:', e?.message); motivoFalha.set(sdr.id, `a IA não respondeu (${String(e?.message || e).slice(0, 160)})`); continue; }

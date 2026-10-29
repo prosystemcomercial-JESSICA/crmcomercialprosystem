@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { requireGestor } from '../lib/scope';
+import { totalPorAgente } from '../lib/uso-ia-agentes';
+import { usoIaPorAgente } from '../services/uso-ia.service';
 
 // Desempenho unificado do setor (gestão): agentes de IA, suas intervenções, compromissos,
 // propostas e uso das IAs, tudo num só lugar e no mesmo período. Só lê dados que o CRM já registra.
@@ -91,6 +93,8 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
       ia.push({ dia: k.slice(7), ...v });
     }
     const totalIa = ia.reduce((s, d) => ({ openai: s.openai + d.openai, grok: s.grok + d.grok, laya: s.laya + d.laya }), { openai: 0, grok: 0, laya: 0 });
+    // Por assistente (contado desde 29/10/2026): requisições, falhas e tokens.
+    const porAgente = totalPorAgente(await usoIaPorAgente(prisma, chaves.map(k => k.slice(7))));
     const laya = { acionada: totalIa.laya, confirmacoes: await prisma.iaAmostra.count({ where: { created_at: periodo } }) };
 
     return reply.send({
@@ -98,7 +102,7 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
       data: {
         periodo: { dias, de, ate }, agentes, intervencoes, compromissos,
         outras_atividades: outrasAtividades.map(x => ({ tipo: x.tipo, quantidade: x._count })),
-        propostas, ia: { por_dia: ia, total: totalIa, sem_custo_pct: (totalIa.openai + totalIa.grok + totalIa.laya) ? Math.round((totalIa.laya / (totalIa.openai + totalIa.grok + totalIa.laya)) * 100) : 0 },
+        propostas, ia: { por_dia: ia, total: totalIa, por_agente: porAgente, sem_custo_pct: (totalIa.openai + totalIa.grok + totalIa.laya) ? Math.round((totalIa.laya / (totalIa.openai + totalIa.grok + totalIa.laya)) * 100) : 0 },
         laya,
       },
     });

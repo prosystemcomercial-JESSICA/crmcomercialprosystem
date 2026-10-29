@@ -15,13 +15,17 @@ type Dados = {
   compromissos: { marcados: number; realizados: number; nao_compareceu: number; cancelados: number; remarcados: number; pendentes: number };
   outras_atividades: { tipo: string; quantidade: number }[];
   propostas: { mudancas_de_status: number; por_status: { status: string; quantidade: number }[]; criadas: number };
-  ia: { por_dia: { dia: string; openai: number; grok: number; laya: number }[]; total: { openai: number; grok: number; laya: number }; sem_custo_pct: number };
+  ia: {
+    por_dia: { dia: string; openai: number; grok: number; laya: number }[]; total: { openai: number; grok: number; laya: number }; sem_custo_pct: number;
+    por_agente?: { agente: string; nome: string; openai: number; grok: number; whisper: number; falhas: number; tokens_entrada: number; tokens_saida: number }[];
+  };
   laya: { acionada: number; confirmacoes: number };
 };
 
 const PERIODOS = [{ d: 7, r: '7 dias' }, { d: 30, r: '30 dias' }, { d: 90, r: '90 dias' }];
 const STATUS_PROPOSTA: Record<string, string> = { ENVIADA: 'Enviada', VISUALIZADA: 'Visualizada', EM_NEGOCIACAO: 'Em negociação', ACEITA: 'Aceita', RECUSADA: 'Recusada', PERDIDA: 'Perdida', EXPIRADA: 'Expirada', RASCUNHO: 'Rascunho', CONTRATO_ENVIADO: 'Contrato enviado', CONTRATO_ASSINADO: 'Contrato assinado', CONTRATO_EM_GERACAO: 'Contrato em geração' };
-const TIPO_ATV: Record<string, string> = { LIGACAO: 'Ligações', EMAIL: 'E-mails', WHATSAPP: 'WhatsApp', VISITA: 'Visitas', TAREFA: 'Tarefas', OUTRO: 'Outros' };
+const fmt = (n: number) => n.toLocaleString('pt-BR');
+const TIPO_ATV: Record<string, string> ={ LIGACAO: 'Ligações', EMAIL: 'E-mails', WHATSAPP: 'WhatsApp', VISITA: 'Visitas', TAREFA: 'Tarefas', OUTRO: 'Outros' };
 
 function Numero({ rotulo, valor, sub }: { rotulo: string; valor: string | number; sub?: string }) {
   return (
@@ -134,6 +138,31 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
           <section style={grade(300)}>
             <ColunasDia titulo="Chamadas à IA paga (OpenAI) por dia" cor="#2563eb" pontos={d.ia.por_dia.map(p => ({ dia: p.dia, valor: p.openai }))} />
             <ColunasDia titulo="Laya (grátis) acionada por dia" cor="#db2777" pontos={d.ia.por_dia.map(p => ({ dia: p.dia, valor: p.laya }))} />
+          </section>
+
+          {/* Uso da IA por assistente (contado desde 29/10/2026): quem fez cada requisição, falhas e tokens. */}
+          <section style={grade(300)}>
+            <Barras titulo="Requisições à OpenAI (paga) por assistente" itens={(d.ia.por_agente || []).filter(a => a.openai).map(a => ({ rotulo: a.nome, valor: a.openai, dica: `${a.nome}: ${a.openai} requisições à OpenAI · ${fmt(a.tokens_entrada + a.tokens_saida)} tokens` }))} />
+            <div className="ps-card" style={{ padding: 14, borderRadius: 12, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Uso da IA por assistente</div>
+              <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 8 }}>Contado desde 29/10/2026. Falha = a IA não respondeu ou recusou o pedido.</div>
+              {!(d.ia.por_agente || []).length && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Nada no período.</div>}
+              {!!(d.ia.por_agente || []).length && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+                    <thead><tr style={{ color: 'var(--t-text-muted)', textAlign: 'left' }}>
+                      {['Assistente', 'OpenAI', 'Grok', 'Whisper (grátis)', 'Falhas', 'Tokens enviados', 'Tokens recebidos'].map(h => <th key={h} style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>{(d.ia.por_agente || []).map(a => (
+                      <tr key={a.agente} style={{ borderTop: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: 600 }}>{a.nome}</td><td style={{ padding: '6px 8px' }}>{a.openai}</td><td style={{ padding: '6px 8px' }}>{a.grok}</td>
+                        <td style={{ padding: '6px 8px' }}>{a.whisper}</td><td style={{ padding: '6px 8px', color: a.falhas ? '#dc2626' : undefined }}>{a.falhas}</td>
+                        <td style={{ padding: '6px 8px' }}>{fmt(a.tokens_entrada)}</td><td style={{ padding: '6px 8px' }}>{fmt(a.tokens_saida)}</td>
+                      </tr>))}</tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
 
           <details className="ps-card" style={{ padding: 12, borderRadius: 12 }}>

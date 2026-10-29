@@ -340,7 +340,7 @@ export async function pesquisarConcorrentes(prisma: PrismaClient, foco: string |
     'Depois: as OPORTUNIDADES para a Prosystem (dores que os clientes dos concorrentes relatam e que um bom sistema + bom suporte resolvem) e respostas curtas e respeitosas para quando o lead disser que usa ou está avaliando um concorrente.',
     'Responda APENAS com JSON: {"resumo": string, "concorrentes": [{"nome": string, "segmento": string, "recursos": string, "preco": string, "avaliacoes": string, "reclamacoes": string, "elogios": string, "fonte": string}], "oportunidades": [string], "respostas": [{"quando_o_cliente_diz": string, "responda": string}]}',
   ].join('\n');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: OLIVIA + (await instrucoesPara(prisma, 'olivia')), pergunta, timeoutMs: 240_000 });
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: OLIVIA + (await instrucoesPara(prisma, 'olivia')), pergunta, timeoutMs: 240_000, agente: 'olivia' });
   const r = lerJsonIa<{ resumo: string; concorrentes: any[]; oportunidades: string[]; respostas: { quando_o_cliente_diz: string; responda: string }[] }>(texto);
   const dia = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const cs = (r?.concorrentes || []).slice(0, 12);
@@ -576,7 +576,7 @@ export async function estudarRetencao(prisma: PrismaClient, tema: string | null 
     'Responda APENAS com JSON: {"resumo": string, "documentos": [{"tipo": "POP"|"PROCESSO"|"EXEMPLO"|"DICA", "titulo": string, "conteudo": string (markdown)}]}. De 3 a 6 documentos, cite de quem é cada ideia quando vier de um especialista.',
     await retratoDaBase(prisma),
   ].filter(Boolean).join('\n');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: MILA + (await instrucoesPara(prisma, 'mila')), pergunta, timeoutMs: 240_000 });
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: MILA + (await instrucoesPara(prisma, 'mila')), pergunta, timeoutMs: 240_000, agente: 'mila' });
   const r = lerJsonIa<{ resumo: string; documentos: DocNovo[] }>(texto);
   const docs = (r?.documentos || []).filter(d => d?.titulo && d?.conteudo && ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'].includes(d.tipo)).slice(0, 8);
   const gravados = [];
