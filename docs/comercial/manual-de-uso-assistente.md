@@ -195,6 +195,7 @@ A IA usa o **ChatGPT pago** (modelo `gpt-6-luna`). O **Grok** já está preparad
 - No painel da conversa, **🤖 IA Laya**: confirme ou corrija o segmento, a intenção e o risco de cancelamento, ou marque **Não comercial**. Cada confirmação ensina a Laya **na hora**.
 - **Caderno da Laya** (Escritório virtual): tudo o que ela aprende fica escrito (regras, palavras típicas, casos difíceis, exemplos e acerto por tarefa), com cópia diária no servidor e botões para baixar. Se a Laya parar, o Caderno ensina outra IA.
 - **Níveis por tarefa:** Aprendiz → Assistente (30 exemplos e 80% de acerto) → Titular (50 exemplos e mais de 90%). A partir de Assistente, ela **age sozinha**: preenche o ramo do lead, etiqueta Suporte ou Financeiro e avisa risco de cancelamento também para leads.
+- **Filtro antes do tira-dúvidas (29/10/2026):** quando o cliente só agradece ou confirma, ou quando a Laya vê com segurança que a mensagem é preço, reclamação ou conversa, a IA paga nem é chamada (ela recusaria mesmo) e a equipe responde. Cada vez conta como "IA evitada".
 - **Meta:** 15 confirmações por dia. Às 17h dos dias úteis chega o lembrete "📓 Laya: hora de ensinar". O treino geral é em 14/10.
 
 ### 5.9 Pós-venda automático (Helena · desligado até você ligar)

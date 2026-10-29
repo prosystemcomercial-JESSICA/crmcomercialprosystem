@@ -98,6 +98,24 @@ export const PERGUNTAS_TRIAGEM = {
   },
 } as const;
 
+// Filtro da Laya antes do tira-dúvidas (29/10/2026): a IA externa só responde dúvida sobre o sistema.
+// Preço, reclamação e conversa ela sempre recusa, então nem vale chamar.
+export const PERGUNTA_ASSUNTO_DUVIDA = {
+  type: 'choice', instructions: 'O que a última mensagem do cliente pede para a empresa de sistemas?',
+  criteria: {
+    duvida: 'pergunta sobre o sistema: recursos, funções, como funciona, se atende o ramo ou a loja',
+    preco: 'preço, valor, desconto, plano, contrato, forma de pagamento ou proposta',
+    reclamacao: 'reclamação, insatisfação, erro ou problema no sistema',
+    conversa: 'cumprimento, agradecimento, recado ou conversa sem pergunta sobre o sistema',
+    nao_sei: 'não dá para saber',
+  },
+} as const;
+const ASSUNTOS_SEM_IA = ['preco', 'reclamacao', 'conversa'];
+/** A Laya viu (com certeza suficiente) um assunto que o tira-dúvidas não responderia? */
+export function layaDispensaTiraDuvidas(assunto: string | null): boolean {
+  return !!assunto && ASSUNTOS_SEM_IA.includes(assunto);
+}
+
 /** Escolha da Laya para a triagem: só vale com confiança mínima e nunca "nao_sei". */
 export function lerEscolhaTriagem(res: any, confiancaMin: number): string | null {
   const a = res?.answers?.q;

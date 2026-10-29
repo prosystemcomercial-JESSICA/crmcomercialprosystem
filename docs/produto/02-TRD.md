@@ -2025,3 +2025,15 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Limites:** contador do dia em memória (`OPENROUTER_LIMITE_DIA`, padrão 50); um 429 com o limite do dia para até o dia seguinte; um 429 de congestionamento pausa 5 minutos. Pedidos muito grandes (acima de 4× `GROQ_MAX_ENTRADA` tokens estimados) não vão para ela.
 - **Painel Modelos de IA:** novas opções "OpenRouter: Flint", "OpenRouter: Dots 3" e "OpenRouter: Gemma 4 31B" (grátis, só texto, sem pesquisa).
 - **Medição:** `openrouter` em `ia.uso.<dia>` e por assistente em `ia.agentes.<dia>`; coluna "OpenRouter (grátis)" na tabela "Uso da IA por assistente" de Desempenho. Falhas entram em "Falhas".
+
+## Laya no lugar da IA no tira-dúvidas (29/10/2026)
+
+- **Pedido da Jessica:** "passe para a Laya tudo o que ela pode fazer, assim economizamos mais um pouco".
+- **O que a Laya já fazia sem IA paga:** triagem com texto livre, ramo/intenção/risco/temperatura de cada conversa, mover interessados no funil. Com nível Assistente (30 comparações e 80% de acerto) ela também preenche o ramo do lead, põe a etiqueta Suporte/Financeiro e, antes da Caroline, do Julio, do Luiz Felipe e da Clarice, desvia suporte/financeiro sem chamar a IA externa (`rotaDaLaya`). O filtro "cliente só confirmou/agradeceu" (`ehSoConfirmacao`) já existia nos agentes de venda.
+- **Novo no tira-dúvidas da Clarice (`autoResponderDuvida`, `assistente-ia.service.ts`), depois da rota da Laya e antes da IA externa:**
+  1. Cliente só agradeceu/confirmou (`ehSoConfirmacao`, mesma regra dos agentes de venda; antes "obrigado" passava porque tem 8 letras): não chama a IA.
+  2. Pergunta nova da Laya `PERGUNTA_ASSUNTO_DUVIDA` (`lib/laya.ts`) sobre a última mensagem: dúvida do sistema, preço/contrato, reclamação, conversa ou não sei. Com confiança ≥ 0,8 em preço, reclamação ou conversa (`layaDispensaTiraDuvidas`), não chama a IA: são casos que a IA recusaria pelas regras do tira-dúvidas; a equipe responde, como já acontecia. Função `assuntoDaDuvida` em `laya-cerebro.service.ts` (até 15 s). Laya fora do ar, sem certeza ou dúvida do sistema → segue com a IA, como antes.
+- **Medição:** cada desvio conta como `evitada` em `ia.uso.<dia>` e aparece na sala do Escritório como ação da Laya ("decidiu sozinha (…) e poupou a IA externa na conversa da Clarice"). A pergunta à Laya conta como `laya`.
+- **O que continua com a IA (precisa escrever texto):** respostas de venda da Caroline/Julio/Luiz Felipe, resposta do tira-dúvidas, resumo, sugestão de resposta, propostas, Rafael, Sofia, Heitor, Joana, analista. A Laya só escolhe entre opções; não redige.
+- **Próximo passo possível (depende da Jessica):** biblioteca de respostas prontas aprovadas para as perguntas mais comuns; a Laya escolheria a resposta e só o resto iria para a IA.
+- **Sem mudança de banco.** Testes: `tests/laya.test.ts` (2 novos).

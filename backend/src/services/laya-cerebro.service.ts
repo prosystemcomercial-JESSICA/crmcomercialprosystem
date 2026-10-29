@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { PERGUNTAS_LAYA, lerEscolhaTriagem } from '../lib/laya';
+import { PERGUNTAS_LAYA, PERGUNTA_ASSUNTO_DUVIDA, lerEscolhaTriagem } from '../lib/laya';
 import { historicoAcertos, nivelTarefa, TAREFAS_LAYA, type TarefaLaya } from '../lib/laya-caderno';
 import { registrarAcaoAgente } from '../lib/assistente/escritorio';
 import { registrarUsoIa } from './uso-ia.service';
@@ -78,6 +78,23 @@ export async function rotaDaLaya(prisma: PrismaClient, conversaId: string): Prom
   if (!(await layaCompetente(prisma, 'intencao'))) return null;
   const i = await intencaoAgora(prisma, conversaId);
   return i === 'suporte' || i === 'financeiro' ? i : null;
+}
+
+/**
+ * Assunto da última mensagem, antes do tira-dúvidas (até 15 s, confiança 0,8).
+ * null = dúvida sobre o sistema, sem certeza ou Laya fora do ar: segue com a IA, como antes.
+ */
+export async function assuntoDaDuvida(texto: string): Promise<string | null> {
+  try {
+    registrarUsoIa('laya');
+    const res = await fetch(`${LAYA_URL}/v1/systemone`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: `Cliente: ${texto.slice(0, 500)}`, questions: { q: PERGUNTA_ASSUNTO_DUVIDA }, model: 'multilingual' }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    return lerEscolhaTriagem(await res.json(), 0.8);
+  } catch { return null; }
 }
 
 /** Contador de chamadas à IA externa que a Laya evitou. */

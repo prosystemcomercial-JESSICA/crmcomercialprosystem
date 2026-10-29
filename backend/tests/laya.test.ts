@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { montarEstadoConversa, lerRespostaLaya, validarRotulos, medirAcerto } from '../src/lib/laya';
+import { montarEstadoConversa, lerRespostaLaya, validarRotulos, medirAcerto, layaDispensaTiraDuvidas } from '../src/lib/laya';
 
 describe('montarEstadoConversa', () => {
   it('usa só texto, marca quem falou e mantém as mais recentes dentro do limite', () => {
@@ -46,5 +46,17 @@ describe('medirAcerto', () => {
       { rotulos: { segmento: 'padaria', intencao: 'comprar', cancelar: false }, sugestao: null },
     ]);
     expect(r).toEqual({ comparaveis: 2, segmento: 50, intencao: 50, cancelar: 100 });
+  });
+});
+
+describe('layaDispensaTiraDuvidas', () => {
+  it('preço, reclamação e conversa não chamam a IA do tira-dúvidas', () => {
+    expect(layaDispensaTiraDuvidas('preco')).toBe(true);
+    expect(layaDispensaTiraDuvidas('reclamacao')).toBe(true);
+    expect(layaDispensaTiraDuvidas('conversa')).toBe(true);
+  });
+  it('dúvida sobre o sistema ou sem certeza seguem com a IA', () => {
+    expect(layaDispensaTiraDuvidas('duvida')).toBe(false);
+    expect(layaDispensaTiraDuvidas(null)).toBe(false);
   });
 });

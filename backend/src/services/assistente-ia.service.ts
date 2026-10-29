@@ -171,6 +171,13 @@ export async function autoResponderDuvida(prisma: PrismaClient, token: string, c
     const { rotaDaLaya, layaEvitouIa } = await import('./laya-cerebro.service');
     const rota = await rotaDaLaya(prisma, conversaId).catch(() => null);
     if (rota) { layaEvitouIa('Clarice', rota === 'suporte' ? 'assunto de suporte' : 'assunto financeiro'); return; }
+    // Filtro da Laya (29/10/2026): agradecimento/confirmação, preço, reclamação ou conversa a IA recusaria; nem chama.
+    const { ehSoConfirmacao } = await import('@/lib/assistente/sdr');
+    if (ehSoConfirmacao(texto)) { layaEvitouIa('Clarice', 'cliente só agradeceu ou confirmou'); return; }
+    const { assuntoDaDuvida } = await import('./laya-cerebro.service');
+    const { layaDispensaTiraDuvidas } = await import('@/lib/laya');
+    const assunto = await assuntoDaDuvida(texto);
+    if (layaDispensaTiraDuvidas(assunto)) { layaEvitouIa('Clarice', assunto === 'preco' ? 'pergunta de preço, é com a equipe' : assunto === 'reclamacao' ? 'reclamação, é com a equipe' : 'conversa sem dúvida sobre o sistema'); return; }
     const p = promptTiraDuvidas(await guiaComercial(prisma), await textoDaConversa(prisma, conversaId, 20));
     // Aprende com as conversas que a equipe assume (mesmo aprendizado dos agentes de vendas).
     const { aprendizadoDaEquipe } = await import('./caroline.service');
