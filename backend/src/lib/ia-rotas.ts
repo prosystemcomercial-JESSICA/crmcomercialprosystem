@@ -2,7 +2,7 @@
 // assistente tem um modelo principal e uma reserva. "Automático" = a ordem padrão (Groq grátis primeiro,
 // depois as pagas). Regras puras; quem chama a IA é services/ia-gemini.service, quem grava é routes/ia-modelos.
 
-export type Provedor = 'groq' | 'openai' | 'grok' | 'gemini';
+export type Provedor = 'groq' | 'openrouter' | 'openai' | 'grok' | 'gemini';
 export type Modelo = { id: string; provedor: Provedor; modelo: string; nome: string; gratis: boolean; imagem: boolean; busca: boolean };
 export type Rota = { principal: string; reserva: string };
 
@@ -17,6 +17,10 @@ export function catalogo(env: { OPENAI_MODEL?: string; XAI_MODEL?: string } = {}
     { id: 'groq:openai/gpt-oss-120b', provedor: 'groq', modelo: 'openai/gpt-oss-120b', nome: 'Groq: GPT-OSS 120B', gratis: true, imagem: false, busca: false },
     { id: 'groq:openai/gpt-oss-20b', provedor: 'groq', modelo: 'openai/gpt-oss-20b', nome: 'Groq: GPT-OSS 20B (rápido)', gratis: true, imagem: false, busca: false },
     { id: 'groq:qwen/qwen3.8-27b', provedor: 'groq', modelo: 'qwen/qwen3.8-27b', nome: 'Groq: Qwen 3.8 27B', gratis: true, imagem: false, busca: false },
+    // OpenRouter grátis (29/10/2026): só modelos que respondem sem guardar os dados (data_collection: deny).
+    { id: 'openrouter:recursive/flint-v1.0:free', provedor: 'openrouter', modelo: 'recursive/flint-v1.0:free', nome: 'OpenRouter: Flint', gratis: true, imagem: false, busca: false },
+    { id: 'openrouter:dots-studio/dots-3-note-preview:free', provedor: 'openrouter', modelo: 'dots-studio/dots-3-note-preview:free', nome: 'OpenRouter: Dots 3', gratis: true, imagem: false, busca: false },
+    { id: 'openrouter:google/gemma-4-31b-it:free', provedor: 'openrouter', modelo: 'google/gemma-4-31b-it:free', nome: 'OpenRouter: Gemma 4 31B', gratis: true, imagem: false, busca: false },
     { id: 'gemini:gemini-2.5-flash', provedor: 'gemini', modelo: 'gemini-2.5-flash', nome: 'Google: Gemini 2.5 Flash', gratis: true, imagem: true, busca: true },
     { id: `openai:${openai}`, provedor: 'openai', modelo: openai, nome: `OpenAI: ${openai}`, gratis: false, imagem: true, busca: true },
     { id: `grok:${grok}`, provedor: 'grok', modelo: grok, nome: `xAI: ${grok}`, gratis: false, imagem: false, busca: false },

@@ -59,7 +59,7 @@ export default function ModelosIa() {
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Modelos de IA</h2>
           <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
-            Escolha a IA de cada assistente e a reserva, usada quando a principal falha. <b>Automático</b> tenta primeiro o Groq (grátis) e só usa a paga quando ele não dá conta.
+            Escolha a IA de cada assistente e a reserva, usada quando a principal falha. <b>Automático</b> tenta primeiro o Groq e depois a OpenRouter (os dois grátis) e só usa a paga quando nenhum dá conta.
           </p>
         </div>
       </div>
@@ -88,7 +88,7 @@ export default function ModelosIa() {
           </section>
         ))}
         <p style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>
-          Os modelos do Groq não leem imagem nem PDF e não pesquisam na internet: nesses pedidos o CRM pula para o próximo que consegue. Os grátis têm limite por dia; o Gemini grátis pode usar o que recebe para treinar os modelos do Google. Uso e falhas de cada um aparecem em Desempenho do setor.
+          Os modelos do Groq e da OpenRouter não leem imagem nem PDF e não pesquisam na internet: nesses pedidos o CRM pula para o próximo que consegue. Os grátis têm limite por dia (OpenRouter: 50 pedidos); o Gemini grátis pode usar o que recebe para treinar os modelos do Google. Uso e falhas de cada um aparecem em Desempenho do setor.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={salvar} disabled={salvando}

@@ -17,6 +17,7 @@ Versão 1.0 · 27/09/2026 · o que já está no ar e o que vem a seguir
 | Transcrição de áudio no servidor (Whisper local, sem custo) | 29/10 |
 | Groq grátis na frente das IAs pagas, com medição de uso e cota | 29/10 |
 | Configurações › Modelos de IA (principal e reserva por assistente) e Gemini ligado | 29/10 |
+| OpenRouter grátis como segunda camada (depois do Groq) | 29/10 |
 | Caderno da Laya (aprendizado imediato, níveis, cópia diária), Laya age sozinha a partir de Assistente | 25/09 |
 | Caroline (SDR), aprovação/ajuste/refazer, termômetro, botões, "Me chama depois" | 25/09 |
 | Julio e Luiz Felipe (retomada de propostas) com limite anti-bloqueio único | 25/09 |
@@ -2017,3 +2018,12 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Gravação:** `ConfiguracaoIntegracao` `ia.rotas` = `{ <função>: { principal, reserva } }`, só as funções fora do automático. Sem mudança de banco. Cache de 30 s, limpo ao salvar.
 - **Regras** (`lib/ia-rotas.ts`, 11 testes em `tests/ia-rotas.test.ts`): `chamarGemini` e `pesquisarComGemini` tentam primeiro o principal e depois a reserva. Reserva "Automático" = se os dois falharem, segue a ordem automática (Groq grátis → Grok nas tarefas simples → OpenAI → Gemini); "Sem reserva" = o pedido para com o erro. Modelo sem chave, ou que não serve para o pedido (Groq com imagem/PDF ou com pesquisa na internet), é pulado; se nada escolhido servir, vale o automático, para nunca deixar o pedido sem IA. Conversa no Escritório (`conversa-<agente>`) usa a linha "Conversa no Escritório". Áudio continua sempre no Whisper local.
 - **Gemini:** chamadas ao Gemini passam por `chamarApiGemini` e contam no uso por assistente (`gemini` em `ia.agentes.<dia>` e `ia.uso.<dia>`; coluna "Gemini" na tabela de Desempenho). A chave do Google foi posta em `GEMINI_API_KEY` no `.env` do servidor (29/10/2026). O plano grátis do Gemini pode usar o conteúdo para treinar modelos do Google: o aviso está na tela.
+
+### Atualização 29/10/2026: OpenRouter grátis como segunda camada (depois do Groq, antes da paga)
+
+- **Pedido da Jessica:** "é o mesmo caso do Groq, quero economizar". Ela pôs `OPENROUTER_API_KEY` no `.env` da VPS.
+- **Conta (teste de 29/10/2026):** plano grátis, **50 pedidos por dia** nos modelos `:free`. Com `provider.data_collection: 'deny'` (só provedores que não guardam os dados), responderam em português: `recursive/flint-v1.0:free` e `dots-studio/dots-3-note-preview:free`; `google/gemma-4-31b-it:free` aceita a regra, mas estava congestionado. Os modelos NVIDIA e Poolside exigem liberar o uso para treino nas configurações de privacidade da OpenRouter e ficaram de fora.
+- **Ordem automática nova:** pedido só de texto → Groq grátis → **OpenRouter grátis** → Grok (simples) → OpenAI → Gemini (`tentarOpenRouter` em `ia-gemini.service.ts`). No automático vai a lista `OPENROUTER_MODELOS` (padrão: Flint, Dots 3, Gemma 4 31B), e a própria OpenRouter tenta um depois do outro.
+- **Limites:** contador do dia em memória (`OPENROUTER_LIMITE_DIA`, padrão 50); um 429 com o limite do dia para até o dia seguinte; um 429 de congestionamento pausa 5 minutos. Pedidos muito grandes (acima de 4× `GROQ_MAX_ENTRADA` tokens estimados) não vão para ela.
+- **Painel Modelos de IA:** novas opções "OpenRouter: Flint", "OpenRouter: Dots 3" e "OpenRouter: Gemma 4 31B" (grátis, só texto, sem pesquisa).
+- **Medição:** `openrouter` em `ia.uso.<dia>` e por assistente em `ia.agentes.<dia>`; coluna "OpenRouter (grátis)" na tabela "Uso da IA por assistente" de Desempenho. Falhas entram em "Falhas".

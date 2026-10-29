@@ -26,6 +26,14 @@ const MODELO_GROQ = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const chaveGroq = () => (process.env.GROQ_API_KEY || '').trim() || null;
 const groqFora = () => (process.env.GROQ_FORA || '').split(',').map(x => x.trim()).filter(Boolean);
 const GROQ_MAX_ENTRADA = Number(process.env.GROQ_MAX_ENTRADA) || 5000;
+// OpenRouter grátis (29/10/2026): segunda camada grátis, depois do Groq. Conta grátis = 50 pedidos/dia
+// (OPENROUTER_LIMITE_DIA). Sempre com data_collection: deny (só provedores que não guardam os dados).
+// OPENROUTER_MODELOS = lista separada por vírgula; a OpenRouter tenta um depois do outro.
+const chaveOpenRouter = () => (process.env.OPENROUTER_API_KEY || '').trim() || null;
+const MODELOS_OPENROUTER = () => (process.env.OPENROUTER_MODELOS || 'recursive/flint-v1.0:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free').split(',').map(x => x.trim()).filter(Boolean);
+const OPENROUTER_LIMITE_DIA = Number(process.env.OPENROUTER_LIMITE_DIA) || 50;
+const openRouter = { dia: '', usados: 0, bloqueadoAte: 0 };
+const hojeSP = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
 // Transcrição de áudio no próprio servidor (Whisper local, pm2 "transcritor", só em 127.0.0.1), sem custo.
 // TRANSCRITOR_URL=desligado volta ao caminho antigo (IA paga). TRANSCRICAO_RESERVA=paga deixa a
@@ -87,6 +95,49 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
   } catch (e) {
     console.warn('[GROQ] não respondeu, usando a IA paga:', (e as Error)?.message);
     registrarReservaGroq(p.agente);
+    return null;
+  }
+}
+
+/** Uma tentativa na OpenRouter grátis. Devolve o texto, ou null quando não vale tentar ou ela não deu conta. */
+async function tentarOpenRouter(p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string; modelo?: string }): Promise<string | null> {
+  if (!chaveOpenRouter()) return null;
+  if (openRouter.dia !== hojeSP()) Object.assign(openRouter, { dia: hojeSP(), usados: 0 });
+  if (openRouter.usados >= OPENROUTER_LIMITE_DIA || openRouter.bloqueadoAte > Date.now()) return null;
+  if (Math.ceil((p.sistema + p.texto).length / 3) > GROQ_MAX_ENTRADA * 4) return null;
+  openRouter.usados++;
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chaveOpenRouter()}`, 'X-Title': 'CRM Comercial Prosystem' },
+      body: jsonParaIa({
+        ...(p.modelo ? { model: p.modelo } : { models: MODELOS_OPENROUTER() }),
+        messages: [{ role: 'system', content: p.sistema }, { role: 'user', content: p.json ? `${p.texto}\n\nResponda em JSON.` : p.texto }],
+        temperature: p.temperatura ?? 0.3,
+        provider: { data_collection: 'deny' },
+        ...(p.json ? { response_format: { type: 'json_object' } } : {}),
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      // Limite do dia da conta: para até amanhã; congestionamento do modelo: 5 minutos.
+      if (res.status === 429) {
+        const corpo = await res.text().catch(() => '');
+        if (/free-models-per-day|daily/i.test(corpo)) openRouter.usados = OPENROUTER_LIMITE_DIA;
+        else openRouter.bloqueadoAte = Date.now() + 5 * 60_000;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data: any = await res.json();
+    const texto = String(data?.choices?.[0]?.message?.content || '').trim();
+    if (!texto) throw new Error('resposta vazia');
+    const t = tokensDaResposta(data);
+    registrarUsoIa('openrouter');
+    registrarChamadaIa(p.agente, 'openrouter', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+    return texto;
+  } catch (e) {
+    console.warn('[OPENROUTER] não respondeu:', (e as Error)?.message);
+    registrarChamadaIa(p.agente, 'openrouter', { ok: false });
     return null;
   }
 }
@@ -215,7 +266,7 @@ export async function rotasIa(prisma: PrismaClient): Promise<Record<string, Rota
 
 /** Quais provedores têm chave agora (a tela mostra "sem chave" nos outros). */
 export async function provedoresComChave(prisma: PrismaClient): Promise<Record<Provedor, boolean>> {
-  return { groq: !!chaveGroq(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!(await chaveSoGemini(prisma)) };
+  return { groq: !!chaveGroq(), openrouter: !!chaveOpenRouter(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!(await chaveSoGemini(prisma)) };
 }
 
 type Pedido = { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; busca?: boolean };
@@ -224,6 +275,11 @@ async function executarModelo(prisma: PrismaClient, m: Modelo, q: Pedido, agente
   if (m.provedor === 'groq') {
     const texto = await tentarGroq(prisma, { sistema: q.sistema, texto: q.partes.map(x => ('text' in x ? x.text : '')).join('\n\n'), json: q.json, temperatura: q.temperatura, agente, modelo: m.modelo, escolhido: true });
     if (!texto) throw new Error('o Groq não deu conta (limite ou pedido grande demais)');
+    return { texto, fontes: [] };
+  }
+  if (m.provedor === 'openrouter') {
+    const texto = await tentarOpenRouter({ sistema: q.sistema, texto: q.partes.map(x => ('text' in x ? x.text : '')).join('\n\n'), json: q.json, temperatura: q.temperatura, agente, modelo: m.modelo });
+    if (!texto) throw new Error('a OpenRouter não deu conta (limite do dia ou modelo ocupado)');
     return { texto, fontes: [] };
   }
   if (m.provedor === 'gemini') return chamarApiGemini(chaveG || '', { modelo: m.modelo, sistema: q.sistema, partes: q.partes, json: q.json, busca: q.busca, temperatura: q.temperatura, timeoutMs: q.timeoutMs ?? 90_000, agente });
@@ -238,7 +294,7 @@ async function seguirRota(prisma: PrismaClient, agente: string, q: Pedido): Prom
   const rota = (await rotasIa(prisma))[funcaoDoAgente(agente)];
   if (!rota) return { resultado: null, auto: true };
   const chaveG = await chaveSoGemini(prisma);
-  const chaves: Record<Provedor, boolean> = { groq: !!chaveGroq(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!chaveG };
+  const chaves: Record<Provedor, boolean> = { groq: !!chaveGroq(), openrouter: !!chaveOpenRouter(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!chaveG };
   const plano = planoDaRota(rota, catalogo(process.env), { imagem: !q.partes.every(x => 'text' in x), busca: q.busca, temChave: pv => chaves[pv] });
   let erro: Error | undefined;
   for (const m of plano.tentar) {
@@ -285,9 +341,10 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     if (rota.resultado) return rota.resultado.texto;
     if (!rota.auto) throw rota.erro || new Error('O modelo escolhido para esta função não respondeu (Configurações › Modelos de IA).');
   }
-  // Automático: primeiro o Groq grátis; a IA paga só entra se ele não der conta.
+  // Automático: primeiro o Groq grátis, depois a OpenRouter grátis; a IA paga só entra se nenhum der conta.
   if (soTexto) {
-    const texto = await tentarGroq(prisma, { sistema: p.sistema, texto: p.partes.map(x => (x as { text: string }).text).join('\n\n'), json: p.json, temperatura: p.temperatura, agente });
+    const pedido = { sistema: p.sistema, texto: p.partes.map(x => (x as { text: string }).text).join('\n\n'), json: p.json, temperatura: p.temperatura, agente };
+    const texto = (await tentarGroq(prisma, pedido)) || (await tentarOpenRouter(pedido));
     if (texto) return texto;
   }
   if (p.simples && soTexto && chaveXai()) {

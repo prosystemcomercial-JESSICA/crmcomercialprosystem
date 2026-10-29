@@ -41,6 +41,11 @@ describe('planoDaRota', () => {
     expect(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'auto' }, modelos, { temChave: todas }).auto).toBe(true);
     expect(planoDaRota({ principal: 'gemini:gemini-2.5-flash', reserva: 'nenhuma' }, modelos, { temChave: todas }).auto).toBe(false);
   });
+  it('OpenRouter grátis como principal, Groq de reserva', () => {
+    const p = planoDaRota({ principal: 'openrouter:recursive/flint-v1.0:free', reserva: 'groq:openai/gpt-oss-120b' }, modelos, { temChave: todas });
+    expect(ids(p)).toEqual(['openrouter:recursive/flint-v1.0:free', 'groq:openai/gpt-oss-120b']);
+    expect(ids(planoDaRota({ principal: 'openrouter:recursive/flint-v1.0:free', reserva: 'auto' }, modelos, { imagem: true, temChave: todas }))).toEqual([]);
+  });
   it('Groq não lê imagem nem pesquisa: pula para quem consegue', () => {
     const rota = { principal: 'groq:openai/gpt-oss-120b', reserva: 'gemini:gemini-2.5-flash' };
     expect(ids(planoDaRota(rota, modelos, { imagem: true, temChave: todas }))).toEqual(['gemini:gemini-2.5-flash']);

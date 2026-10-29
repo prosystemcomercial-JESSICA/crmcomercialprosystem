@@ -17,7 +17,7 @@ type Dados = {
   propostas: { mudancas_de_status: number; por_status: { status: string; quantidade: number }[]; criadas: number };
   ia: {
     por_dia: { dia: string; openai: number; grok: number; laya: number; groq?: number }[]; total: { openai: number; grok: number; laya: number; groq?: number }; sem_custo_pct: number;
-    por_agente?: { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; gemini?: number; falhas: number; tokens_entrada: number; tokens_saida: number }[];
+    por_agente?: { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; gemini?: number; openrouter?: number; falhas: number; tokens_entrada: number; tokens_saida: number }[];
     groq?: { respondidas: number; foram_para_paga: number; tokens: number; ligado: boolean; cota: { limite_dia: number | null; restante_dia: number | null; atualizado_em: number } };
   };
   laya: { acionada: number; confirmacoes: number };
@@ -155,12 +155,12 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
                     <thead><tr style={{ color: 'var(--t-text-muted)', textAlign: 'left' }}>
-                      {['Assistente', 'Groq (grátis)', 'Groq → paga', 'Gemini', 'OpenAI', 'Grok', 'Whisper (grátis)', 'Falhas', 'Tokens enviados', 'Tokens recebidos'].map(h => <th key={h} style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{h}</th>)}
+                      {['Assistente', 'Groq (grátis)', 'Groq → paga', 'OpenRouter (grátis)', 'Gemini', 'OpenAI', 'Grok', 'Whisper (grátis)', 'Falhas', 'Tokens enviados', 'Tokens recebidos'].map(h => <th key={h} style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>{(d.ia.por_agente || []).map(a => (
                       <tr key={a.agente} style={{ borderTop: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
                         <td style={{ padding: '6px 8px', fontWeight: 600 }}>{a.nome}</td><td style={{ padding: '6px 8px', color: a.groq ? '#16a34a' : undefined }}>{a.groq || 0}</td>
-                        <td style={{ padding: '6px 8px' }}>{a.groq_reserva || 0}</td><td style={{ padding: '6px 8px' }}>{a.gemini || 0}</td><td style={{ padding: '6px 8px' }}>{a.openai}</td><td style={{ padding: '6px 8px' }}>{a.grok}</td>
+                        <td style={{ padding: '6px 8px' }}>{a.groq_reserva || 0}</td><td style={{ padding: '6px 8px', color: a.openrouter ? '#16a34a' : undefined }}>{a.openrouter || 0}</td><td style={{ padding: '6px 8px' }}>{a.gemini || 0}</td><td style={{ padding: '6px 8px' }}>{a.openai}</td><td style={{ padding: '6px 8px' }}>{a.grok}</td>
                         <td style={{ padding: '6px 8px' }}>{a.whisper}</td><td style={{ padding: '6px 8px', color: a.falhas ? '#dc2626' : undefined }}>{a.falhas}</td>
                         <td style={{ padding: '6px 8px' }}>{fmt(a.tokens_entrada)}</td><td style={{ padding: '6px 8px' }}>{fmt(a.tokens_saida)}</td>
                       </tr>))}</tbody>
