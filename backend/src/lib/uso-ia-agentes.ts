@@ -1,14 +1,16 @@
 // Uso das IAs por assistente (pedido da Jessica, 29/10/2026): quem fez cada requisição, quantas falharam
 // e quantos tokens gastou. Regras puras; o contador em memória e a gravação ficam em services/uso-ia.service.
 
-export type FonteAgente = 'openai' | 'grok' | 'whisper';
+export type FonteAgente = 'openai' | 'grok' | 'whisper' | 'groq';
 
 export type UsoAgente = {
   openai: number; grok: number; whisper: number;
+  /** Groq grátis (29/10/2026): respondidas, vezes que não deu conta e foi para a paga, tokens que ele processou. */
+  groq: number; groq_reserva: number; groq_tokens: number;
   falhas: number; tokens_entrada: number; tokens_saida: number;
 };
 
-export const usoAgenteVazio = (): UsoAgente => ({ openai: 0, grok: 0, whisper: 0, falhas: 0, tokens_entrada: 0, tokens_saida: 0 });
+export const usoAgenteVazio = (): UsoAgente => ({ openai: 0, grok: 0, whisper: 0, groq: 0, groq_reserva: 0, groq_tokens: 0, falhas: 0, tokens_entrada: 0, tokens_saida: 0 });
 
 // Arquivo de serviço que chamou a IA → assistente. Vale quando a chamada não diz quem é (`agente`).
 const POR_ARQUIVO: Record<string, string> = {
@@ -48,6 +50,7 @@ export function somarPorAgente(a: Record<string, Partial<UsoAgente>>, b: Record<
     for (const [agente, u] of Object.entries(fonte || {})) {
       const t = (out[agente] ||= usoAgenteVazio());
       t.openai += u.openai || 0; t.grok += u.grok || 0; t.whisper += u.whisper || 0;
+      t.groq += u.groq || 0; t.groq_reserva += u.groq_reserva || 0; t.groq_tokens += u.groq_tokens || 0;
       t.falhas += u.falhas || 0; t.tokens_entrada += u.tokens_entrada || 0; t.tokens_saida += u.tokens_saida || 0;
     }
   }
@@ -70,5 +73,5 @@ export function nomeDoAgente(id: string): string {
 export function totalPorAgente(dias: { agentes: Record<string, UsoAgente> }[]): ({ agente: string; nome: string } & UsoAgente)[] {
   const total = dias.reduce((s, d) => somarPorAgente(s, d.agentes), {} as Record<string, UsoAgente>);
   return Object.entries(total).map(([agente, u]) => ({ agente, nome: nomeDoAgente(agente), ...u }))
-    .sort((a, b) => b.openai - a.openai || b.grok - a.grok || b.whisper - a.whisper);
+    .sort((a, b) => b.openai - a.openai || b.grok - a.grok || b.groq - a.groq || b.whisper - a.whisper);
 }

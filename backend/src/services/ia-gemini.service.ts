@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { registrarUsoIa, registrarChamadaIa } from './uso-ia.service';
+import { registrarUsoIa, registrarChamadaIa, registrarReservaGroq, carregarCotaGroq, atualizarCotaGroq } from './uso-ia.service';
+import { cabeNoGroq, lerCotaGroq } from '@/lib/ia-groq';
 import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
 
@@ -16,6 +17,14 @@ const chaveOpenAI = () => (process.env.OPENAI_API_KEY || '').trim() || null;
 // Tarefas simples (simples: true) vão para o Grok, se XAI_API_KEY existir; se ele falhar, caem no ChatGPT.
 const MODELO_XAI = process.env.XAI_MODEL || 'grok-4.7';
 const chaveXai = () => (process.env.XAI_API_KEY || '').trim() || null;
+// Groq grátis na frente de tudo (pedido da Jessica, 29/10/2026: "economizar antes"): todo pedido só de texto
+// e sem busca na internet tenta primeiro o Groq (GROQ_API_KEY, modelo GROQ_MODEL). Se ele falhar, bater o
+// limite ou o pedido for grande demais para a cota por minuto, segue o caminho pago de sempre.
+// GROQ_FORA=caroline,rafael tira assistentes do Groq, se a qualidade não servir para eles.
+const MODELO_GROQ = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+const chaveGroq = () => (process.env.GROQ_API_KEY || '').trim() || null;
+const groqFora = () => (process.env.GROQ_FORA || '').split(',').map(x => x.trim()).filter(Boolean);
+const GROQ_MAX_ENTRADA = Number(process.env.GROQ_MAX_ENTRADA) || 5000;
 
 // Transcrição de áudio no próprio servidor (Whisper local, pm2 "transcritor", só em 127.0.0.1), sem custo.
 // TRANSCRITOR_URL=desligado volta ao caminho antigo (IA paga). TRANSCRICAO_RESERVA=paga deixa a
@@ -41,9 +50,43 @@ async function chaveSoGemini(prisma: PrismaClient): Promise<string | null> {
   return (r?.valor || process.env.GEMINI_API_KEY || '').trim() || null;
 }
 
-/** Existe alguma IA configurada (ChatGPT ou Gemini)? */
+/** Existe alguma IA configurada (ChatGPT, Grok, Groq ou Gemini)? */
 export async function chaveGemini(prisma: PrismaClient): Promise<string | null> {
-  return chaveOpenAI() || chaveXai() || (await chaveSoGemini(prisma));
+  return chaveOpenAI() || chaveXai() || chaveGroq() || (await chaveSoGemini(prisma));
+}
+
+/** Uma tentativa no Groq grátis. Devolve o texto, ou null quando não vale tentar ou ele não deu conta. */
+async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string }): Promise<string | null> {
+  if (!chaveGroq() || groqFora().some(a => p.agente === a || p.agente === `conversa-${a}`)) return null;
+  const cota = await carregarCotaGroq(prisma);
+  if (!cabeNoGroq(cota, p.sistema + p.texto, { maxEntrada: GROQ_MAX_ENTRADA })) { registrarReservaGroq(p.agente); return null; }
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chaveGroq()}` },
+      body: jsonParaIa({
+        model: MODELO_GROQ,
+        messages: [{ role: 'system', content: p.sistema }, { role: 'user', content: p.json ? `${p.texto}\n\nResponda em JSON.` : p.texto }],
+        temperature: p.temperatura ?? 0.3,
+        reasoning_effort: process.env.GROQ_RACIOCINIO || 'low',
+        ...(p.json ? { response_format: { type: 'json_object' } } : {}),
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    atualizarCotaGroq(lerCotaGroq(cota, res.headers, res.status));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data: any = await res.json();
+    const texto = String(data?.choices?.[0]?.message?.content || '').trim();
+    if (!texto) throw new Error('resposta vazia');
+    const t = tokensDaResposta(data);
+    registrarUsoIa('groq');
+    registrarChamadaIa(p.agente, 'groq', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+    return texto;
+  } catch (e) {
+    console.warn('[GROQ] não respondeu, usando a IA paga:', (e as Error)?.message);
+    registrarReservaGroq(p.agente);
+    return null;
+  }
 }
 
 async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string }): Promise<any> {
@@ -151,6 +194,11 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
   const soTexto = p.partes.every(x => 'text' in x);
   // Lido antes de qualquer await: depois dele a pilha perde quem chamou. Áudio conta como transcrição.
   const agente = p.agente || (p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) ? 'transcricao' : agenteDaPilha(new Error().stack));
+  // Primeiro o Groq grátis; a IA paga só entra se ele não der conta.
+  if (soTexto) {
+    const texto = await tentarGroq(prisma, { sistema: p.sistema, texto: p.partes.map(x => (x as { text: string }).text).join('\n\n'), json: p.json, temperatura: p.temperatura, agente });
+    if (texto) return texto;
+  }
   if (p.simples && soTexto && chaveXai()) {
     try {
       const conteudo = p.partes.map(x => ({ type: 'input_text', text: (x as { text: string }).text }));

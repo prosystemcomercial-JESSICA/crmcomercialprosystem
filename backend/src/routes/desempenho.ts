@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { requireGestor } from '../lib/scope';
 import { totalPorAgente } from '../lib/uso-ia-agentes';
-import { usoIaPorAgente } from '../services/uso-ia.service';
+import { usoIaPorAgente, carregarCotaGroq } from '../services/uso-ia.service';
 
 // Desempenho unificado do setor (gestão): agentes de IA, suas intervenções, compromissos,
 // propostas e uso das IAs, tudo num só lugar e no mesmo período. Só lê dados que o CRM já registra.
@@ -83,18 +83,27 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
       criadas: await prisma.propostaComercial.count({ where: { created_at: periodo, deleted_at: null } }),
     };
 
-    // ── IA: uso por dia (OpenAI paga, Grok, Laya local grátis) + confirmações da Laya ──
-    const ia: { dia: string; openai: number; grok: number; laya: number }[] = [];
+    // ── IA: uso por dia (OpenAI paga, Grok, Laya local grátis, Groq grátis) + confirmações da Laya ──
+    const ia: { dia: string; openai: number; grok: number; laya: number; groq: number }[] = [];
     const chaves = [...Array(Math.min(dias, 90))].map((_, i) => `ia.uso.${diaSP(new Date(ate.getTime() - i * 86400000))}`);
     const regs = new Map((await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: chaves } } })).map(x => [x.chave, x.valor]));
     for (const k of chaves.reverse()) {
-      let v = { openai: 0, grok: 0, laya: 0 };
+      let v = { openai: 0, grok: 0, laya: 0, groq: 0 };
       try { v = { ...v, ...JSON.parse(regs.get(k) || '{}') }; } catch { /* ignora */ }
-      ia.push({ dia: k.slice(7), ...v });
+      ia.push({ dia: k.slice(7), openai: v.openai || 0, grok: v.grok || 0, laya: v.laya || 0, groq: v.groq || 0 });
     }
-    const totalIa = ia.reduce((s, d) => ({ openai: s.openai + d.openai, grok: s.grok + d.grok, laya: s.laya + d.laya }), { openai: 0, grok: 0, laya: 0 });
+    const totalIa = ia.reduce((s, d) => ({ openai: s.openai + d.openai, grok: s.grok + d.grok, laya: s.laya + d.laya, groq: s.groq + d.groq }), { openai: 0, grok: 0, laya: 0, groq: 0 });
     // Por assistente (contado desde 29/10/2026): requisições, falhas e tokens.
     const porAgente = totalPorAgente(await usoIaPorAgente(prisma, chaves.map(k => k.slice(7))));
+    // Groq grátis (29/10/2026): o que ele respondeu no lugar da paga, quando não deu conta e a cota do dia.
+    const groq = {
+      respondidas: porAgente.reduce((s, a) => s + a.groq, 0),
+      foram_para_paga: porAgente.reduce((s, a) => s + a.groq_reserva, 0),
+      tokens: porAgente.reduce((s, a) => s + a.groq_tokens, 0),
+      cota: await carregarCotaGroq(prisma),
+      ligado: !!(process.env.GROQ_API_KEY || '').trim(),
+    };
+    const gratis = totalIa.laya + totalIa.groq, todas = totalIa.openai + totalIa.grok + gratis;
     const laya = { acionada: totalIa.laya, confirmacoes: await prisma.iaAmostra.count({ where: { created_at: periodo } }) };
 
     return reply.send({
@@ -102,7 +111,7 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
       data: {
         periodo: { dias, de, ate }, agentes, intervencoes, compromissos,
         outras_atividades: outrasAtividades.map(x => ({ tipo: x.tipo, quantidade: x._count })),
-        propostas, ia: { por_dia: ia, total: totalIa, por_agente: porAgente, sem_custo_pct: (totalIa.openai + totalIa.grok + totalIa.laya) ? Math.round((totalIa.laya / (totalIa.openai + totalIa.grok + totalIa.laya)) * 100) : 0 },
+        propostas, ia: { por_dia: ia, total: totalIa, por_agente: porAgente, groq, sem_custo_pct: todas ? Math.round((gratis / todas) * 100) : 0 },
         laya,
       },
     });

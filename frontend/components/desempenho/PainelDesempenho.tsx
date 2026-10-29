@@ -16,8 +16,9 @@ type Dados = {
   outras_atividades: { tipo: string; quantidade: number }[];
   propostas: { mudancas_de_status: number; por_status: { status: string; quantidade: number }[]; criadas: number };
   ia: {
-    por_dia: { dia: string; openai: number; grok: number; laya: number }[]; total: { openai: number; grok: number; laya: number }; sem_custo_pct: number;
-    por_agente?: { agente: string; nome: string; openai: number; grok: number; whisper: number; falhas: number; tokens_entrada: number; tokens_saida: number }[];
+    por_dia: { dia: string; openai: number; grok: number; laya: number; groq?: number }[]; total: { openai: number; grok: number; laya: number; groq?: number }; sem_custo_pct: number;
+    por_agente?: { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; falhas: number; tokens_entrada: number; tokens_saida: number }[];
+    groq?: { respondidas: number; foram_para_paga: number; tokens: number; ligado: boolean; cota: { limite_dia: number | null; restante_dia: number | null; atualizado_em: number } };
   };
   laya: { acionada: number; confirmacoes: number };
 };
@@ -113,6 +114,8 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
             <Numero rotulo="Suas intervenções" valor={totalIntervencoes} sub={`${d.intervencoes.editadas} editadas · ${d.intervencoes.refeitas} refeitas · ${d.intervencoes.conversas_assumidas} assumidas`} />
             <Numero rotulo="Laya acionada" valor={d.laya.acionada} sub={`${d.laya.confirmacoes} confirmações suas`} />
             <Numero rotulo="IA sem custo" valor={`${d.ia.sem_custo_pct}%`} sub={`${d.ia.total.openai} chamadas à OpenAI (paga)`} />
+            {d.ia.groq?.ligado && <Numero rotulo="Groq (grátis) respondeu" valor={fmt(d.ia.groq.respondidas)}
+              sub={`${fmt(d.ia.groq.tokens)} tokens sem custo · ${fmt(d.ia.groq.foram_para_paga)} foram para a paga${d.ia.groq.cota.restante_dia != null && d.ia.groq.cota.limite_dia ? ` · cota: ${fmt(d.ia.groq.cota.restante_dia)} de ${fmt(d.ia.groq.cota.limite_dia)} pedidos/dia` : ''}`} />}
           </section>
 
           <section style={grade(300)}>
@@ -138,6 +141,7 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
           <section style={grade(300)}>
             <ColunasDia titulo="Chamadas à IA paga (OpenAI) por dia" cor="#2563eb" pontos={d.ia.por_dia.map(p => ({ dia: p.dia, valor: p.openai }))} />
             <ColunasDia titulo="Laya (grátis) acionada por dia" cor="#db2777" pontos={d.ia.por_dia.map(p => ({ dia: p.dia, valor: p.laya }))} />
+            {d.ia.groq?.ligado && <ColunasDia titulo="Respostas do Groq (grátis) por dia" cor="#16a34a" pontos={d.ia.por_dia.map(p => ({ dia: p.dia, valor: p.groq || 0 }))} />}
           </section>
 
           {/* Uso da IA por assistente (contado desde 29/10/2026): quem fez cada requisição, falhas e tokens. */}
@@ -145,17 +149,18 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
             <Barras titulo="Requisições à OpenAI (paga) por assistente" itens={(d.ia.por_agente || []).filter(a => a.openai).map(a => ({ rotulo: a.nome, valor: a.openai, dica: `${a.nome}: ${a.openai} requisições à OpenAI · ${fmt(a.tokens_entrada + a.tokens_saida)} tokens` }))} />
             <div className="ps-card" style={{ padding: 14, borderRadius: 12, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Uso da IA por assistente</div>
-              <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 8 }}>Contado desde 29/10/2026. Falha = a IA não respondeu ou recusou o pedido.</div>
+              <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginBottom: 8 }}>Contado desde 29/10/2026. Falha = a IA não respondeu ou recusou o pedido. Groq → paga = o Groq grátis não deu conta e o pedido foi para a IA paga.</div>
               {!(d.ia.por_agente || []).length && <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Nada no período.</div>}
               {!!(d.ia.por_agente || []).length && (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
                     <thead><tr style={{ color: 'var(--t-text-muted)', textAlign: 'left' }}>
-                      {['Assistente', 'OpenAI', 'Grok', 'Whisper (grátis)', 'Falhas', 'Tokens enviados', 'Tokens recebidos'].map(h => <th key={h} style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{h}</th>)}
+                      {['Assistente', 'Groq (grátis)', 'Groq → paga', 'OpenAI', 'Grok', 'Whisper (grátis)', 'Falhas', 'Tokens enviados', 'Tokens recebidos'].map(h => <th key={h} style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>{(d.ia.por_agente || []).map(a => (
                       <tr key={a.agente} style={{ borderTop: '1px solid var(--t-card-border)', color: 'var(--t-text-primary)' }}>
-                        <td style={{ padding: '6px 8px', fontWeight: 600 }}>{a.nome}</td><td style={{ padding: '6px 8px' }}>{a.openai}</td><td style={{ padding: '6px 8px' }}>{a.grok}</td>
+                        <td style={{ padding: '6px 8px', fontWeight: 600 }}>{a.nome}</td><td style={{ padding: '6px 8px', color: a.groq ? '#16a34a' : undefined }}>{a.groq || 0}</td>
+                        <td style={{ padding: '6px 8px' }}>{a.groq_reserva || 0}</td><td style={{ padding: '6px 8px' }}>{a.openai}</td><td style={{ padding: '6px 8px' }}>{a.grok}</td>
                         <td style={{ padding: '6px 8px' }}>{a.whisper}</td><td style={{ padding: '6px 8px', color: a.falhas ? '#dc2626' : undefined }}>{a.falhas}</td>
                         <td style={{ padding: '6px 8px' }}>{fmt(a.tokens_entrada)}</td><td style={{ padding: '6px 8px' }}>{fmt(a.tokens_saida)}</td>
                       </tr>))}</tbody>
