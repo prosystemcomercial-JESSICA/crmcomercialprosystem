@@ -24,7 +24,8 @@ A Jessica perguntou se o Onboarding técnico não repetia a Ficha de coleta, e d
 ## Verificado
 - `npx tsc` sem erros no backend (nos arquivos alterados) e no frontend (0 linhas).
 - `vitest` com os 10 arquivos de teste de implantação: 77 testes passando, incluindo o novo `backend/tests/implantacao-onboarding-ficha.test.ts`.
-- **Não verificado nesta etapa:** a tela no navegador e o comportamento com dados de produção. O deploy está registrado no ESTADO.md.
+- Commit `2a4bb0e` no ar. O deploy do meu commit parou na trava "HEAD diferente", porque outra sessão publicou `67da7c5` logo depois. O deploy de `67da7c5`, que inclui o meu, terminou bem: o site respondeu e os serviços `comercial-backend` e `comercial-frontend` ficaram no ar. O código novo foi conferido no servidor e `/portal-tecnico` respondeu 200.
+- **Não verificado:** a tela no navegador com um card real.
 
 ## Decisões e porquês
 - **Desmarcar automático:** só desmarca o que a ficha marcou (`feito_por = "Ficha de coleta (automático)"`), mais o item das perguntas, como já era antes. Nada que o técnico marcou à mão se perde.
