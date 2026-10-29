@@ -2039,3 +2039,16 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **O que continua com a IA (precisa escrever texto):** respostas de venda da Caroline/Julio/Luiz Felipe, resposta do tira-dúvidas, resumo, sugestão de resposta, propostas, Rafael, Sofia, Heitor, Joana, analista. A Laya só escolhe entre opções; não redige.
 - **Próximo passo possível (depende da Jessica):** biblioteca de respostas prontas aprovadas para as perguntas mais comuns; a Laya escolheria a resposta e só o resto iria para a IA.
 - **Sem mudança de banco.** Testes: `tests/laya.test.ts` (2 novos).
+
+## Métricas da IA interativa (29/10/2026)
+
+- **Pedido da Jessica:** "📊 Métricas da IA: quero essa janela mais interativa".
+- **Onde:** `frontend/components/desempenho/PainelDesempenho.tsx` (o mesmo painel da tela `/desempenho` e da janela "📊 Métricas da IA" do Escritório). Só frontend: sem mudança de backend nem de banco; usa o mesmo `GET /relatorios/desempenho?dias=`.
+- **Período:** novo botão **Hoje** (`dias=1`), além de 7, 30 e 90 dias. Em "Hoje" o painel se atualiza sozinho a cada minuto (só com a aba do navegador visível). Botão **↻ Atualizar** e o horário da última atualização; os números ficam esmaecidos enquanto atualizam.
+- **Cartões clicáveis:** cada cartão do topo leva à aba do assunto (Leads/Efetivos → Agentes; Demonstrações → Compromissos; Laya, IA sem custo e Groq → Uso da IA).
+- **Abas:** 📋 Visão geral (respostas por agente, decisões nas mensagens, gráfico por dia) · 🤖 Agentes · ⚡ Uso da IA · 📅 Compromissos e propostas (com "Outras atividades" fora da janela compacta).
+- **Agentes:** botões com o nome de cada agente; clicar no nome, na barra ou na linha da tabela abre o **funil do agente** (leads → contatados → responderam → efetivos → demonstrações, com a % de cada passo em relação ao anterior, sem interesse e conversas assumidas). Barras "% de resposta" por agente.
+- **Gráfico "Pedidos às IAs por dia":** colunas empilhadas OpenAI (paga), Grok (paga), Groq (grátis, só com a chave) e Laya (grátis); cada fonte liga/desliga na legenda (fica sempre pelo menos uma); passar o mouse ou tocar num dia mostra o detalhe do dia por fonte (sem nada escolhido, mostra hoje).
+- **Uso da IA:** clicar num assistente (barras ou linha da tabela) mostra "de onde vieram as respostas" dele (Groq, OpenRouter, Whisper, Gemini, OpenAI, Grok, falhas); sem escolha, barras de tokens por assistente. Caixa **"Só quem teve falhas"**.
+- **Tabelas ordenáveis:** clicar no título da coluna ordena (de novo inverte; ▲/▼ indica a ordem). Agentes começam por Efetivos; uso da IA começa por OpenAI.
+- **Para a Jessica:** abra Escritório › 📊 Métricas da IA, escolha "Hoje" para acompanhar ao vivo, clique nos cartões e nos nomes para ver os detalhes.
