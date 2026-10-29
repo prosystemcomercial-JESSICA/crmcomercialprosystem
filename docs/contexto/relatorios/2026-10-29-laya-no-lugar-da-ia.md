@@ -19,7 +19,7 @@ A Jessica perguntou o que a Laya já pode assumir no lugar da IA e depois pediu:
 - `tsc`: nenhum erro nos arquivos alterados.
 - **Não verificado:**
   - o nível real das tarefas da Laya em produção (a leitura do banco foi recusada pela permissão da sessão);
-  - o comportamento em produção depois do deploy.
+  - o comportamento em produção depois do deploy (o deploy de `05f9af8` foi feito com backup: CI ok, build ok, site e API respondendo).
 
 ## Decisões e porquês
 - **Laya sem nível no filtro do tira-dúvidas:** um desvio errado só faz a equipe responder, o que já é o caminho normal. O risco é baixo.
