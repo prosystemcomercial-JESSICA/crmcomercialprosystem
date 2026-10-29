@@ -14,7 +14,8 @@ A Jessica perguntou em que a chave da OpenAI era usada e onde dava para parar de
 ## Verificado
 - Vitest: `transcricao-local`, `painel-ia` e `laya-caderno` passaram (19 testes). `tsc` sem erros nos arquivos alterados.
 - Na VPS: `/health` ok. Um áudio de teste de 15 s em português, gerado por voz sintética e não de cliente, foi transcrito em 3,7 s (wav) e 3,8 s (ogg/opus), com texto correto. A RAM livre continuou em cerca de 8,8 GB.
-- O deploy do backend e a primeira transcrição real pelo CRM estão registrados no ESTADO.md (entrada de 29/10).
+- Deploy: `deploy-vps.sh e8fcd71` com CI verde, banco sem alterações, build ok, site e API respondendo; código novo conferido na VPS. O deploy seguinte de outra sessão (`7b32cc5`) já o inclui.
+- **Não verificado:** a primeira transcrição de um áudio real de cliente pelo CRM (conferir em `pm2 logs transcritor`).
 
 ## Decisões e porquês
 - **Whisper local em vez de Gemini:** a Jessica pediu "sem custo". A cota grátis do Gemini tem limite e expõe o áudio a mais um fornecedor.
