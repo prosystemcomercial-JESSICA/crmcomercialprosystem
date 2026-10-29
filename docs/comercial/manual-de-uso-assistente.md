@@ -304,7 +304,7 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
 
 - **Código:** GitHub `prosystemcomercial-JESSICA/crmcomercialprosystem`, branch `main`. Cada entrega é commitada e enviada antes de ir para o servidor.
 - **Publicação:** VPS `comercial.prosystemnet.com`, pasta `/var/www/comercial-prosystem`, com pm2 `comercial-backend` (3011) e `comercial-frontend` (3010). A IA Laya roda no pm2 `laya` (local, porta 8765).
-- **Chaves de IA:** `OPENAI_API_KEY` e `OPENAI_MODEL` ficam só no `.env` do servidor, nunca no GitHub. `XAI_API_KEY` entra no mesmo lugar quando existir.
+- **Chaves de IA:** `OPENAI_API_KEY` e `OPENAI_MODEL` ficam só no `.env` do servidor, nunca no GitHub. A transcrição de áudio não usa chave: roda no próprio servidor (Whisper local, desde 29/10/2026). `XAI_API_KEY` entra no mesmo lugar quando existir.
 - **Cópias diárias:** Caderno da Laya em `/root/laya-caderno`.
 - **Documentos relacionados:**
   - `docs/comercial/base-conhecimento-comercial.md`: guia comercial, usado pela IA;
@@ -1428,3 +1428,9 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - **Tela Churn & Retenção (`frontend/app/casos/page.tsx`):** no card do Kanban, selo "● Em observação" (azul, bolinha piscando) ou "● Pediu cancelamento" (vermelho) e borda esquerda da mesma cor; chip do retorno ("📅 Retorno 29/10 16:42 · Bruno", amarelo quando é hoje, vermelho piscando quando venceu). Em cada coluna aberta, a ordem é: pediu cancelamento, em observação, retorno vencido e depois o risco. Acima do Kanban: filtros "Todos os casos · Pediu cancelamento · Em observação · Com retorno marcado · Retorno vencido" (com contagem; valem também para a tabela) e o quadro "⏰ Retornos para agora e para hoje" (toque abre o caso). Na ficha do caso (aberto): "🏷️ Situação do cliente" (Sem marcação / Em observação / Pediu cancelamento) e "📅 Próximo retorno" (data e hora, o que fazer, quem faz, observação; Marcar/Remarcar, "Como foi?" + ✅ Retorno feito, Desmarcar). Selo também na tabela e na Visão Executiva. Animação respeita "reduzir movimento". Conferido com fotos (1500 e 400px, dados fictícios).
 - **Regras do projeto:** nenhuma atividade automática (o retorno é marcado por uma pessoa); casos antigos começam sem etiqueta e sem retorno.
 - **Como usar:** em **Churn & Retenção**, abra o caso. Em "Situação do cliente", escolha **Em observação** ou **Pediu cancelamento**; o card ganha a bolinha azul (piscando) ou vermelha. Em "Próximo retorno", escolha data e hora, o que fazer e quem faz, e toque em **Marcar retorno**. Na hora marcada chega o aviso no celular e o retorno aparece no sino e no topo do Churn. Depois de falar com o cliente, escreva "Como foi?" e toque em **✅ Retorno feito**, ou remarque. Use os filtros acima do Kanban para ver só quem pediu cancelamento, só quem está em observação ou os retornos vencidos.
+
+### Novidade 29/10/2026: transcrição de áudio sem custo
+
+- Os áudios do WhatsApp agora são transcritos **no próprio servidor do CRM**, sem pagar a OpenAI. Nada muda no uso: o botão "Transcrever áudio" e a transcrição automática continuam iguais.
+- Um áudio de 15 segundos leva cerca de 4 segundos para virar texto.
+- Se aparecer "Transcritor local indisponível", o transcritor do servidor está parado: avise o suporte técnico (ele é reiniciado com `pm2 restart transcritor`). Enquanto isso, nada é cobrado.

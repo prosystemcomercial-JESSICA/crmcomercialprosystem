@@ -77,7 +77,7 @@ Número, representante, plano, mensalidade, setup, ZapSign (`zapsign_*`, `signed
 | `assistente.tira_duvidas`, `assistente.transcrever_auto` | Clarice |
 | `assistente.pix_chave`, `assistente.pix_nome`, `assistente.gemini_chave` | PIX (chave e nome de quem recebe) e chave legada |
 | `whatsapp.triagem.*` | Triagem ligada e materiais de farmácia e padaria |
-| `ia.uso.<AAAA-MM-DD>` | Contagem OpenAI/Grok/Laya |
+| `ia.uso.<AAAA-MM-DD>` | Contagem OpenAI/Grok/Laya/evitadas/Whisper local |
 | `envio.<chave>` | Trava contra mensagens repetidas (data do último envio) |
 
 ## 6. Demais domínios (resumo)
@@ -1957,3 +1957,14 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Aviso:** agendador `iniciarSchedulerRetornoChurn` em `server.ts` (a cada 5 min): retorno que chegou a hora manda push "⏰ Hora do retorno: <cliente>" para o responsável e quem marcou, com link `/casos?caso=<id>` (abre a ficha do caso). Sino de Alertas (`GET /alertas`): tipo `CHURN_RETORNO`, ALTA quando vencido e MÉDIA quando é para hoje; gestão vê todos, os demais só os seus; CEO não vê. Fica no sino até ser feito, remarcado ou desmarcado.
 - **Tela Churn & Retenção (`frontend/app/casos/page.tsx`):** no card do Kanban, selo "● Em observação" (azul, bolinha piscando) ou "● Pediu cancelamento" (vermelho) e borda esquerda da mesma cor; chip do retorno ("📅 Retorno 29/10 16:42 · Bruno", amarelo quando é hoje, vermelho piscando quando venceu). Em cada coluna aberta, a ordem é: pediu cancelamento, em observação, retorno vencido e depois o risco. Acima do Kanban: filtros "Todos os casos · Pediu cancelamento · Em observação · Com retorno marcado · Retorno vencido" (com contagem; valem também para a tabela) e o quadro "⏰ Retornos para agora e para hoje" (toque abre o caso). Na ficha do caso (aberto): "🏷️ Situação do cliente" (Sem marcação / Em observação / Pediu cancelamento) e "📅 Próximo retorno" (data e hora, o que fazer, quem faz, observação; Marcar/Remarcar, "Como foi?" + ✅ Retorno feito, Desmarcar). Selo também na tabela e na Visão Executiva. Animação respeita "reduzir movimento". Conferido com fotos (1500 e 400px, dados fictícios).
 - **Regras do projeto:** nenhuma atividade automática (o retorno é marcado por uma pessoa); casos antigos começam sem etiqueta e sem retorno.
+
+### Atualização 29/10/2026: transcrição de áudio no próprio servidor (Whisper local, sem custo)
+
+- **Pedido da Jessica:** parar de pagar a OpenAI pela transcrição dos áudios do WhatsApp (a OpenAI cobra por minuto de áudio).
+- **Antes:** `transcreverAudio` (botão "Transcrever áudio", transcrição automática e agentes) chamava `chamarGemini` com o áudio, que ia para `api.openai.com/v1/audio/transcriptions` (`gpt-4o-transcribe`), contado como OpenAI paga.
+- **Agora:** `chamarGemini` (`backend/src/services/ia-gemini.service.ts`) manda o áudio primeiro para o **transcritor local** (`TRANSCRITOR_URL`, padrão `http://127.0.0.1:8766`, `POST /transcrever` com o áudio cru e o `Content-Type` dele; resposta `{ texto, duracao, levou }`). Sem custo; o uso é contado como `whisper` em `ia.uso.AAAA-MM-DD` (`uso-ia.service.ts`).
+- **Se o transcritor local falhar:** a transcrição falha com "Transcritor local indisponível…" e **nada vai para a OpenAI**. `TRANSCRICAO_RESERVA=paga` no `.env` faz a OpenAI cobrir a falha; `TRANSCRITOR_URL=desligado` volta ao caminho antigo (IA paga).
+- **Transcritor (`backend/transcritor/servidor.py`):** Python + faster-whisper 1.2.1, modelo `small` (`WHISPER_MODELO`), int8 na CPU, 2 núcleos (`WHISPER_THREADS`), um áudio por vez, limite de 25 MB, português fixo, filtro de silêncio. Lê ogg/opus, webm, mp3, m4a e wav por conta própria com o `av` (o leitor do faster-whisper quebra com o `av` 15 ou mais). Escuta só em 127.0.0.1.
+- **Instalação no servidor:** `bash backend/transcritor/instalar.sh` (como root) cria `/opt/transcritor` (venv), copia o `servidor.py` para lá e sobe o pm2 `transcritor`. O deploy do CRM não mexe nele; ao mudar o `servidor.py`, rode o instalador de novo.
+- **Medido em 29/10/2026 no servidor:** áudio de 15 s em português (wav e ogg/opus) transcrito em 3,7–3,8 s, texto correto. Memória: cerca de 0,5 GB.
+- **Testes:** `backend/tests/transcricao-local.test.ts` (local usado sem chamar a OpenAI; falha sem reserva não cobra; reserva paga; desligado). Sem mudança de banco.

@@ -16,6 +16,24 @@ const chaveOpenAI = () => (process.env.OPENAI_API_KEY || '').trim() || null;
 const MODELO_XAI = process.env.XAI_MODEL || 'grok-4.7';
 const chaveXai = () => (process.env.XAI_API_KEY || '').trim() || null;
 
+// Transcrição de áudio no próprio servidor (Whisper local, pm2 "transcritor", só em 127.0.0.1), sem custo.
+// TRANSCRITOR_URL=desligado volta ao caminho antigo (IA paga). TRANSCRICAO_RESERVA=paga deixa a
+// IA paga cobrir quando o transcritor local falhar; sem ela, a falha aparece e nada é cobrado (29/10/2026).
+const urlTranscritor = () => (process.env.TRANSCRITOR_URL || 'http://127.0.0.1:8766').trim();
+const transcritorLocalLigado = () => urlTranscritor() !== 'desligado';
+
+async function transcreverLocal(mime: string, base64: string, timeoutMs: number): Promise<string> {
+  const res = await fetch(`${urlTranscritor()}/transcrever`, {
+    method: 'POST', headers: { 'Content-Type': mime }, body: Buffer.from(base64, 'base64'), signal: AbortSignal.timeout(timeoutMs),
+  }).catch(() => null);
+  if (!res) throw new Error('O transcritor local não respondeu.');
+  if (!res.ok) throw new Error(`Transcritor local indisponível (HTTP ${res.status}).`);
+  registrarUsoIa('whisper');
+  const texto = String(((await res.json()) as any)?.texto || '').trim();
+  if (!texto) throw new Error('A transcrição veio vazia.');
+  return texto;
+}
+
 async function chaveSoGemini(prisma: PrismaClient): Promise<string | null> {
   const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_GEMINI } }).catch(() => null);
   return (r?.valor || process.env.GEMINI_API_KEY || '').trim() || null;
@@ -127,7 +145,17 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
       if (!chaveOpenAI() && !(await chaveSoGemini(prisma))) throw e;
     }
   }
-  const temAudio = p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/'));
+  const parteAudio = p.partes.find(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) as Extract<Parte, { inline_data: unknown }> | undefined;
+  const temAudio = !!parteAudio;
+  // Áudio (o único uso é transcrever): primeiro o Whisper local, sem custo.
+  if (parteAudio && transcritorLocalLigado()) {
+    try {
+      return await transcreverLocal(parteAudio.inline_data.mime_type, parteAudio.inline_data.data, p.timeoutMs ?? 90_000);
+    } catch (e) {
+      if (process.env.TRANSCRICAO_RESERVA !== 'paga') throw e;
+      console.warn('[TRANSCRICAO] local falhou, usando a IA paga:', (e as Error)?.message);
+    }
+  }
   const chaveG = await chaveSoGemini(prisma);
   if (chaveOpenAI() && !(temAudio && chaveG)) {
     const conteudo = p.partes.map(x => {

@@ -11,7 +11,7 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
  comercial-frontend (pm2, :3010) ──► comercial-backend (pm2, :3011, Fastify 4 + tsx)
                                         │   │   │   │
                   MySQL (Prisma 5) ◄────┘   │   │   └──► UAZAPI (WhatsApp não oficial, instância única)
-                                            │   └──────► OpenAI (gpt-6-luna, gpt-4o-transcribe) · xAI Grok (opcional) · Gemini (legado)
+                                            │   └──────► OpenAI (gpt-6-luna) · xAI Grok (opcional) · Gemini (legado) · Transcritor (pm2 "transcritor", 127.0.0.1:8766, Whisper local)
                                             └──────────► Laya (pm2 "laya", 127.0.0.1:8765, modelo local)
  Outros: ZapSign (contratos), BrasilAPI/CNPJá (Receita), Resend/SMTP (e-mail), Google Calendar
 ```
@@ -44,7 +44,8 @@ Documento de requisitos técnicos · versão 1.0 · 27/09/2026
 | Serviço | Uso | Configuração |
 |---|---|---|
 | UAZAPI | Enviar texto, menu (botões), arquivo, baixar mídia, webhook de mensagens | Token da instância em `WhatsappInstancia` |
-| OpenAI | Conversa dos agentes, resumo, tira-dúvidas, pesquisa com busca na web, transcrição | `OPENAI_API_KEY`, `OPENAI_MODEL` (padrão `gpt-6-luna`), `OPENAI_TRANSCRIBE_MODEL` |
+| OpenAI | Conversa dos agentes, resumo, tira-dúvidas, pesquisa com busca na web (transcrição só com `TRANSCRICAO_RESERVA=paga`) | `OPENAI_API_KEY`, `OPENAI_MODEL` (padrão `gpt-6-luna`), `OPENAI_TRANSCRIBE_MODEL` |
+| Transcritor local (Whisper) | Transcrição dos áudios, sem custo | `TRANSCRITOR_URL` (padrão `http://127.0.0.1:8766`; `desligado` volta à OpenAI), `TRANSCRICAO_RESERVA` |
 | xAI Grok | Tarefas simples (resumo, conversa com agentes) com volta para a OpenAI | `XAI_API_KEY`, `XAI_MODEL` (padrão `grok-4.7`) |
 | Gemini | Legado; usado se não houver OpenAI | `GEMINI_API_KEY` ou Configurações |
 | Laya | Classificação (segmento, intenção, risco) | `LAYA_URL` |
@@ -1976,3 +1977,14 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - **Aviso:** agendador `iniciarSchedulerRetornoChurn` em `server.ts` (a cada 5 min): retorno que chegou a hora manda push "⏰ Hora do retorno: <cliente>" para o responsável e quem marcou, com link `/casos?caso=<id>` (abre a ficha do caso). Sino de Alertas (`GET /alertas`): tipo `CHURN_RETORNO`, ALTA quando vencido e MÉDIA quando é para hoje; gestão vê todos, os demais só os seus; CEO não vê. Fica no sino até ser feito, remarcado ou desmarcado.
 - **Tela Churn & Retenção (`frontend/app/casos/page.tsx`):** no card do Kanban, selo "● Em observação" (azul, bolinha piscando) ou "● Pediu cancelamento" (vermelho) e borda esquerda da mesma cor; chip do retorno ("📅 Retorno 29/10 16:42 · Bruno", amarelo quando é hoje, vermelho piscando quando venceu). Em cada coluna aberta, a ordem é: pediu cancelamento, em observação, retorno vencido e depois o risco. Acima do Kanban: filtros "Todos os casos · Pediu cancelamento · Em observação · Com retorno marcado · Retorno vencido" (com contagem; valem também para a tabela) e o quadro "⏰ Retornos para agora e para hoje" (toque abre o caso). Na ficha do caso (aberto): "🏷️ Situação do cliente" (Sem marcação / Em observação / Pediu cancelamento) e "📅 Próximo retorno" (data e hora, o que fazer, quem faz, observação; Marcar/Remarcar, "Como foi?" + ✅ Retorno feito, Desmarcar). Selo também na tabela e na Visão Executiva. Animação respeita "reduzir movimento". Conferido com fotos (1500 e 400px, dados fictícios).
 - **Regras do projeto:** nenhuma atividade automática (o retorno é marcado por uma pessoa); casos antigos começam sem etiqueta e sem retorno.
+
+### Atualização 29/10/2026: transcrição de áudio no próprio servidor (Whisper local, sem custo)
+
+- **Pedido da Jessica:** parar de pagar a OpenAI pela transcrição dos áudios do WhatsApp (a OpenAI cobra por minuto de áudio).
+- **Antes:** `transcreverAudio` (botão "Transcrever áudio", transcrição automática e agentes) chamava `chamarGemini` com o áudio, que ia para `api.openai.com/v1/audio/transcriptions` (`gpt-4o-transcribe`), contado como OpenAI paga.
+- **Agora:** `chamarGemini` (`backend/src/services/ia-gemini.service.ts`) manda o áudio primeiro para o **transcritor local** (`TRANSCRITOR_URL`, padrão `http://127.0.0.1:8766`, `POST /transcrever` com o áudio cru e o `Content-Type` dele; resposta `{ texto, duracao, levou }`). Sem custo; o uso é contado como `whisper` em `ia.uso.AAAA-MM-DD` (`uso-ia.service.ts`).
+- **Se o transcritor local falhar:** a transcrição falha com "Transcritor local indisponível…" e **nada vai para a OpenAI**. `TRANSCRICAO_RESERVA=paga` no `.env` faz a OpenAI cobrir a falha; `TRANSCRITOR_URL=desligado` volta ao caminho antigo (IA paga).
+- **Transcritor (`backend/transcritor/servidor.py`):** Python + faster-whisper 1.2.1, modelo `small` (`WHISPER_MODELO`), int8 na CPU, 2 núcleos (`WHISPER_THREADS`), um áudio por vez, limite de 25 MB, português fixo, filtro de silêncio. Lê ogg/opus, webm, mp3, m4a e wav por conta própria com o `av` (o leitor do faster-whisper quebra com o `av` 15 ou mais). Escuta só em 127.0.0.1.
+- **Instalação no servidor:** `bash backend/transcritor/instalar.sh` (como root) cria `/opt/transcritor` (venv), copia o `servidor.py` para lá e sobe o pm2 `transcritor`. O deploy do CRM não mexe nele; ao mudar o `servidor.py`, rode o instalador de novo.
+- **Medido em 29/10/2026 no servidor:** áudio de 15 s em português (wav e ogg/opus) transcrito em 3,7–3,8 s, texto correto. Memória: cerca de 0,5 GB.
+- **Testes:** `backend/tests/transcricao-local.test.ts` (local usado sem chamar a OpenAI; falha sem reserva não cobra; reserva paga; desligado). Sem mudança de banco.
