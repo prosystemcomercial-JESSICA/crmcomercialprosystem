@@ -8,6 +8,7 @@ Palavras dela: "não quero só resumo, quero clicar e passar os dados certos par
 
 | Reunião | Documento |
 | --- | --- |
+| 30/10/2026 (semana de 26 a 30/10) | https://claude.ai/artifact/BMxFFK573xn1qQLKoPf9zK |
 | 20/10/2026 (semana de 13 a 20/10) | https://claude.ai/code/artifact/0646972c-2dda-4af5-bdaa-d231fa14fd34 |
 | 14/10/2026 (01 a 14/10) | https://claude.ai/code/artifact/4f0ce3dc-e7be-44da-8e22-9fe996635f21 |
 
