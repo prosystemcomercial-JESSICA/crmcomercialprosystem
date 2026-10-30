@@ -165,33 +165,33 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
       {vista === 'lista' && <VistaLista cards={cards.filter(c => colunas.some(k => k.key === c.coluna))} abrir={setAberta} />}
       {vista === 'calendario' && <VistaCalendario cards={cards} abrir={setAberta} gestao={gestao} />}
       {vista === 'equipe' && gestao && <VistaEquipe cards={cards} abrir={setAberta} />}
-      <div style={{ display: vista === 'kanban' ? 'flex' : 'none', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
+      <div className="pt-kanban" style={{ display: vista === 'kanban' ? 'flex' : 'none', gap: 10, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
         {colunas.map(col => {
           const doCol = cards.filter(c => c.coluna === col.key);
-          if (['FINALIZADO', 'CANCELADOS'].includes(col.key) && !abertasFinais.includes(col.key)) return (
-            <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Clique para expandir ${col.label}`}
+          const ehFinal = ['FINALIZADO', 'CANCELADOS'].includes(col.key);
+          if (ehFinal && !abertasFinais.includes(col.key)) return (
+            <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Abrir ${col.label}`}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, minWidth: 120, flexShrink: 0, cursor: 'pointer', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 12px' }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: doCol.length ? 'var(--t-text-primary)' : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</span>
-              <span style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>Clique para abrir</span>
+              style={{ ...cartao, width: 44, minWidth: 44, flexShrink: 0, cursor: 'pointer', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '10px 0' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: doCol.length ? 'var(--t-text-primary)' : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
+              <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>{col.label}</span>
             </button>
           );
-          const ehFinal = ['FINALIZADO', 'CANCELADOS'].includes(col.key);
+          const temCards = doCol.length > 0;
           return (
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
-                <b style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</b>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              style={{ ...cartao, minWidth: temCards ? 220 : 130, width: temCards ? undefined : 130, flex: temCards ? '1 1 220px' : '0 0 auto', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8, alignContent: 'start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px', gap: 6 }}>
+                <b style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: 1.25 }}>{col.label}</b>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
                   {ehFinal && <button onClick={() => setAbertasFinais(a => a.filter(k => k !== col.key))} title="Recolher" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--t-text-muted)', padding: '0 2px', lineHeight: 1 }}>✕</button>}
                 </div>
               </div>
-              {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '14px 0' }}>Arraste um card para cá</div>}
+              {!temCards && <div style={{ fontSize: 11, color: 'var(--t-text-muted)', textAlign: 'center', padding: '10px 0' }}>Arraste um card para cá</div>}
               {doCol.map(c => (
                 <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => setAberta(c.id)}
                   style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, background: 'var(--t-card-bg)', ...(c.sla?.situacao === 'ESTOURADO' || c.sla?.situacao === 'EM_RISCO' ? { borderLeft: `3px solid ${c.sla.situacao === 'ESTOURADO' ? '#dc2626' : '#d97706'}` } : {}) }}>
@@ -205,12 +205,12 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                    {c.saude && c.saude.nivel !== 'VERDE' && <span style={{ transform: 'translateY(-1px)' }}><PontoSaude saude={c.saude} /></span>}
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', lineHeight: 1.3 }}>{c.cliente_razao_social}</div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', minWidth: 0 }}>
+                    {c.saude && c.saude.nivel !== 'VERDE' && <span style={{ transform: 'translateY(-1px)', flexShrink: 0 }}><PontoSaude saude={c.saude} /></span>}
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.cliente_razao_social}</div>
                   </div>
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
-                    <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)' }}>→ {c.proximo_passo.titulo}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {c.proximo_passo.titulo}</div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                     <SlaBadge sla={c.sla} etapa={c.sla_etapa} />
