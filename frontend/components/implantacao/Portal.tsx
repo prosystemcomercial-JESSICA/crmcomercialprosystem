@@ -169,14 +169,16 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
         {colunas.map(col => {
           const doCol = cards.filter(c => c.coluna === col.key);
           if (['FINALIZADO', 'CANCELADOS'].includes(col.key) && !abertasFinais.includes(col.key)) return (
-            <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Abrir ${col.label}`}
+            <button key={col.key} onClick={() => setAbertasFinais(a => [...a, col.key])} title={`Clique para expandir ${col.label}`}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, width: 52, flexShrink: 0, alignSelf: 'stretch', minHeight: 160, cursor: 'pointer', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '12px 0' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
-              <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>{col.label}</span>
+              style={{ ...cartao, minWidth: 120, flexShrink: 0, cursor: 'pointer', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 12px' }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: doCol.length ? 'var(--t-text-primary)' : 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{doCol.length}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 2 }}>Clique para abrir</span>
             </button>
           );
+          const ehFinal = ['FINALIZADO', 'CANCELADOS'].includes(col.key);
           return (
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
@@ -184,7 +186,10 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
               style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px' }}>
                 <b style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</b>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
+                  {ehFinal && <button onClick={() => setAbertasFinais(a => a.filter(k => k !== col.key))} title="Recolher" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--t-text-muted)', padding: '0 2px', lineHeight: 1 }}>✕</button>}
+                </div>
               </div>
               {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '14px 0' }}>Arraste um card para cá</div>}
               {doCol.map(c => (
