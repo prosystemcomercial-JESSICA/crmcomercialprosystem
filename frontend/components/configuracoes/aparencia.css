@@ -5,7 +5,7 @@
 .aparencia-conteudo { padding: 20px; }
 .aparencia fieldset { min-width: 0; border: 0; padding: 0; }
 .aparencia legend { font-size: 12px; font-weight: 600; color: var(--t-text-secondary); margin-bottom: 10px; }
-.aparencia-modo { display: flex; gap: 8px; margin-bottom: 24px; }
+.aparencia-modo { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 .aparencia-modo button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; min-width: 112px; padding: 8px 12px; border: 1px solid var(--t-card-border); border-radius: 6px; font-size: 13px; }
 .aparencia-modo button[aria-pressed=true] { background: var(--t-primary-light); border-color: var(--t-link); font-weight: 600; }
 .aparencia-paletas { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(180px,100%),1fr)); gap: 12px; }

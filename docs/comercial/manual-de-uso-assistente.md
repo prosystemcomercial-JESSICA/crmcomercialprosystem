@@ -1531,3 +1531,10 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - As letras ficaram um pouco menos brancas e as cores (verde, vermelho, azul, roxo) ficaram mais suaves, sem perder o significado: verde continua sendo bom, vermelho continua sendo alerta.
 - Fotos e prints ficam levemente atenuados, e o logo da Prosystem aparece melhor no topo.
 - O modo claro continua igual. Vale para as seis paletas.
+
+### Atualização 30/10/2026: modo Automático, logo e negrito mais suave
+
+- Em **Configurações > Aparência > Modo** há agora três opções: **Claro**, **Escuro** e **Automático**. O Automático segue o Windows (ou o celular): se o computador estiver no modo escuro, o CRM abre escuro, e muda sozinho quando o Windows muda.
+- Quem nunca escolheu já começa no Automático. Escolher Claro ou Escuro (ou clicar na lua/sol do topo) fixa a escolha; para voltar a seguir o Windows, clique em Automático.
+- O logo da Prosystem no topo ficou maior e, no modo escuro, ganhou uma versão própria em azul claro.
+- No modo escuro, os textos em negrito ficaram um pouco mais finos para não "estourar" o branco. Continuam em destaque.

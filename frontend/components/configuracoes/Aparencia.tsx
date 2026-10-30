@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme, type ThemeColor, type ThemeMode } from '@/lib/theme-context';
 import './aparencia.css';
 
@@ -14,7 +14,7 @@ const THEMES: { id: ThemeColor; name: string; description: string }[] = [
 ];
 
 export default function Aparencia() {
-  const { color, mode, setColor, setMode } = useTheme();
+  const { color, mode, automatico, setColor, setMode, usarAutomatico } = useTheme();
   return (
     <section className="aparencia" aria-labelledby="aparencia-titulo">
       <header className="aparencia-cab">
@@ -25,11 +25,15 @@ export default function Aparencia() {
         <fieldset className="aparencia-modo">
           <legend>Modo</legend>
           {([{ id: 'claro', name: 'Claro', Icon: Sun }, { id: 'escuro', name: 'Escuro', Icon: Moon }] as const).map(({ id, name, Icon }) => (
-            <button key={id} type="button" aria-pressed={mode === id} onClick={() => setMode(id as ThemeMode)}>
-              <Icon size={16} aria-hidden="true" />{name}{mode === id && <Check size={14} aria-hidden="true" />}
+            <button key={id} type="button" aria-pressed={!automatico && mode === id} onClick={() => setMode(id as ThemeMode)}>
+              <Icon size={16} aria-hidden="true" />{name}{!automatico && mode === id && <Check size={14} aria-hidden="true" />}
             </button>
           ))}
+          <button type="button" aria-pressed={automatico} onClick={usarAutomatico} title="Segue o modo claro/escuro do Windows ou do celular">
+            <Monitor size={16} aria-hidden="true" />Automático{automatico && <Check size={14} aria-hidden="true" />}
+          </button>
         </fieldset>
+        {automatico && <p className="aparencia-nota" style={{ marginTop: -12, marginBottom: 20 }}>Seguindo o sistema: agora está no modo {mode === 'escuro' ? 'escuro' : 'claro'}.</p>}
         <fieldset>
           <legend>Paleta</legend>
           <div className="aparencia-paletas">

@@ -906,7 +906,7 @@ export default function PortalTecnicoPage() {
           <IconeMenu size={20} />
         </button>
         <a href="/dashboard" className="flex items-center select-none flex-shrink-0" aria-label="Prosystem">
-          <Image src="/logo-prosystem.png" alt="Prosystem" width={200} height={54} className="object-contain" style={{ width: 'auto', height: 26 }} priority />
+          <Image src={mode === 'escuro' ? '/logo-prosystem-escuro.png' : '/logo-prosystem-cropped.png'} alt="Prosystem" width={1712} height={267} className="object-contain" style={{ width: 'auto', height: 22 }} priority />
         </a>
         <span className="pt-topo-extra" style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-muted)', paddingLeft: 10, borderLeft: '1px solid var(--t-card-border)' }}>Portal Técnico</span>
         <div style={{ flex: 1 }} />

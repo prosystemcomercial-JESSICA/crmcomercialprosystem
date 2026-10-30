@@ -520,13 +520,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center select-none flex-shrink-0" aria-label="Prosystem">
+          {/* Logo recortado (sem margens); no escuro, versão própria em azul claro com o "play" vazado. */}
           <Image
-            src="/logo-prosystem.png"
+            src={mode === 'escuro' ? '/logo-prosystem-escuro.png' : '/logo-prosystem-cropped.png'}
             alt="Prosystem"
-            width={200}
-            height={54}
+            width={1712}
+            height={267}
             className="object-contain"
-            style={{ height: 44, width: 'auto' }}
+            style={{ height: 22, width: 'auto' }}
             priority
           />
         </Link>
