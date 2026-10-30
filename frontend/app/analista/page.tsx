@@ -87,6 +87,148 @@ function Barra({ valor, max, cor = '#2563eb' }: { valor: number; max: number; co
   );
 }
 
+type RkSort = 'taxa_avanco' | 'contatados' | 'responderam' | 'avancaram';
+const MEDALHA = ['🥇', '🥈', '🥉'];
+
+function RankingInterativo({ linhas }: { linhas: Rk[] }) {
+  const [sort, setSort] = useState<RkSort>('taxa_avanco');
+  const [desc, setDesc] = useState(true);
+  const [hover, setHover] = useState<string | null>(null);
+
+  const sorted = useMemo(() => [...linhas].sort((a, b) => {
+    const d = desc ? -1 : 1;
+    const diff = (a[sort] - b[sort]) * d;
+    return diff || (b.contatados - a.contatados);
+  }), [linhas, sort, desc]);
+
+  const maxContatados = Math.max(1, ...linhas.map(r => r.contatados));
+  const totalContatados = linhas.reduce((s, r) => s + r.contatados, 0);
+  const totalResponderam = linhas.reduce((s, r) => s + r.responderam, 0);
+  const totalAvancaram = linhas.reduce((s, r) => s + r.avancaram, 0);
+  const melhor = sorted[0];
+  const taxaGeral = totalContatados ? Math.round((totalAvancaram / totalContatados) * 1000) / 10 : 0;
+
+  const toggleSort = (col: RkSort) => {
+    if (sort === col) setDesc(d => !d);
+    else { setSort(col); setDesc(true); }
+  };
+  const sortIcon = (col: RkSort) => sort === col ? (desc ? ' ▾' : ' ▴') : '';
+
+  const cabStyle = (col: RkSort): React.CSSProperties => ({
+    ...th, textAlign: 'right' as const, cursor: 'pointer', userSelect: 'none' as const,
+    color: sort === col ? '#2563eb' : 'var(--t-text-muted)',
+    transition: 'color .15s',
+  });
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <style>{`
+        @keyframes rkBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        .rk-row { transition: background .15s, transform .15s; cursor: default; }
+        .rk-row:hover { background: color-mix(in srgb, var(--t-card-border) 40%, transparent) !important; }
+      `}</style>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+        <div style={{ ...card, padding: '10px 14px', borderLeft: '3px solid #2563eb' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '.5px' }}>Contatados</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{totalContatados}</div>
+        </div>
+        <div style={{ ...card, padding: '10px 14px', borderLeft: '3px solid #8b5cf6' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '.5px' }}>Responderam</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{totalResponderam}</div>
+          <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{totalContatados ? Math.round((totalResponderam / totalContatados) * 100) : 0}% dos contatados</div>
+        </div>
+        <div style={{ ...card, padding: '10px 14px', borderLeft: '3px solid #16a34a' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '.5px' }}>Avançaram</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{totalAvancaram}</div>
+          <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{taxaGeral}% de avanço</div>
+        </div>
+        {melhor && (
+          <div style={{ ...card, padding: '10px 14px', borderLeft: '3px solid #f59e0b', background: 'color-mix(in srgb, #f59e0b 6%, var(--t-card-bg))' }}>
+            <div style={{ fontSize: 11, color: 'var(--t-text-muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '.5px' }}>🏆 Melhor avanço</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--t-text-primary)', marginTop: 2 }}>{melhor.chave}</div>
+            <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>{melhor.taxa_avanco}%</div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, width: 36 }}>#</th>
+              <th style={th}>Grupo</th>
+              <th style={cabStyle('contatados')} onClick={() => toggleSort('contatados')}>Contatados{sortIcon('contatados')}</th>
+              <th style={cabStyle('responderam')} onClick={() => toggleSort('responderam')}>Responderam{sortIcon('responderam')}</th>
+              <th style={cabStyle('avancaram')} onClick={() => toggleSort('avancaram')}>Avançaram{sortIcon('avancaram')}</th>
+              <th style={cabStyle('taxa_avanco')} onClick={() => toggleSort('taxa_avanco')}>% avanço{sortIcon('taxa_avanco')}</th>
+              <th style={{ ...th, width: 200 }}>Funil</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r, i) => {
+              const pos = i + 1;
+              const pctResp = r.contatados ? Math.round((r.responderam / r.contatados) * 100) : 0;
+              const pctAvanco = r.contatados ? Math.round((r.avancaram / r.contatados) * 100) : 0;
+              const isHover = hover === r.chave;
+              return (
+                <tr key={r.chave} className="rk-row"
+                  style={{ borderTop: '1px solid var(--t-card-border)', transform: isHover ? 'scale(1.005)' : 'none' }}
+                  onMouseEnter={() => setHover(r.chave)} onMouseLeave={() => setHover(null)}>
+                  <td style={{ ...td, textAlign: 'center', fontSize: 15 }}>
+                    {pos <= 3 ? MEDALHA[pos - 1] : <span style={{ color: 'var(--t-text-muted)', fontSize: 12 }}>{pos}</span>}
+                  </td>
+                  <td style={{ ...td, color: 'var(--t-text-primary)', fontWeight: 700 }}>
+                    {r.chave}
+                  </td>
+                  <td style={{ ...tdNum, position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                      <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--t-card-border)', overflow: 'hidden' }}>
+                        <div style={{ width: `${(r.contatados / maxContatados) * 100}%`, height: '100%', borderRadius: 3, background: '#93c5fd', animation: 'rkBarGrow .6s ease-out', transformOrigin: 'left' }} />
+                      </div>
+                      {r.contatados}
+                    </div>
+                  </td>
+                  <td style={tdNum}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                      {r.responderam}
+                      <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 99, fontSize: 10, fontWeight: 700, background: pctResp >= 50 ? 'color-mix(in srgb, #16a34a 15%, transparent)' : 'color-mix(in srgb, var(--t-text-muted) 12%, transparent)', color: pctResp >= 50 ? '#16a34a' : 'var(--t-text-muted)' }}>
+                        {pctResp}%
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ ...tdNum, fontWeight: 700, color: r.avancaram > 0 ? '#16a34a' : 'var(--t-text-muted)' }}>
+                    {r.avancaram}
+                  </td>
+                  <td style={{ ...tdNum, fontWeight: 800, fontSize: 15 }}>
+                    <span style={{ color: r.taxa_avanco >= 20 ? '#16a34a' : r.taxa_avanco >= 10 ? '#d97706' : 'var(--t-text-secondary)' }}>
+                      {r.taxa_avanco}%
+                    </span>
+                  </td>
+                  <td style={{ ...td, width: 200, padding: '8px 10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }} title={`Responderam ${pctResp}% · Avançaram ${pctAvanco}%`}>
+                      <div style={{ height: 7, borderRadius: 4, background: 'var(--t-card-border)', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 4, width: `${pctResp}%`, background: 'linear-gradient(90deg, #818cf8, #a78bfa)', animation: 'rkBarGrow .5s ease-out', transformOrigin: 'left' }} />
+                      </div>
+                      <div style={{ height: 7, borderRadius: 4, background: 'var(--t-card-border)', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 4, width: `${pctAvanco}%`, background: 'linear-gradient(90deg, #34d399, #16a34a)', animation: 'rkBarGrow .7s ease-out', transformOrigin: 'left' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--t-text-muted)' }}>
+                        <span>responderam</span>
+                        <span>avançaram</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function Lista({ titulo, itens }: { titulo: string; itens: string[] }) {
   if (!itens.length) return null;
   return (
@@ -139,7 +281,6 @@ function Analista() {
   const gerar = async () => { setGerando(true); try { await apiClient.gerarAnaliseResultados(); } catch { setGerando(false); } };
   const leadsDaTemp = useMemo(() => (rel?.leads || []).filter(l => l.temperatura === temp), [rel, temp]);
   const linhasRk = rel?.ranking?.[rk] || [];
-  const maxAvanco = Math.max(1, ...linhasRk.map(r => r.taxa_avanco));
   const s = rel?.numeros.semana, m = rel?.numeros.mes;
   const demos = (n?: Num) => (n ? Object.entries(n.demonstracoes || {}).filter(([k]) => ['REALIZADA', 'CONCLUIDA'].includes(k)).reduce((t, [, v]) => t + v, 0) : 0);
 
@@ -260,25 +401,14 @@ function Analista() {
             </Tabela>
           </Secao>
 
-          <Secao id="ranking" titulo="Ranking dos retornos (mês)" resumo="A barra mostra a % que avançou (conversa, demonstração ou equipe), que é o que importa; a resposta inclui robô de loja.">
+          <Secao id="ranking" titulo="Ranking dos retornos (mês)" resumo="A barra mostra a % que avançou (conversa, demonstração ou equipe), que é o que importa; a resposta inclui robô de loja. Clique nos cabeçalhos das colunas para reordenar.">
             <div role="tablist" aria-label="Agrupar por" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {RANKINGS.map(([k, nome]) => (
                 <button key={k} role="tab" aria-selected={rk === k} onClick={() => setRk(k)}
-                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid var(--t-card-border)', background: rk === k ? '#1d4ed8' : 'var(--t-card-bg)', color: rk === k ? '#fff' : 'var(--t-text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{nome}</button>
+                  style={{ padding: '7px 14px', borderRadius: 999, border: rk === k ? '1.5px solid #2563eb' : '1px solid var(--t-card-border)', background: rk === k ? 'linear-gradient(135deg, #1d4ed8, #2563eb)' : 'var(--t-card-bg)', color: rk === k ? '#fff' : 'var(--t-text-primary)', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .2s', boxShadow: rk === k ? '0 2px 8px rgba(37,99,235,.25)' : 'none' }}>{nome}</button>
               ))}
             </div>
-            <Tabela cab={['Grupo', ['Contatados', 'r'], ['Responderam', 'r'], ['Avançaram', 'r'], ['% avanço', 'r'], '']} min={620}>
-              {[...linhasRk].sort((a, b) => b.taxa_avanco - a.taxa_avanco || b.contatados - a.contatados).map(r => (
-                <Linha key={r.chave}>
-                  <td style={{ ...td, color: 'var(--t-text-primary)', fontWeight: 600 }}>{r.chave}</td>
-                  <td style={tdNum}>{r.contatados}</td>
-                  <td style={tdNum}>{r.responderam} <span style={{ color: 'var(--t-text-muted)' }}>({r.taxa_resposta}%)</span></td>
-                  <td style={tdNum}>{r.avancaram}</td>
-                  <td style={{ ...tdNum, fontWeight: 700, color: 'var(--t-text-primary)' }}>{r.taxa_avanco}%</td>
-                  <td style={{ ...td, width: 160 }}><Barra valor={r.taxa_avanco} max={maxAvanco} /></td>
-                </Linha>
-              ))}
-            </Tabela>
+            <RankingInterativo linhas={linhasRk} />
           </Secao>
 
           <Secao id="decisores" titulo="Decisores" resumo={<>Falamos direto com o decisor em <b>{rel.decisores.falando_com_decisor}</b> conversas; sabemos quem decide em <b>{rel.decisores.decisor_identificado}</b>; pedimos o contato em <b>{rel.decisores.pedimos_contato}</b>.</>}>
