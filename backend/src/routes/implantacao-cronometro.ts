@@ -2,17 +2,16 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
-import { onboardingOk, ehCargoTecnico } from '@/lib/implantacao/portal';
-import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, JORNADA_PADRAO, diaSP, emSP, fimAutomatico, resumoDoDia, temposDaDemanda, type Jornada } from '@/lib/implantacao/cronometro';
+import { onboardingOk, ehCargoTecnico, horasUteisEntre } from '@/lib/implantacao/portal';
+import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, NOME_ESPERA, ESPERAS_INTERNAS, ticketsDaDemanda, JORNADA_PADRAO, diaSP, emSP, fimAutomatico, resumoDoDia, temposDaDemanda, type Jornada } from '@/lib/implantacao/cronometro';
 
 /**
  * Cronômetro do técnico de implantação (play/pausa) e esperas da demanda.
  * Só uma sessão aberta por técnico: play em outra demanda fecha a anterior (TROCA).
- * Esperas (programação, cliente, processamento) pausam a demanda e contam à parte.
+ * Esperas (desenvolvimento/Sinval, N3, cliente, pré-requisitos, processamento) pausam a demanda e contam à parte.
  */
 
 const CHAVE_JORNADA = 'implantacao.jornada';
-const NOME_ESPERA: Record<string, string> = { PROGRAMACAO: 'aguardando programação', CLIENTE: 'aguardando cliente', PROCESSAMENTO: 'processamento em andamento' };
 const NOME_ETAPA: Record<string, string> = { ONBOARDING: 'Onboarding técnico', INSTALACAO: 'Instalação', CONVERSAO: 'Conversão', TREINAMENTO: 'Treinamento', ASSISTIDA: 'Operação assistida', CORRECAO: 'Correção pós-virada' };
 const NOME_TIPO: Record<string, string> = { SUPORTE: 'Suporte', REUNIAO: 'Reunião', INTERNO: 'Tarefa interna' };
 
@@ -172,10 +171,12 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
     const { id } = request.params as { id: string };
     if (!u || !(await podeNaDemanda(u, id))) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
     const b = z.object({
-      tipo: z.enum(TIPOS_ESPERA), motivo: z.string().min(3).max(2000), o_que_resolver: z.string().max(2000).optional().nullable(),
+      tipo: z.enum(TIPOS_ESPERA), motivo: z.string().trim().min(3).max(2000), o_que_resolver: z.string().max(2000).optional().nullable(),
       responsavel_id: z.string().optional().nullable(), responsavel_nome: z.string().max(120).optional().nullable(),
     }).safeParse(request.body || {});
-    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Informe o motivo' });
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Escreva o motivo: o que foi repassado e por quê.' });
+    // Repasse ao N3: o responsável é o N3 (por enquanto só o técnico marca a volta).
+    if (b.data.tipo === 'N3' && !b.data.responsavel_nome) b.data.responsavel_nome = 'N3';
     const aberta = await prisma.implantacaoSessao.findFirst({ where: { tecnico_id: u.id, fim: null, implantacao_id: id } });
     if (aberta) await fecharAberta(prisma, u.id, 'ESPERA');
     const espera = await prisma.implantacaoEspera.create({ data: { implantacao_id: id, ...b.data, aberta_por_id: u.id, aberta_por_nome: u.nome || null } });
@@ -194,14 +195,56 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
     const b = z.object({ resposta: z.string().max(2000).optional().nullable() }).safeParse(request.body || {});
     const e = await prisma.implantacaoEspera.findUnique({ where: { id: esperaId } });
     if (!e || e.fim) return reply.status(404).send({ status: 'error', message: 'Espera não encontrada ou já resolvida' });
+    if (e.tipo === 'PRE_REQUISITO') return reply.status(400).send({ status: 'error', message: 'Esta espera termina sozinha quando o cliente entregar os itens que impedem começar (aba Tarefas do cliente). Para liberar o prazo antes, desmarque "Impede começar" no item.' });
     // Quem pode resolver: gestão, quem abriu, o responsável (ex.: Sinval) ou o técnico da demanda.
     const imp = await prisma.implantacao.findUnique({ where: { id: e.implantacao_id }, select: { tecnico_id: true } });
     if (!ehGestaoTecnica(u) && ![e.aberta_por_id, e.responsavel_id, imp?.tecnico_id].includes(u.id)) return reply.status(403).send({ status: 'error', message: 'Sem permissão para resolver esta espera' });
     const resposta = b.success ? b.data.resposta || null : null;
     const atual = await prisma.implantacaoEspera.update({ where: { id: esperaId }, data: { fim: new Date(), resolvida_por_nome: u.nome || u.id, resposta } });
     const horas = ((atual.fim!.getTime() - e.inicio.getTime()) / 3600000).toFixed(1).replace('.', ',');
-    await linhaDoTempo(prisma, e.implantacao_id, `✅ Fim da espera (${NOME_ESPERA[e.tipo]}), ${horas}h parada${resposta ? `: ${resposta}` : ''}`, u);
+    const uteis = horasUteisEntre(e.inicio, atual.fim!, await obterJornada(prisma)).toFixed(1).replace('.', ',');
+    const voltou = ESPERAS_INTERNAS.includes(e.tipo) ? 'Voltou' : 'Fim da espera';
+    await linhaDoTempo(prisma, e.implantacao_id, `✅ ${voltou} (${NOME_ESPERA[e.tipo]}), ${horas}h parada (${uteis}h úteis)${resposta ? `: ${resposta}` : ''}`, u);
     return reply.send({ status: 'success', data: atual });
+  });
+
+  // ── Chamado interno (30/10/2026): o repasse ao desenvolvimento (Sinval) ou ao N3 voltou.
+  // Funcionou → fecha o chamado. Não funcionou → devolve ao mesmo setor (nova rodada, motivo obrigatório).
+  // Vale com a rodada ainda aberta (o técnico marca a volta) ou já em teste (o Sinval marcou pelo link/WhatsApp).
+  fastify.post('/implantacoes/chamados/:id/voltou', async (request, reply) => {
+    const u = getUser(request);
+    if (!u) return reply.status(401).send({ status: 'error', message: 'Faça login' });
+    const { id } = request.params as { id: string };
+    const b = z.object({ funcionou: z.boolean(), motivo: z.string().trim().max(2000).optional().nullable(), resposta: z.string().trim().max(2000).optional().nullable() }).safeParse(request.body || {});
+    if (!b.success) return reply.status(400).send({ status: 'error', message: 'Diga se funcionou.' });
+    const raiz = await prisma.implantacaoEspera.findUnique({ where: { id } });
+    if (!raiz || raiz.ticket_id || !ESPERAS_INTERNAS.includes(raiz.tipo)) return reply.status(404).send({ status: 'error', message: 'Chamado não encontrado' });
+    if (!(await podeNaDemanda(u, raiz.implantacao_id))) return reply.status(404).send({ status: 'error', message: 'Chamado não encontrado' });
+    if (raiz.fechado_em) return reply.status(400).send({ status: 'error', message: 'Este chamado já foi fechado.' });
+    if (!b.data.funcionou && (b.data.motivo || '').length < 3) return reply.status(400).send({ status: 'error', message: 'Escreva o motivo: o que ainda não funcionou.' });
+    const agora = new Date();
+    const rodadas = await prisma.implantacaoEspera.findMany({ where: { OR: [{ id }, { ticket_id: id }] }, orderBy: { inicio: 'asc' } });
+    const ult = rodadas[rodadas.length - 1];
+    const quem = u.nome || u.id;
+    if (!ult.fim) await prisma.implantacaoEspera.update({ where: { id: ult.id }, data: { fim: agora, resolvida_por_nome: quem, resposta: b.data.resposta || null } });
+    const setor = NOME_ESPERA[raiz.tipo].replace('aguardando ', '');
+    const t = ticketsDaDemanda(await prisma.implantacaoEspera.findMany({ where: { OR: [{ id }, { ticket_id: id }] } }), agora)[0];
+    const horas = (ms: number) => (ms / 3600000).toFixed(1).replace('.', ',');
+    if (b.data.funcionou) {
+      await prisma.implantacaoEspera.update({ where: { id }, data: { fechado_em: agora, fechado_por: quem } });
+      await linhaDoTempo(prisma, raiz.implantacao_id, `✅ Chamado interno fechado (${setor}): funcionou${rodadas.length > 1 ? ` depois de ${rodadas.length - 1} devolução(ões)` : ''}. ${horas(t.com_setor_ms)}h com o setor${b.data.resposta ? `: ${b.data.resposta}` : ''}`, u);
+      return reply.send({ status: 'success' });
+    }
+    const nova = await prisma.implantacaoEspera.create({ data: {
+      implantacao_id: raiz.implantacao_id, tipo: raiz.tipo, motivo: b.data.motivo!, o_que_resolver: raiz.o_que_resolver, responsavel_id: raiz.responsavel_id, responsavel_nome: raiz.responsavel_nome,
+      ticket_id: id, rodada: rodadas.length + 1, aberta_por_id: u.id, aberta_por_nome: u.nome || null, inicio: agora,
+    } });
+    if (raiz.tipo === 'PROGRAMACAO') {
+      const { avisarProgramacao } = await import('@/services/implantacao-portal.service');
+      await avisarProgramacao(prisma, nova.id).catch(() => {});
+    }
+    await linhaDoTempo(prisma, raiz.implantacao_id, `↩️ Chamado interno devolvido ao ${setor} (${rodadas.length + 1}ª rodada): ${b.data.motivo}`, u);
+    return reply.status(201).send({ status: 'success' });
   });
 
   // ── Esperas abertas (painel da programação/gestão)
@@ -211,7 +254,15 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
     const where: any = { fim: null };
     if (!ehGestaoTecnica(u)) where.OR = [{ responsavel_id: u.id }, { aberta_por_id: u.id }, { implantacao: { tecnico_id: u.id } }];
     const esperas = await prisma.implantacaoEspera.findMany({ where, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_nome: true } } }, orderBy: { inicio: 'asc' } });
-    return reply.send({ status: 'success', data: esperas });
+    // Chamados internos que voltaram e esperam o teste do técnico (aparecem junto, marcados como em teste).
+    const filtro: any = { tipo: { in: ESPERAS_INTERNAS }, fechado_em: null, ticket_id: null };
+    if (!ehGestaoTecnica(u)) filtro.implantacao = { tecnico_id: u.id };
+    const raizes = await prisma.implantacaoEspera.findMany({ where: filtro, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_nome: true } } } });
+    const rodadas = raizes.length ? await prisma.implantacaoEspera.findMany({ where: { ticket_id: { in: raizes.map(r => r.id) } } }) : [];
+    const emTeste = raizes.flatMap(r => ticketsDaDemanda([r, ...rodadas.filter(x => x.ticket_id === r.id)]).filter(t => t.situacao === 'EM_TESTE').map(t => ({ ...t, implantacao: r.implantacao })));
+    // Chamado com rodada aberta: a rodada aparece com o id do chamado (os botões agem sobre o chamado).
+    const comChamado = esperas.map(e => ESPERAS_INTERNAS.includes(e.tipo) ? { ...e, chamado_id: e.ticket_id || e.id } : e);
+    return reply.send({ status: 'success', data: comChamado, em_teste: emTeste });
   });
 
   // ── Jornada (gestão)

@@ -1583,13 +1583,13 @@ model ImplantacaoSessao {
   @@index([implantacao_id])
 }
 
-// Demanda parada: aguardando a programação (Sinval), o cliente ou um processamento automático
-// (ex.: importação rodando, que não conta como trabalho do técnico).
+// Demanda parada: aguardando o desenvolvimento (Sinval), o N3, o cliente (no meio do trabalho ou pré-requisitos para
+// começar) ou um processamento automático (ex.: importação rodando, que não conta como trabalho do técnico).
 model ImplantacaoEspera {
   id                 String      @id @default(cuid())
   implantacao_id     String
   implantacao        Implantacao @relation(fields: [implantacao_id], references: [id], onDelete: Cascade)
-  tipo               String // PROGRAMACAO | CLIENTE | PROCESSAMENTO
+  tipo               String // PROGRAMACAO (desenvolvimento/Sinval) | N3 | CLIENTE | PRE_REQUISITO | PROCESSAMENTO
   motivo             String      @db.Text
   o_que_resolver     String?     @db.Text
   responsavel_id     String?
@@ -1601,10 +1601,16 @@ model ImplantacaoEspera {
   resolvida_por_nome String?
   resposta           String?     @db.Text
   lembrete_em        DateTime? // último lembrete enviado ao responsável (programação)
+  // Ticket de repasse (desenvolvimento/N3): rodadas seguintes apontam para a primeira; o técnico fecha depois de testar.
+  ticket_id          String?
+  rodada             Int         @default(1)
+  fechado_em         DateTime?
+  fechado_por        String?
   created_at         DateTime    @default(now())
 
   @@index([implantacao_id])
   @@index([tipo, fim])
+  @@index([ticket_id])
 }
 
 // Aviso da gestão para o técnico (com ou sem demanda), com leitura registrada.
@@ -1733,6 +1739,7 @@ model ImplantacaoTarefaCliente {
   prazo              DateTime?
   status             String    @default("PENDENTE") // PENDENTE | ENVIADA | CONCLUIDA
   exige_arquivo      Boolean   @default(true)
+  bloqueia_inicio    Boolean   @default(false) // pré-requisito: o prazo da demanda só começa quando o cliente entregar
   resposta_texto     String?   @db.Text
   arquivo_nome       String?
   arquivo_caminho    String?
@@ -1741,6 +1748,7 @@ model ImplantacaoTarefaCliente {
   enviada_em         DateTime?
   concluida_em       DateTime?
   devolvida_motivo   String?   @db.Text
+  devolucoes         Int       @default(0) // vezes que a equipe pediu para reenviar (chamado do cliente devolvido)
   lembretes          Int       @default(0) // 0 = cliente ainda não foi avisado
   ultimo_lembrete_em DateTime?
   criada_por         String?

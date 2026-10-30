@@ -4,13 +4,13 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
-import { diaSP, emSP, resumoDoDia, temposDaDemanda } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta } from '@/lib/implantacao/portal';
+import { diaSP, emSP, resumoDoDia, temposDaDemanda, relatorioDeTempo, resumoTarefasCliente, ticketsDaDemanda, NOME_ESPERA } from '@/lib/implantacao/cronometro';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, sincronizarPreRequisito, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -54,7 +54,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       where, orderBy: { data_assinatura: 'desc' },
       include: {
         checklist: { select: { grupo: true, titulo: true, feito: true } },
-        esperas: { select: { id: true, tipo: true, motivo: true, inicio: true, fim: true } },
+        esperas: { select: { id: true, tipo: true, motivo: true, inicio: true, fim: true, ticket_id: true, fechado_em: true } },
         ocorrencias: { where: { situacao: { not: 'RESOLVIDA' } }, select: { id: true, gravidade: true } },
         treinamento_fases: { select: { realizada_em: true, marcada_em: true, ordem: true, nome: true } },
         assistida: { select: { dia: true } },
@@ -66,23 +66,23 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const vencidasPorCard = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: lista.map(l => l.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
     const cards = lista.map(i => {
       // O relógio do técnico pausa enquanto a loja não entrega o que precisa (espera "Cliente").
-      const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
       const abertas = i.esperas.filter(e => !e.fim);
       const concluido = i.modulo === 'SERVICO' || i.virada_fim_em ? (i.concluida_fila_em || i.data_conclusao) : i.virada_fim_em;
+      const sla = slaDaDemanda(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, concluido, agora);
       return {
         id: i.id, cliente_razao_social: i.cliente_razao_social, cliente_cnpj: i.cliente_cnpj, modulo: i.modulo, tipo_servico: i.tipo_servico,
         tipo_servico_label: i.tipo_servico ? TIPOS_SERVICO[i.tipo_servico]?.label : null, tipo_base: i.tipo_base, sistema_anterior: i.sistema_anterior,
         plano: i.plano, vendedor_nome: i.vendedor_nome, tecnico_id: i.tecnico_id, tecnico_nome: i.tecnico_nome, coluna: colunaDe(i),
         data_assinatura: i.data_assinatura, prazo_virada: i.prazo_virada, prazo_finalizacao: i.prazo_finalizacao,
-        sla: situacaoSla(i.data_assinatura, prazo, concluido, agora), sla_etapa: i.virada_fim_em || i.modulo === 'SERVICO' ? 'finalização' : 'virada',
+        sla, sla_etapa: i.virada_fim_em || i.modulo === 'SERVICO' ? 'finalização' : 'virada',
         progresso: progresso(i, i.checklist), checklist_feitos: i.checklist.filter(c => c.feito).length, checklist_total: i.checklist.length,
-        esperas_abertas: abertas, prazo_ajuste_ms: msEsperaCliente(i.esperas, agora), ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
+        esperas_abertas: abertas, chamados_em_teste: ticketsDaDemanda(i.esperas, agora).filter(t => t.situacao === 'EM_TESTE').length, prazo_ajuste_ms: msEsperaCliente(i.esperas, agora), ocorrencias_abertas: i.ocorrencias.length, ficha_ok: !!((i.coleta as any)?.regime_tributario && (i.coleta as any)?.contato_nome),
         tela_suporte: !!i.tela_suporte_arquivo_id, virada_inicio_em: i.virada_inicio_em, virada_fim_em: i.virada_fim_em, data_primeiro_vencimento: i.data_primeiro_vencimento,
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
         proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora, testes: i.testes })),
         virada_agendada_para: i.virada_agendada_para,
         treinos_marcados: i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
-        saude: saudeDoCard({ coluna: colunaDe(i), sla: situacaoSla(i.data_assinatura, prazo, concluido, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
+        saude: saudeDoCard({ coluna: colunaDe(i), sla, tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
           ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: abertas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),
         onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
       };
@@ -334,7 +334,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const { id } = request.params as { id: string };
     const imp = await demanda(u, id);
     if (!imp) return reply.status(404).send({ status: 'error', message: 'Demanda não encontrada' });
-    const b = z.object({ padrao: z.boolean().optional(), lista_usuarios: z.boolean().optional(), titulo: z.string().trim().min(3).max(200).optional(), descricao: z.string().trim().max(1000).optional(), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), exige_arquivo: z.boolean().optional() }).safeParse(request.body);
+    const b = z.object({ padrao: z.boolean().optional(), lista_usuarios: z.boolean().optional(), titulo: z.string().trim().min(3).max(200).optional(), descricao: z.string().trim().max(1000).optional(), prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), exige_arquivo: z.boolean().optional(), bloqueia_inicio: z.boolean().optional() }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Dados inválidos' });
     if (!imp.token_cliente) await prisma.implantacao.update({ where: { id }, data: { token_cliente: novoTokenCliente() } });
     if (b.data.padrao) {
@@ -354,14 +354,15 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     }
     if (!b.data.titulo) return reply.status(400).send({ status: 'error', message: 'Diga o que o cliente precisa enviar.' });
     const prazo = b.data.prazo ? new Date(`${b.data.prazo}T17:59:00-03:00`) : null;
-    await prisma.implantacaoTarefaCliente.create({ data: dadosTarefaCliente(id, b.data.titulo, prazo, u.nome || u.id, { descricao: b.data.descricao, exige_arquivo: b.data.exige_arquivo }) });
-    await atividade(id, 'NOTA', `📎 Tarefa do cliente criada: ${b.data.titulo}`, u);
+    const nova = await prisma.implantacaoTarefaCliente.create({ data: dadosTarefaCliente(id, b.data.titulo, prazo, u.nome || u.id, { descricao: b.data.descricao, exige_arquivo: b.data.exige_arquivo, bloqueia_inicio: b.data.bloqueia_inicio }) });
+    await atividade(id, 'NOTA', `📎 Tarefa do cliente criada: ${b.data.titulo}${nova.bloqueia_inicio ? ' (impede começar: o prazo espera a entrega)' : ''}`, u);
+    await sincronizarPreRequisito(prisma, id).catch(() => {});
     return reply.status(201).send({ status: 'success' });
   });
   fastify.patch('/implantacoes/tarefas-cliente/:tid', async (request, reply) => {
     const u = exigirLogin(request, reply); if (!u) return;
     const { tid } = request.params as { tid: string };
-    const b = z.object({ acao: z.enum(['CONCLUIR', 'DEVOLVER', 'EXCLUIR', 'REABRIR']), motivo: z.string().trim().max(1000).optional() }).safeParse(request.body);
+    const b = z.object({ acao: z.enum(['CONCLUIR', 'DEVOLVER', 'EXCLUIR', 'REABRIR', 'BLOQUEIA', 'NAO_BLOQUEIA']), motivo: z.string().trim().max(1000).optional() }).safeParse(request.body);
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Ação inválida' });
     const t = await prisma.implantacaoTarefaCliente.findUnique({ where: { id: tid } });
     const imp = t ? await demanda(u, t.implantacao_id) : null;
@@ -372,11 +373,16 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     } else if (b.data.acao === 'CONCLUIR') {
       await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'CONCLUIDA', concluida_em: new Date() } });
       await atividade(imp.id, 'NOTA', `✅ Tarefa do cliente conferida: ${t.titulo}`, u);
+    } else if (b.data.acao === 'BLOQUEIA' || b.data.acao === 'NAO_BLOQUEIA') {
+      // Pré-requisito (30/10/2026): o prazo da demanda só começa quando o cliente entregar os itens marcados.
+      const bloqueia = b.data.acao === 'BLOQUEIA';
+      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { bloqueia_inicio: bloqueia } });
+      await atividade(imp.id, 'NOTA', bloqueia ? `🔒 "${t.titulo}" marcado como pré-requisito: o prazo só conta depois da entrega` : `🔓 "${t.titulo}" deixou de ser pré-requisito`, u);
     } else if (b.data.acao === 'REABRIR') {
       await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'PENDENTE', concluida_em: null } });
     } else {
       if (!b.data.motivo || b.data.motivo.length < 3) return reply.status(400).send({ status: 'error', message: 'Diga ao cliente o que precisa corrigir.' });
-      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'PENDENTE', devolvida_motivo: b.data.motivo, concluida_em: null } });
+      await prisma.implantacaoTarefaCliente.update({ where: { id: tid }, data: { status: 'PENDENTE', devolvida_motivo: b.data.motivo, concluida_em: null, devolucoes: { increment: 1 } } });
       await atividade(imp.id, 'NOTA', `↩️ Pedido ao cliente para reenviar "${t.titulo}": ${b.data.motivo}`, u);
       await avisarClienteAgenda(prisma, imp, 'TAREFA_DEVOLVIDA', `Olá! Aqui é da Prosystem. Sobre "${t.titulo}": ${b.data.motivo}\n\nReenvie pela sua página de acompanhamento: ${URL_FRONT()}/acompanhamento/${imp.token_cliente}`).catch(() => {});
     }
@@ -585,7 +591,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       const vir = viradas.map(v => ({ ...v, virada_fim_em: v.virada_fim_em! }));
       const esperas = await prisma.implantacaoEspera.findMany({ where: { inicio: { lt: fim }, OR: [{ fim: null }, { fim: { gt: ini } }], implantacao: { data_assinatura: { gte: CORTE_PORTAL } } }, select: { tipo: true, inicio: true, fim: true, implantacao: { select: { tecnico_id: true } } } });
       const agora = new Date();
-      const horasEspera: Record<string, number> = { PROGRAMACAO: 0, CLIENTE: 0, PROCESSAMENTO: 0 };
+      const horasEspera: Record<string, number> = { PROGRAMACAO: 0, N3: 0, CLIENTE: 0, PRE_REQUISITO: 0, PROCESSAMENTO: 0 };
       for (const e of esperas) horasEspera[e.tipo] = (horasEspera[e.tipo] || 0) + Math.max(0, Math.min((e.fim || agora).getTime(), fim.getTime()) - Math.max(e.inicio.getTime(), ini.getTime())) / 36e5;
       const correcoes = await prisma.implantacaoOcorrencia.findMany({ where: { aberta_em: { gte: ini, lt: fim }, implantacao: { virada_fim_em: { not: null }, data_assinatura: { gte: CORTE_PORTAL } } }, select: { aberta_em: true, implantacao: { select: { virada_fim_em: true, tecnico_id: true } } } });
       const retrab = correcoes.filter(c => c.implantacao.virada_fim_em && c.aberta_em.getTime() - c.implantacao.virada_fim_em.getTime() <= 30 * 864e5);
@@ -732,7 +738,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const tarefasCliente = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: id }, orderBy: [{ status: 'asc' }, { created_at: 'asc' }] });
     const agoraP = new Date();
     const prazoP = prazoAjustado(imp.virada_fim_em || imp.modulo === 'SERVICO' ? imp.prazo_finalizacao : imp.prazo_virada, esperas, agoraP);
-    const saude = saudeDoCard({ coluna: colunaDe(imp), sla: situacaoSla(imp.data_assinatura, prazoP, imp.modulo === 'SERVICO' || imp.virada_fim_em ? (imp.concluida_fila_em || imp.data_conclusao) : imp.virada_fim_em, agoraP),
+    const slaP = slaDaDemanda(imp.data_assinatura, imp.virada_fim_em || imp.modulo === 'SERVICO' ? imp.prazo_finalizacao : imp.prazo_virada, esperas, imp.modulo === 'SERVICO' || imp.virada_fim_em ? (imp.concluida_fila_em || imp.data_conclusao) : imp.virada_fim_em, agoraP);
+    const saude = saudeDoCard({ coluna: colunaDe(imp), sla: slaP,
       tecnico_id: imp.tecnico_id, designado_em: imp.designado_em, data_assinatura: imp.data_assinatura, ultima_sessao: sessoes.length ? sessoes.at(-1)!.inicio : null,
       esperas_abertas: esperas.filter(e => !e.fim), correcoes_altas: ocorrencias.filter(o => o.situacao !== 'RESOLVIDA' && o.gravidade === 'ALTA').length,
       tarefas_vencidas: tarefasCliente.filter(t => t.status === 'PENDENTE' && t.prazo && t.prazo < agoraP).length }, agoraP);
@@ -781,7 +788,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       testes: testesConv, pos_venda: posVenda,
       anexos: anexos.map(a => ({ ...a, url: a.tipo === 'LINK' ? a.url : null, tela_suporte: a.id === imp.tela_suporte_arquivo_id })),
       assistida: (() => { const st = statusAssistida(imp, assistidaRegs); return st ? { ...st, registros: assistidaRegs } : null; })(),
-      saude, prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
+      saude, chamados: ticketsDaDemanda(esperas, agoraP), prazo_nao_comecou: slaP?.situacao === 'AGUARDANDO_INICIO', prazo_efetivo: prazoP, prazo_ajuste_ms: msEsperaCliente(esperas, agoraP), tarefas_cliente: tarefasCliente.map(({ arquivo_caminho, ...t }) => ({ ...t, tem_arquivo: !!arquivo_caminho, vencida: t.status === 'PENDENTE' && !!t.prazo && t.prazo < agoraP })),
       cliente_ficha, tipo_demanda, resumo_demanda: resumoDaDemanda(imp, venda, historicoCnpj, { antes: (eventoTroca?.metadados as any)?.antes, cliente: cliente_ficha }), servico_descricao: venda ? [venda.parceiro?.nome, venda.descricao_servico].filter(Boolean).join(' · ') || null : null,
     } });
   });
@@ -879,10 +886,10 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const atencao: { tipo: string; texto: string; implantacao_id: string; ordem: number }[] = [];
     for (const i of minhas) {
       const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
-      const s = situacaoSla(i.data_assinatura, prazo, null, agora);
+      const s = slaDaDemanda(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, null, agora);
       if (s?.situacao === 'ESTOURADO') atencao.push({ tipo: 'ESTOURADO', texto: `${i.cliente_razao_social}: prazo estourado (${fmtData(prazo)})`, implantacao_id: i.id, ordem: 0 });
       else if (s?.situacao === 'EM_RISCO') atencao.push({ tipo: 'RISCO', texto: `${i.cliente_razao_social}: prazo em risco, vence ${fmtData(prazo)}`, implantacao_id: i.id, ordem: 1 });
-      for (const e of i.esperas.filter(x => !x.fim)) atencao.push({ tipo: 'ESPERA', texto: `${i.cliente_razao_social}: parada (${e.tipo === 'PROGRAMACAO' ? 'aguardando programação' : e.tipo === 'CLIENTE' ? 'aguardando cliente' : 'processamento'}): ${e.motivo}`, implantacao_id: i.id, ordem: 2 });
+      for (const e of i.esperas.filter(x => !x.fim)) atencao.push({ tipo: 'ESPERA', texto: `${i.cliente_razao_social}: parada (${NOME_ESPERA[e.tipo] || e.tipo}): ${e.motivo}`, implantacao_id: i.id, ordem: 2 });
       if (i.virada_inicio_em && !i.virada_fim_em) atencao.push({ tipo: 'VIRADA', texto: `${i.cliente_razao_social}: virada em andamento, clique em "Loja virada" ao terminar`, implantacao_id: i.id, ordem: 1 });
       for (const f of i.treinamento_fases.filter(x => x.marcada_em && !x.realizada_em)) if (f.marcada_em! < new Date(agora.getTime() + 7 * 864e5)) atencao.push({ tipo: 'TREINO', texto: `${i.cliente_razao_social}: treinamento fase ${f.ordem} (${f.nome}) em ${fmtData(f.marcada_em)}`, implantacao_id: i.id, ordem: 3 });
       if (!i.tecnico_id && gestao) atencao.push({ tipo: 'SEM_TECNICO', texto: `${i.cliente_razao_social}: sem técnico designado`, implantacao_id: i.id, ordem: 1 });
@@ -899,8 +906,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const vencidas = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: minhas.map(m => m.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
     const leitura = minhas.map(i => {
       const pp = proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora, testes: i.testes });
-      const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, agora);
-      const saude = saudeDoCard({ coluna: colunaDe(i), sla: situacaoSla(i.data_assinatura, prazo, null, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
+      const saude = saudeDoCard({ coluna: colunaDe(i), sla: slaDaDemanda(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, null, agora), tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
         ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: i.esperas.filter(e => !e.fim), correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidas.get(i.id) || 0 }, agora);
       return { id: i.id, cliente: i.cliente_razao_social, tecnico_id: i.tecnico_id, tecnico: i.tecnico_nome, coluna: colunaDe(i), passo: pp, saude };
     });
@@ -1192,9 +1198,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const b = z.object({ resposta: z.string().max(2000).optional().nullable() }).safeParse(request.body || {});
     const resposta = b.success ? (b.data.resposta || '').trim() || null : null;
     await prisma.implantacaoEspera.update({ where: { id: e.id }, data: { fim: new Date(), resolvida_por_nome: d.nome, resposta } });
-    await atividade(e.implantacao_id, 'CRONOMETRO', `✅ Fim da espera (programação), resolvido por ${d.nome}${resposta ? `: ${resposta}` : ''}`, { nome: d.nome });
+    await atividade(e.implantacao_id, 'CRONOMETRO', `🧪 Chamado interno voltou para teste: ${d.nome} marcou como resolvido${resposta ? `: ${resposta}` : ''}`, { nome: d.nome });
     const imp = await prisma.implantacao.findUnique({ where: { id: e.implantacao_id }, select: { tecnico_id: true, cliente_razao_social: true } });
-    if (imp?.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: e.implantacao_id, origem: 'SISTEMA', prioridade: 'URGENTE', texto: `${d.nome} resolveu a pendência de ${imp.cliente_razao_social}${resposta ? `: ${resposta}` : ''}. Pode retomar.` });
+    if (imp?.tecnico_id) await avisarTecnico(prisma, { para_id: imp.tecnico_id, implantacao_id: e.implantacao_id, origem: 'SISTEMA', prioridade: 'URGENTE', texto: `${d.nome} devolveu o chamado de ${imp.cliente_razao_social}${resposta ? `: ${resposta}` : ''}. Teste e marque "Funcionou" ou "Não funcionou" no card.` });
     return reply.send({ status: 'success' });
   });
 
@@ -1255,8 +1261,10 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       porTecnico.set(tid, acc);
     }
     const esperas = await prisma.implantacaoEspera.findMany({ where: { inicio: { lt: fim }, OR: [{ fim: null }, { fim: { gt: ini } }] }, include: { implantacao: { select: { cliente_razao_social: true } } } });
+    // Chamados do cliente (tarefas) pedidos no período.
+    const tarefasPeriodo = await prisma.implantacaoTarefaCliente.findMany({ where: { created_at: { gte: ini, lt: fim } }, select: { status: true, created_at: true, enviada_em: true, concluida_em: true, devolucoes: true, bloqueia_inicio: true } });
     const motivos: Record<string, number> = {};
-    for (const e of esperas.filter(x => x.tipo === 'PROGRAMACAO')) { const k = e.motivo.trim().toLowerCase().slice(0, 60); motivos[k] = (motivos[k] || 0) + 1; }
+    for (const e of esperas.filter(x => x.tipo === 'PROGRAMACAO' || x.tipo === 'N3')) { const k = `${e.tipo === 'N3' ? 'N3' : 'Desenv.'}: ${e.motivo.trim().toLowerCase().slice(0, 60)}`; motivos[k] = (motivos[k] || 0) + 1; }
     const esp = (tipo: string) => { const xs = esperas.filter(e => e.tipo === tipo); return { qtd: xs.length, abertas: xs.filter(e => !e.fim).length, ms: xs.reduce((t, e) => t + ((e.fim || new Date()).getTime() - e.inicio.getTime()), 0) }; };
     const ativas = await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } }, select: { id: true, modulo: true, data_assinatura: true, prazo_virada: true, prazo_finalizacao: true, virada_fim_em: true } });
     const sla = { NO_PRAZO: 0, EM_RISCO: 0, ESTOURADO: 0, SEM_PRAZO: 0 } as Record<string, number>;
@@ -1276,7 +1284,12 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     return reply.send({ status: 'success', data: {
       periodo: { de, ate },
       tecnicos: [...porTecnico.entries()].map(([id, a]) => ({ id, ...a, aproveitamento: a.jornada ? Math.min(1, a.dentro / a.jornada) : null })),
-      esperas: { programacao: esp('PROGRAMACAO'), cliente: esp('CLIENTE'), processamento: esp('PROCESSAMENTO'), motivos: Object.entries(motivos).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([motivo, qtd]) => ({ motivo, qtd })) },
+      // Para onde vai o tempo (30/10/2026): executando x esperando cliente x repasses internos, em horas úteis.
+      tempo: relatorioDeTempo(
+        sessoes.map(s => ({ inicio: s.inicio, fim: s.fim, implantacao_id: s.implantacao_id, tecnico_id: s.tecnico_id, cliente: s.implantacao?.cliente_razao_social })),
+        esperas.map(e => ({ id: e.id, ticket_id: e.ticket_id, tipo: e.tipo, inicio: e.inicio, fim: e.fim, implantacao_id: e.implantacao_id, cliente: e.implantacao?.cliente_razao_social })), ini, fim, { cfg: jornada }),
+      tarefas_cliente: resumoTarefasCliente(tarefasPeriodo, jornada),
+      esperas: { programacao: esp('PROGRAMACAO'), n3: esp('N3'), cliente: esp('CLIENTE'), pre_requisito: esp('PRE_REQUISITO'), processamento: esp('PROCESSAMENTO'), motivos: Object.entries(motivos).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([motivo, qtd]) => ({ motivo, qtd })) },
       sla, viradas, cobrancas_pendentes: cobrancas,
       prazo_medio_ms: { implantacao: prazoMedio('IMPLANTACAO'), servico: prazoMedio('SERVICO') }, concluidas: concluidas.length,
       por_cliente: Object.values(porCliente).sort((a, b) => b.trabalho - a.trabalho).slice(0, 20),

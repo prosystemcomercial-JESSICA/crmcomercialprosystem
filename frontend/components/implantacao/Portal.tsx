@@ -7,7 +7,7 @@ import {
   X, Loader2, CheckCircle, Hourglass, AlertTriangle, Rocket, FileText, Image as ImageIcon, Link2, Copy, Bell, Send,
   GraduationCap, Bug, Clock, ClipboardList, Mail, MessageSquare, Play, Users, Settings, BarChart2, Phone, Building2, Search,
 } from 'lucide-react';
-import { BotoesDemanda, fmtDur, ModalPausa, NOME_ESPERA, useCronometro } from './Cronometro';
+import { BotoesChamado, BotoesDemanda, fmtDur, ModalPausa, NOME_ESPERA, useCronometro } from './Cronometro';
 import { ConfirmarLeitura } from './ConfirmarLeitura';
 import { AbaPrints, AbaHistoricoCard } from './PrintsHistorico';
 
@@ -34,11 +34,18 @@ const rotulo: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: 'var
 const COR_SLA: Record<string, { cor: string; txt: string }> = {
   NO_PRAZO: { cor: '#16a34a', txt: 'No prazo' }, EM_RISCO: { cor: '#d97706', txt: 'Prazo em risco' }, ESTOURADO: { cor: '#dc2626', txt: 'Prazo estourado' },
   CUMPRIDO: { cor: '#0891b2', txt: 'Cumprido' }, CUMPRIDO_ATRASO: { cor: '#7c3aed', txt: 'Cumprido com atraso' },
+  AGUARDANDO_INICIO: { cor: '#64748b', txt: 'Prazo não começou' },
 };
 
 function SlaBadge({ sla, etapa }: { sla: any; etapa?: string }) {
   if (!sla) return <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>Sem prazo</span>;
   const c = COR_SLA[sla.situacao] || COR_SLA.NO_PRAZO;
+  if (sla.situacao === 'AGUARDANDO_INICIO') return (
+    <span title="O cliente ainda não entregou os pré-requisitos (aba Tarefas do cliente). O prazo começa na entrega."
+      style={{ fontSize: 11, fontWeight: 600, color: c.cor, background: `${c.cor}14`, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+      🔒 {c.txt}: aguardando cliente
+    </span>
+  );
   return (
     <span title={`Prazo da ${etapa || 'demanda'}: ${fmtData(sla.prazo)} · ${sla.pct}% do tempo usado`}
       style={{ fontSize: 11, fontWeight: 600, color: c.cor, background: `${c.cor}0f`, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
@@ -187,6 +194,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
                     {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
                     {c.esperas_abertas.length > 0 && <Etq cor="#a16207">⏳ {NOME_ESPERA[c.esperas_abertas[0].tipo]}</Etq>}
+                    {c.chamados_em_teste > 0 && <Etq cor="#286397">🧪 {c.chamados_em_teste} chamado(s) voltou: testar</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
                     {c.virada_agendada_para && !c.virada_inicio_em && <Etq cor="#286397">📅 Virada {new Date(c.virada_agendada_para).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</Etq>}
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
@@ -547,6 +555,55 @@ function CampoColeta({ c, id, valor, mudar, sair }: { c: any; id: string; valor:
   return <input id={id} value={v} onChange={e => mudar(e.target.value, false)} onBlur={sair} className="ps-input w-full" />;
 }
 
+/**
+ * Chamados da demanda (30/10/2026, ideia da Jessica): os repasses ao desenvolvimento (Sinval) e ao N3, com rodadas
+ * (devoluções), tempo com o setor e em teste; e os chamados do cliente (tarefas do cliente), num lugar só.
+ */
+const SIT_CHAMADO: Record<string, [string, string]> = { COM_SETOR: ['Com o setor', '#7c3aed'], EM_TESTE: ['Voltou: testar', '#286397'], FECHADO: ['Fechado', '#16a34a'] };
+function ChamadosDaDemanda({ d, recarregar }: { d: any; recarregar: () => void }) {
+  const chamados: any[] = d.chamados || [];
+  const tarefas: any[] = d.tarefas_cliente || [];
+  if (!chamados.length && !tarefas.length) return null;
+  const abertos = chamados.filter(c => c.situacao !== 'FECHADO').length + tarefas.filter(t => t.status !== 'CONCLUIDA').length;
+  const devol = chamados.reduce((t, c) => t + c.devolucoes, 0) + tarefas.reduce((t, x) => t + (x.devolucoes || 0), 0);
+  return (
+    <div style={{ ...cartao }}>
+      <div style={{ padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 13, flex: 1 }}>Chamados desta demanda</b>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{chamados.length + tarefas.length} aberto(s) no total · {abertos} em andamento · {devol} devolução(ões)</span>
+      </div>
+      {chamados.map(c => {
+        const [rot, cor] = SIT_CHAMADO[c.situacao];
+        return (
+          <div key={c.id} style={{ padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', display: 'grid', gap: 6, fontSize: 13 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <b style={{ flex: 1, minWidth: 200 }}>{c.setor}: {c.motivo}</b>
+              <span style={{ fontSize: 12, fontWeight: 700, color: cor }}>{rot}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
+              Aberto em {fmtDataHora(c.aberto_em)}{c.aberto_por ? ` por ${c.aberto_por}` : ''} · {fmtDur(c.com_setor_ms)} com o setor · {fmtDur(c.em_teste_ms)} em teste
+              {c.devolucoes ? ` · ${c.devolucoes} devolução(ões)` : ''}{c.fechado_em ? ` · fechado em ${fmtDataHora(c.fechado_em)}` : ''}
+            </div>
+            {c.rodadas.length > 1 && (
+              <div style={{ display: 'grid', gap: 2, fontSize: 12, color: 'var(--t-text-secondary)' }}>
+                {c.rodadas.map((r: any, k: number) => <span key={r.id}>{k + 1}ª: {fmtDataHora(r.inicio)} → {r.fim ? fmtDataHora(r.fim) : 'no setor'} · {r.motivo}{r.resposta ? ` · ✅ ${r.resposta}` : ''}</span>)}
+              </div>
+            )}
+            {c.situacao !== 'FECHADO' && <BotoesChamado chamadoId={c.id} onFeito={recarregar} />}
+          </div>
+        );
+      })}
+      {tarefas.map(t => (
+        <div key={t.id} style={{ padding: '8px 14px', borderTop: '1px solid var(--t-card-border)', display: 'flex', gap: 10, fontSize: 13, alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 200 }}><b>Cliente:</b> {t.titulo}{t.bloqueia_inicio ? ' 🔒' : ''}</span>
+          <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>pedido em {fmtData(t.created_at)}{t.enviada_em ? ` · entregue em ${fmtData(t.enviada_em)}` : ''}{t.devolucoes ? ` · ${t.devolucoes} devolução(ões)` : ''}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: t.status === 'CONCLUIDA' ? '#16a34a' : t.status === 'ENVIADA' ? '#286397' : t.vencida ? '#dc2626' : '#b45309' }}>{t.status === 'CONCLUIDA' ? 'Fechado' : t.status === 'ENVIADA' ? 'Entregue: conferir' : t.vencida ? 'Vencido' : 'Com o cliente'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarregar: () => void }) {
   const i = d.implantacao;
   const baixarPdf = async (termo: boolean) => {
@@ -554,8 +611,9 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
     catch (e) { alert(erroDe(e)); }
   };
   const [prazos, setPrazos] = useState({ v: paraInputData(i.prazo_virada), f: paraInputData(i.prazo_finalizacao) });
-  const abertas = d.esperas.filter((e: any) => !e.fim);
-  const resolver = async (eid: string) => { const r = prompt('O que foi feito para resolver? (opcional)'); if (r === null) return; try { await apiClient.resolverEspera(eid, r || undefined); avisarCronometro(); } catch (e) { alert(erroDe(e)); } };
+  // Chamados internos (desenvolvimento/N3) ficam na lista de chamados; aqui só as outras paradas (cliente, processamento).
+  const abertas = d.esperas.filter((e: any) => !e.fim && e.tipo !== 'PROGRAMACAO' && e.tipo !== 'N3');
+  const resolver = async (eid: string) => { const r = prompt('O que foi feito para resolver? (opcional)'); if (r === null) return; try { await apiClient.resolverEspera(eid, r || undefined); avisarCronometro(); recarregar(); } catch (e) { alert(erroDe(e)); } };
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <ResumoDemanda d={d} />
@@ -565,10 +623,17 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
         {(d.pos_venda || []).length > 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Pós-implantação: {(d.pos_venda as any[]).map(p => `${p.marco}d ${p.feita_em ? (p.risco ? '⚠️' : '✓') : fmtData(p.prevista_em)}`).join(' · ')}</span>}
         {i.aceite_status && <span style={{ fontSize: 12, color: i.aceite_status === 'ASSINADO' ? '#16a34a' : i.aceite_status === 'RECUSADO' ? '#dc2626' : '#b45309' }}>Termo de aceite: {i.aceite_status === 'ASSINADO' ? `assinado em ${fmtData(i.aceite_assinado_em)}` : i.aceite_status === 'RECUSADO' ? 'recusado pelo cliente' : `aguardando assinatura desde ${fmtData(i.aceite_enviado_em)}`}</span>}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Mini l="Trabalho efetivo" v={fmtDur(d.tempos.trabalho_ms)} />
-        <Mini l="Esperando programação" v={fmtDur(d.tempos.esperas.PROGRAMACAO?.ms || 0)} s={`${d.tempos.esperas.PROGRAMACAO?.qtd || 0} vez(es)`} cor="#a16207" />
-        <Mini l="Esperando cliente" v={fmtDur(d.tempos.esperas.CLIENTE?.ms || 0)} s={`${d.tempos.esperas.CLIENTE?.qtd || 0} vez(es)`} cor="#a16207" />
+      {d.prazo_nao_comecou && (
+        <div style={{ ...cartao, padding: '10px 14px', fontSize: 13, borderColor: '#d9770655', background: '#d977060a', color: 'var(--t-text-primary)' }}>
+          🔒 <b>O prazo ainda não começou:</b> o cliente não entregou os pré-requisitos (aba Tarefas do cliente). Os dias contam a partir da entrega.
+        </div>
+      )}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Mini l="Executando (trabalho efetivo)" v={fmtDur(d.tempos.trabalho_ms)} />
+        <Mini l="Pré-requisitos do cliente" v={fmtDur(d.tempos.esperas.PRE_REQUISITO?.ms || 0)} s={d.tempos.esperas.PRE_REQUISITO?.abertas ? 'ainda faltando' : 'antes de começar'} cor="#a16207" />
+        <Mini l="Esperando o cliente" v={fmtDur(d.tempos.esperas.CLIENTE?.ms || 0)} s={`${d.tempos.esperas.CLIENTE?.qtd || 0} vez(es)`} cor="#a16207" />
+        <Mini l="Com o desenvolvimento (Sinval)" v={fmtDur(d.tempos.esperas.PROGRAMACAO?.ms || 0)} s={`${d.tempos.esperas.PROGRAMACAO?.qtd || 0} repasse(s)`} cor="#7c3aed" />
+        <Mini l="Com o N3" v={fmtDur(d.tempos.esperas.N3?.ms || 0)} s={`${d.tempos.esperas.N3?.qtd || 0} repasse(s)`} cor="#7c3aed" />
         <Mini l="Prazo total até agora" v={d.tempos.prazo_total_ms != null ? `${Math.floor(d.tempos.prazo_total_ms / 864e5)} dias` : '—'} />
       </div>
       {abertas.length > 0 && (
@@ -578,11 +643,12 @@ function AbaResumo({ d, gestao, recarregar }: { d: any; gestao: boolean; recarre
             <div key={e.id} style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, fontSize: 13 }}>
               <Hourglass size={14} color="#d97706" />
               <span style={{ flex: 1 }}><b>{NOME_ESPERA[e.tipo]}</b>{e.responsavel_nome ? ` (${e.responsavel_nome})` : ''}: {e.motivo}{e.o_que_resolver ? ` · Precisa: ${e.o_que_resolver}` : ''} <span style={{ color: 'var(--t-text-muted)' }}>· desde {fmtDataHora(e.inicio)}</span></span>
-              <button onClick={() => resolver(e.id)} style={btn('#16a34a')}><CheckCircle size={12} /> Resolvido</button>
+              {e.tipo !== 'PRE_REQUISITO' && <button onClick={() => resolver(e.id)} style={btn('#16a34a')}><CheckCircle size={12} /> Resolvido</button>}
             </div>
           ))}
         </div>
       )}
+      <ChamadosDaDemanda d={d} recarregar={recarregar} />
       <div style={{ ...cartao, padding: 14, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Prazos (SLA)</div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -1556,9 +1622,12 @@ function PontoSaude({ saude, tamanho = 8 }: { saude?: { nivel: string; motivos: 
 function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }) {
   const i = d.implantacao;
   const lista: any[] = d.tarefas_cliente || [];
-  const [nova, setNova] = useState({ titulo: '', descricao: '', prazo: '', exige_arquivo: true });
+  const NOVA = { titulo: '', descricao: '', prazo: '', exige_arquivo: true, bloqueia_inicio: false };
+  const [nova, setNova] = useState(NOVA);
   const [ocupado, setOcupado] = useState(false);
   const run = async (f: () => Promise<any>) => { setOcupado(true); try { await f(); recarregar(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); } };
+  const bloqueantes = lista.filter(t => t.bloqueia_inicio);
+  const faltam = bloqueantes.filter(t => t.status === 'PENDENTE');
   const baixar = async (t: any) => {
     try {
       const r = await apiClient.baixarArquivoTarefaCliente(t.id);
@@ -1573,7 +1642,15 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
     <div style={{ display: 'grid', gap: 16, maxWidth: 820 }}>
       <div style={{ fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.5 }}>
         O cliente vê esta lista na página de acompanhamento, em "O que precisamos de você", e envia por lá. Ele é avisado no WhatsApp e lembrado a cada 2 dias úteis depois do prazo (até 3 vezes). Enquanto houver item vencido, o card fica em espera "Cliente".
+        Itens marcados com <b>Impede começar</b> são pré-requisitos: o prazo da demanda só começa a contar quando o cliente entregar todos.
       </div>
+      {bloqueantes.length > 0 && (
+        <div style={{ ...cartao, padding: '10px 14px', fontSize: 13, borderColor: faltam.length ? '#d9770655' : '#16a34a55', background: faltam.length ? '#d977060a' : '#16a34a0a', color: 'var(--t-text-primary)' }}>
+          {faltam.length
+            ? <><b>O prazo ainda não começou.</b> Falta o cliente entregar: {faltam.map(t => t.titulo).join('; ')}.</>
+            : <><b>Pré-requisitos entregues.</b> O prazo conta a partir da última entrega.</>}
+        </div>
+      )}
       {lista.length === 0 ? (
         <div style={{ ...cartao, padding: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ flex: 1, minWidth: 200, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum item pedido ao cliente ainda.</span>
@@ -1587,6 +1664,7 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
               <div key={t.id} style={{ padding: '12px 14px', borderTop: k ? '1px solid var(--t-card-border)' : 'none', display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                   <span style={{ flex: 1, minWidth: 220, fontSize: 14, fontWeight: 600, color: 'var(--t-text-primary)' }}>{t.titulo}</span>
+                  {t.bloqueia_inicio && <span title="Pré-requisito: o prazo só começa quando o cliente entregar" style={{ fontSize: 11, fontWeight: 700, color: '#b45309', background: '#b4530914', padding: '2px 6px', borderRadius: 4 }}>🔒 Impede começar</span>}
                   <span style={{ fontSize: 12, fontWeight: 600, color: t.vencida ? '#dc2626' : cor }}>{t.vencida ? 'Vencida' : rot}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>
@@ -1600,6 +1678,8 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
                   {t.status === 'ENVIADA' && <button disabled={ocupado} onClick={() => devolver(t)} style={{ ...btn('#b45309', false), minHeight: 32 }}>Pedir para reenviar</button>}
                   {t.status === 'CONCLUIDA' && <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, 'REABRIR'))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Reabrir</button>}
                   {t.status !== 'CONCLUIDA' && <button disabled={ocupado} onClick={() => confirm(`Remover "${t.titulo}"?`) && run(() => apiClient.acaoTarefaCliente(t.id, 'EXCLUIR'))} style={{ ...btn('#64748b', false), minHeight: 32 }}>Remover</button>}
+                  <button disabled={ocupado} onClick={() => run(() => apiClient.acaoTarefaCliente(t.id, t.bloqueia_inicio ? 'NAO_BLOQUEIA' : 'BLOQUEIA'))} style={{ ...btn('#b45309', false), minHeight: 32 }}
+                    title={t.bloqueia_inicio ? 'O prazo deixa de esperar por este item' : 'O prazo só começa quando o cliente entregar este item'}>{t.bloqueia_inicio ? 'Não impede começar' : 'Impede começar'}</button>
                 </div>
               </div>
             );
@@ -1621,7 +1701,8 @@ function AbaTarefasCliente({ d, recarregar }: { d: any; recarregar: () => void }
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <label style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>Prazo <input type="date" value={nova.prazo} onChange={e => setNova(p => ({ ...p, prazo: e.target.value }))} className="ps-input" style={{ minHeight: 36 }} /></label>
           <label style={{ fontSize: 13, color: 'var(--t-text-secondary)', display: 'inline-flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={nova.exige_arquivo} onChange={e => setNova(p => ({ ...p, exige_arquivo: e.target.checked }))} /> Precisa de arquivo</label>
-          <button disabled={ocupado || nova.titulo.trim().length < 3} onClick={() => run(async () => { await apiClient.criarTarefaCliente(i.id, { titulo: nova.titulo.trim(), descricao: nova.descricao.trim() || undefined, prazo: nova.prazo || undefined, exige_arquivo: nova.exige_arquivo }); setNova({ titulo: '', descricao: '', prazo: '', exige_arquivo: true }); })}
+          <label title="Sem isto o técnico não consegue começar (ex.: equipamento, certificado, contador). O prazo só conta depois da entrega." style={{ fontSize: 13, color: 'var(--t-text-secondary)', display: 'inline-flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={nova.bloqueia_inicio} onChange={e => setNova(p => ({ ...p, bloqueia_inicio: e.target.checked }))} /> Impede começar (o prazo espera a entrega)</label>
+          <button disabled={ocupado || nova.titulo.trim().length < 3} onClick={() => run(async () => { await apiClient.criarTarefaCliente(i.id, { titulo: nova.titulo.trim(), descricao: nova.descricao.trim() || undefined, prazo: nova.prazo || undefined, exige_arquivo: nova.exige_arquivo, bloqueia_inicio: nova.bloqueia_inicio || undefined }); setNova(NOVA); })}
             style={{ ...btn('#286397'), minHeight: 36, opacity: nova.titulo.trim().length < 3 ? 0.5 : 1 }}>Adicionar</button>
         </div>
       </div>
@@ -1990,8 +2071,10 @@ function exportarCsv(r: any) {
     ['Horas por implantação', n(a.horas_por_implantacao), n(b.horas_por_implantacao), n(r.metas.horas_por_implantacao)],
     ['Satisfação (1 a 5)', n(a.satisfacao), n(b.satisfacao), n(r.metas.satisfacao_min)],
     ['Viradas remarcadas', n(a.remarcacoes), n(b.remarcacoes), n(r.metas.remarcacoes_max)],
-    ['Horas esperando programação', n(a.espera_horas?.PROGRAMACAO), n(b.espera_horas?.PROGRAMACAO), ''],
+    ['Horas com o desenvolvimento (Sinval)', n(a.espera_horas?.PROGRAMACAO), n(b.espera_horas?.PROGRAMACAO), ''],
+    ['Horas com o N3', n(a.espera_horas?.N3), n(b.espera_horas?.N3), ''],
     ['Horas esperando cliente', n(a.espera_horas?.CLIENTE), n(b.espera_horas?.CLIENTE), ''],
+    ['Horas esperando pré-requisitos do cliente', n(a.espera_horas?.PRE_REQUISITO), n(b.espera_horas?.PRE_REQUISITO), ''],
     [], ['Por técnico', 'Viradas', 'Dias conversão', 'Dias banco zerado', 'No prazo (%)', 'Retrabalho', 'Horas por implantação'],
     ...a.por_tecnico.map((t: any) => [t.nome, n(t.viradas), n(t.dias_conversao), n(t.dias_zerado), n(t.no_prazo_pct), n(t.retrabalho), n(t.horas_por_implantacao)]),
   ];
@@ -2054,7 +2137,7 @@ function PainelIndicadores() {
         ))}
         <div style={{ border: '1px solid var(--t-card-border)', borderRadius: 6, padding: '12px 14px', display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--t-text-muted)' }}>Horas de espera por causa</span>
-          {[['PROGRAMACAO', 'Programação', '#7c3aed'], ['CLIENTE', 'Cliente', '#b45309'], ['PROCESSAMENTO', 'Processamento', '#64748b']].map(([k, l, c]) => (
+          {[['PROGRAMACAO', 'Desenvolvimento (Sinval)', '#7c3aed'], ['N3', 'N3', '#a855f7'], ['CLIENTE', 'Cliente', '#b45309'], ['PRE_REQUISITO', 'Pré-requisitos do cliente', '#d97706'], ['PROCESSAMENTO', 'Processamento', '#64748b']].map(([k, l, c]) => (
             <div key={k} style={{ display: 'grid', gap: 2 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--t-text-secondary)' }}><span>{l}</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{esp[k] || 0}h</span></div>
               <div style={{ height: 6, borderRadius: 99, background: 'var(--t-content-bg)' }}><div style={{ height: 6, borderRadius: 99, width: `${totalEsp ? Math.round(((esp[k] || 0) / totalEsp) * 100) : 0}%`, background: c }} /></div>
@@ -2636,11 +2719,13 @@ export function PainelGestaoImplantacao() {
         <Mini l="Prazo em risco" v={String(p.sla.EM_RISCO || 0)} cor="#d97706" />
         <Mini l="Prazo estourado" v={String(p.sla.ESTOURADO || 0)} cor="#dc2626" />
         <Mini l="Cobranças a lançar" v={String(p.cobrancas_pendentes)} cor="#7c3aed" />
-        <Mini l="Esperas da programação" v={String(p.esperas.programacao.qtd)} s={`${fmtDur(p.esperas.programacao.ms)} parado · ${p.esperas.programacao.abertas} aberta(s)`} cor="#a16207" />
-        <Mini l="Esperas do cliente" v={String(p.esperas.cliente.qtd)} s={fmtDur(p.esperas.cliente.ms)} />
+        <Mini l="Repasses ao desenvolvimento" v={String(p.esperas.programacao.qtd)} s={`${fmtDur(p.esperas.programacao.ms)} parado · ${p.esperas.programacao.abertas} aberto(s)`} cor="#a16207" />
+        <Mini l="Repasses ao N3" v={String(p.esperas.n3?.qtd || 0)} s={`${fmtDur(p.esperas.n3?.ms || 0)} parado · ${p.esperas.n3?.abertas || 0} aberto(s)`} cor="#a16207" />
+        <Mini l="Esperas do cliente" v={String(p.esperas.cliente.qtd + (p.esperas.pre_requisito?.qtd || 0))} s={fmtDur(p.esperas.cliente.ms + (p.esperas.pre_requisito?.ms || 0))} />
         <Mini l="Viradas no período" v={String(p.viradas.length)} />
         <Mini l="Prazo médio de entrega" v={p.prazo_medio_ms.implantacao ? `${Math.round(p.prazo_medio_ms.implantacao / 864e5)} dias` : '—'} s={p.prazo_medio_ms.servico ? `serviços: ${(p.prazo_medio_ms.servico / 864e5).toFixed(1)} dias` : `${p.concluidas} concluída(s)`} />
       </div>
+      {p.tempo && <ParaOndeVaiOTempo t={p.tempo} tc={p.tarefas_cliente} />}
       <div style={cartao}>
         <div style={{ padding: '10px 14px' }}><b style={{ fontSize: 13 }}>Técnicos · trabalho e aproveitamento</b></div>
         {p.tecnicos.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhum play no período.</div>}
@@ -2665,7 +2750,7 @@ export function PainelGestaoImplantacao() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div style={cartao}>
-          <div style={{ padding: '10px 14px' }}><b style={{ fontSize: 13 }}>O que mais trava (esperas da programação)</b></div>
+          <div style={{ padding: '10px 14px' }}><b style={{ fontSize: 13 }}>O que mais repassamos (desenvolvimento e N3)</b></div>
           {p.esperas.motivos.length === 0 && <div style={{ padding: 14, fontSize: 13, color: 'var(--t-text-muted)' }}>Nenhuma no período.</div>}
           {p.esperas.motivos.map((m: any) => <div key={m.motivo} style={{ padding: '6px 14px', borderTop: '1px solid var(--t-card-border)', fontSize: 13, display: 'flex' }}><span style={{ flex: 1 }}>{m.motivo}</span><b>{m.qtd}</b></div>)}
         </div>
@@ -2686,6 +2771,78 @@ export function PainelGestaoImplantacao() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Para onde vai o tempo (30/10/2026, pedido da Jessica): horas executando x esperando o cliente x com outros setores,
+ * e quanto cada repasse demora para voltar. Esperas em horas úteis (jornada do portal); execução a qualquer hora.
+ */
+function ParaOndeVaiOTempo({ t, tc }: { t: any; tc?: any }) {
+  const h = (ms: number | null | undefined) => (ms == null ? '—' : fmtDur(ms));
+  const total = t.executando_ms + t.cliente_uteis_ms + t.interno_uteis_ms;
+  const pct = (ms: number) => (total ? Math.round((ms / total) * 100) : 0);
+  const partes: [string, number, string][] = [['Executando', t.executando_ms, '#286397'], ['Esperando o cliente', t.cliente_uteis_ms, '#b45309'], ['Com outros setores', t.interno_uteis_ms, '#7c3aed']];
+  const DESTINOS: [string, string][] = [['PROGRAMACAO', 'Desenvolvimento (Sinval)'], ['N3', 'N3'], ['CLIENTE', 'Cliente (no meio do trabalho)'], ['PRE_REQUISITO', 'Cliente (pré-requisitos para começar)'], ['PROCESSAMENTO', 'Processamento']];
+  const th: React.CSSProperties = { padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--t-text-muted)', textAlign: 'left', whiteSpace: 'nowrap' };
+  const td: React.CSSProperties = { padding: '8px 12px', fontSize: 13, borderTop: '1px solid var(--t-card-border)', fontVariantNumeric: 'tabular-nums' };
+  return (
+    <div style={cartao}>
+      <div style={{ padding: '12px 14px', display: 'grid', gap: 4 }}>
+        <b style={{ fontSize: 14 }}>Para onde vai o nosso tempo</b>
+        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Executando: tudo o que o cronômetro marcou, a qualquer hora. Esperas: horas úteis (dias úteis da jornada, sem noite nem fim de semana).</span>
+      </div>
+      <div style={{ padding: '0 14px 12px', display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', height: 14, borderRadius: 4, overflow: 'hidden', background: 'var(--t-card-border)' }}>
+          {partes.map(([l, ms, c]) => ms > 0 && <div key={l} title={`${l}: ${h(ms)} (${pct(ms)}%)`} style={{ width: `${pct(ms)}%`, background: c }} />)}
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
+          {partes.map(([l, ms, c]) => <span key={l}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: c, marginRight: 6 }} />{l} <b>{h(ms)}</b> <span style={{ color: 'var(--t-text-muted)' }}>({pct(ms)}%)</span></span>)}
+        </div>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr><th style={th}>Esperando por</th><th style={th}>Vezes</th><th style={th}>Abertas agora</th><th style={th}>Horas úteis paradas</th><th style={th}>Voltaram</th><th style={th}>Tempo médio para voltar</th><th style={th}>Maior demora</th><th style={th}>Chamados (devolvidos)</th></tr></thead>
+          <tbody>
+            {DESTINOS.map(([k, l]) => { const x = t.por_tipo[k] || {}; return (
+              <tr key={k}>
+                <td style={{ ...td, fontWeight: 600 }}>{l}</td><td style={td}>{x.qtd || 0}</td><td style={{ ...td, color: x.abertas ? '#b45309' : undefined, fontWeight: x.abertas ? 700 : 400 }}>{x.abertas || 0}</td>
+                <td style={td}>{h(x.uteis_ms)} <span style={{ color: 'var(--t-text-muted)', fontSize: 11 }}>({h(x.ms)} corridas)</span></td>
+                <td style={td}>{x.voltaram || 0}</td><td style={td}>{h(x.retorno_medio_uteis_ms)}{x.retorno_medio_ms != null && <span style={{ color: 'var(--t-text-muted)', fontSize: 11 }}> ({h(x.retorno_medio_ms)} corridas)</span>}</td><td style={td}>{h(x.retorno_max_uteis_ms)}</td>
+                <td style={td}>{k === 'PROGRAMACAO' || k === 'N3' ? `${x.chamados || 0} (${x.devolvidos || 0}${x.taxa_devolucao_pct != null ? ` · ${x.taxa_devolucao_pct}%` : ''})` : '—'}</td>
+              </tr>
+            ); })}
+          </tbody>
+        </table>
+      </div>
+      {tc && (
+        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--t-card-border)', fontSize: 13, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <b>Chamados do cliente (tarefas pedidas no período)</b>
+          <span>Pedidas <b>{tc.pedidas}</b></span><span>Entregues <b>{tc.entregues}</b></span><span>Pendentes <b>{tc.pendentes}</b></span>
+          <span>Pré-requisitos <b>{tc.pre_requisitos}</b></span><span>Devolvidas <b>{tc.devolvidas}</b>{tc.taxa_devolucao_pct != null ? ` (${tc.taxa_devolucao_pct}%)` : ''}</span>
+          <span>Tempo médio para entregar <b>{h(tc.entrega_media_uteis_ms)}</b> úteis</span>
+        </div>
+      )}
+      <div style={{ padding: '14px 14px 6px' }}><b style={{ fontSize: 13 }}>Por demanda no período</b></div>
+      {t.por_demanda.length === 0 && <div style={{ padding: '6px 14px 14px', fontSize: 13, color: 'var(--t-text-muted)' }}>Nada no período.</div>}
+      {t.por_demanda.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={th}>Cliente</th><th style={th}>Executando</th><th style={th}>Esperando o cliente</th><th style={th}>Desenvolvimento</th><th style={th}>N3</th><th style={th}>Chamados</th><th style={th}>Parada agora</th></tr></thead>
+            <tbody>
+              {t.por_demanda.slice(0, 40).map((x: any) => (
+                <tr key={x.implantacao_id}>
+                  <td style={{ ...td, fontWeight: 600 }}>{x.cliente}</td><td style={td}>{h(x.executando_ms)}</td>
+                  <td style={td}>{h(x.cliente_uteis_ms)}{x.pre_requisito_uteis_ms ? <span style={{ color: 'var(--t-text-muted)', fontSize: 11 }}> ({h(x.pre_requisito_uteis_ms)} pré-requisitos)</span> : null}</td>
+                  <td style={td}>{h(x.desenvolvimento_uteis_ms)}</td><td style={td}>{h(x.n3_uteis_ms)}</td><td style={td}>{x.chamados}{x.devolucoes ? ` (${x.devolucoes} dev.)` : ''}</td>
+                  <td style={{ ...td, color: '#b45309' }}>{x.paradas_agora.map((k: string) => NOME_ESPERA[k] || k).join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

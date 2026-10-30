@@ -1538,3 +1538,34 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Quem nunca escolheu já começa no Automático. Escolher Claro ou Escuro (ou clicar na lua/sol do topo) fixa a escolha; para voltar a seguir o Windows, clique em Automático.
 - O logo da Prosystem no topo ficou maior e, no modo escuro, ganhou uma versão própria em azul claro.
 - No modo escuro, os textos em negrito ficaram um pouco mais finos para não "estourar" o branco. Continuam em destaque.
+
+### Atualização 30/10/2026: tempo das demandas, pré-requisitos do cliente e chamados internos
+
+**Pré-requisitos: o prazo só começa quando o cliente entrega o básico**
+- Na aba **Tarefas do cliente**, os itens sem os quais não dá para começar (certificado digital, equipamento, dados do contador) aparecem com o selo **🔒 Impede começar**. Eles já vêm marcados; para marcar ou desmarcar outro item, use o botão **Impede começar** no próprio item ou a caixinha ao pedir um item novo.
+- Enquanto faltar algum desses itens, o card mostra **"Prazo não começou: aguardando cliente"**. Quando o cliente entregar o último, o prazo começa do zero (15 dias na conversão, 10 no banco zerado).
+- Se você pedir para o cliente reenviar um item, o prazo para de novo até ele mandar certo.
+- Vale para todos os cards, inclusive os que já estavam em andamento.
+
+**Pausar e repassar: motivo obrigatório**
+- Ao clicar em **Pausar** numa demanda, a janela pergunta: **"A demanda saiu de você? Repassei para:"**
+  - **Desenvolvimento (Sinval)**: algo que só o desenvolvimento resolve (o Sinval continua recebendo o aviso e o link, como antes);
+  - **N3**: algo fora do seu escopo;
+  - **Aguardando o cliente**: dados, acesso ou resposta dele.
+- O **motivo é obrigatório**: sem ele, o botão não salva. Escreva também o que precisa ser feito.
+- Se for uma pausa sua (almoço, reunião, fim do dia), use os botões de sempre.
+
+**Chamados internos: repasse que volta para teste**
+- Cada repasse ao desenvolvimento ou ao N3 vira um **chamado interno** dentro do card. Pode haver mais de um ao mesmo tempo, para setores diferentes.
+- Quando o setor devolver, abra o card (ou **Meu dia**) e responda:
+  - **Voltou e funcionou**: o chamado é fechado;
+  - **Voltou com problema**: escreva o que ainda não funciona; o chamado volta para o mesmo setor e conta como uma devolução.
+- Se o Sinval marcar como resolvido pelo link ou pelo WhatsApp, o chamado aparece como **"Voltou: testar"** e você recebe um aviso. Se ficar 1 dia útil sem resposta, o sistema lembra você.
+- No resumo do card, **Chamados desta demanda** mostra todos os chamados: os internos (com tempo com o setor, tempo em teste e devoluções) e os do cliente (as tarefas do cliente, com pedido, entrega e devoluções).
+- O prazo da demanda **não para** enquanto o chamado está com o desenvolvimento ou o N3: esse tempo é nosso. Ele aparece separado no relatório.
+
+**Relatório "Para onde vai o nosso tempo" (Painel da implantação, gestão)**
+- Mostra no período escolhido: horas **executando** (tudo o que o cronômetro marcou, a qualquer hora), horas **esperando o cliente** e horas **com outros setores**, em horas úteis (sem noite nem fim de semana), com as horas corridas ao lado.
+- Por setor: quantas vezes, quantos abertos agora, tempo médio e maior demora para voltar, chamados abertos e quantos foram devolvidos (taxa de devolução).
+- Chamados do cliente: quantos pedidos, entregues, devolvidos e o tempo médio para entregar.
+- Por demanda: as mesmas horas e quantos chamados cada cliente teve.

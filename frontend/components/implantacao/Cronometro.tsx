@@ -18,12 +18,14 @@ export const ETAPAS: { key: string; label: string }[] = [
 const NOME_ETAPA = Object.fromEntries(ETAPAS.map(e => [e.key, e.label]));
 const OUTRAS = [{ key: 'SUPORTE', label: 'Suporte' }, { key: 'REUNIAO', label: 'Reunião' }, { key: 'INTERNO', label: 'Tarefa interna' }];
 const NOME_TIPO: Record<string, string> = Object.fromEntries(OUTRAS.map(o => [o.key, o.label]));
+// Esperas (30/10/2026): repasse ao desenvolvimento (Sinval) ou ao N3, cliente e processamento. O tempo até voltar é medido.
 const ESPERAS = [
-  { key: 'PROGRAMACAO', label: 'Aguardando programação', dica: 'Algo que a programação precisa resolver' },
-  { key: 'CLIENTE', label: 'Aguardando cliente', dica: 'Dados, acesso ou resposta do cliente' },
+  { key: 'PROGRAMACAO', label: 'Repassado ao desenvolvimento (Sinval)', dica: 'Algo que o desenvolvimento precisa resolver' },
+  { key: 'N3', label: 'Repassado ao N3', dica: 'Algo fora do seu escopo que o N3 precisa fazer' },
+  { key: 'CLIENTE', label: 'Aguardando cliente', dica: 'Dados, acesso ou resposta do cliente: o prazo para de contar' },
   { key: 'PROCESSAMENTO', label: 'Processamento rodando', dica: 'Ex.: importação; não conta como seu trabalho' },
 ];
-export const NOME_ESPERA: Record<string, string> = Object.fromEntries(ESPERAS.map(e => [e.key, e.label]));
+export const NOME_ESPERA: Record<string, string> = { ...Object.fromEntries(ESPERAS.map(e => [e.key, e.label])), PRE_REQUISITO: 'Aguardando pré-requisitos do cliente' };
 
 const avisar = () => window.dispatchEvent(new Event('cronometro:mudou'));
 export const fmtDur = (ms: number) => { const m = Math.floor(ms / 60000); return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; };
@@ -54,30 +56,83 @@ const btn = (cor: string, cheio = true): React.CSSProperties => ({
 });
 
 // Motivo da pausa (06/10/2026): um toque nos mais comuns ou escrito; vai para o histórico do card.
+// Repasse (30/10/2026): se a demanda saiu do técnico (desenvolvimento, N3 ou cliente), a pausa vira espera com motivo
+// obrigatório, e o tempo até voltar é medido.
 const MOTIVOS_PAUSA = ['Intervalo / almoço', 'Fim do expediente', 'Reunião', 'Sem acesso ao cliente', 'Problema técnico'];
+const REPASSES = [
+  { key: 'PROGRAMACAO', label: 'Desenvolvimento (Sinval)' },
+  { key: 'N3', label: 'N3' },
+  { key: 'CLIENTE', label: 'Aguardando o cliente' },
+];
 export function ModalPausa({ onClose }: { onClose: () => void }) {
+  const { sessao } = useCronometro();
+  const demanda: { id: string } | null = sessao?.tipo === 'DEMANDA' && sessao?.implantacao_id ? { id: sessao.implantacao_id } : null;
   const [outro, setOutro] = useState('');
+  const [repasse, setRepasse] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState('');
+  const [precisa, setPrecisa] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const pausar = async (motivo: string) => {
-    if (!motivo.trim()) return;
+  const pausar = async (m: string) => {
+    if (!m.trim()) return;
     setOcupado(true);
-    try { await apiClient.pausarCronometro(motivo.trim()); avisar(); onClose(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
+    try { await apiClient.pausarCronometro(m.trim()); avisar(); onClose(); } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
   };
+  const repassar = async () => {
+    if (!demanda || !repasse) return;
+    if (motivo.trim().length < 3) return alert('Escreva o motivo: o que foi repassado e por quê.');
+    setOcupado(true);
+    try {
+      await apiClient.abrirEspera(demanda.id, { tipo: repasse, motivo: motivo.trim(), o_que_resolver: precisa.trim() || undefined, responsavel_nome: repasse === 'PROGRAMACAO' ? 'Sinval' : repasse === 'N3' ? 'N3' : undefined });
+      avisar(); onClose();
+    } catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
+  };
+  const nomeRepasse = REPASSES.find(r => r.key === repasse)?.label;
+  const semMotivo = motivo.trim().length < 3;
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.4)', display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Motivo da pausa" style={{ background: 'var(--t-card-bg)', borderRadius: 6, padding: 18, width: 'min(420px, 100%)', display: 'grid', gap: 12, boxShadow: '0 20px 50px rgba(0,0,0,.2)' }}>
+      <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Motivo da pausa" style={{ background: 'var(--t-card-bg)', borderRadius: 6, padding: 18, width: 'min(460px, 100%)', display: 'grid', gap: 12, boxShadow: '0 20px 50px rgba(0,0,0,.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <b style={{ fontSize: 16, color: 'var(--t-text-primary)' }}>Por que vai pausar?</b>
           <button onClick={onClose} aria-label="Fechar" style={{ width: 36, height: 36, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--t-text-muted)' }}><X size={18} /></button>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {MOTIVOS_PAUSA.map(m => <button key={m} disabled={ocupado} onClick={() => pausar(m)} style={{ ...btn('#dc2626', false), fontSize: 13, minHeight: 40, padding: '8px 12px' }}>{m}</button>)}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input value={outro} onChange={e => setOutro(e.target.value)} onKeyDown={e => e.key === 'Enter' && pausar(outro)} placeholder="Outro motivo" maxLength={300} className="ps-input" style={{ flex: 1, minHeight: 40 }} />
-          <button disabled={ocupado || !outro.trim()} onClick={() => pausar(outro)} style={{ ...btn('#dc2626'), minHeight: 40, opacity: !outro.trim() ? 0.5 : 1 }}><Pause size={12} /> Pausar</button>
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Se está esperando o cliente ou a programação, use <b>Espera</b>: o prazo para de contar.</span>
+        {demanda && (
+          <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 6, border: '1px solid #d9770655', background: '#d977060a' }}>
+            <b style={{ fontSize: 13, color: 'var(--t-text-primary)' }}>A demanda saiu de você? Repassei para:</b>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {REPASSES.map(r => (
+                <button key={r.key} disabled={ocupado} onClick={() => setRepasse(r.key)} aria-pressed={repasse === r.key}
+                  style={{ ...btn('#d97706', repasse === r.key), fontSize: 13, minHeight: 40, padding: '8px 12px' }}><Hourglass size={12} /> {r.label}</button>
+              ))}
+            </div>
+            {repasse && (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Motivo (obrigatório)
+                  <textarea autoFocus value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} maxLength={2000} className="ps-input w-full"
+                    placeholder={repasse === 'CLIENTE' ? 'Ex.: cliente ainda não instalou o computador do caixa' : 'Ex.: ajuste na importação do estoque, fora do meu escopo'} />
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>O que precisa ser feito
+                  <textarea value={precisa} onChange={e => setPrecisa(e.target.value)} rows={2} maxLength={2000} className="ps-input w-full" />
+                </label>
+                <button disabled={ocupado || semMotivo} onClick={repassar} style={{ ...btn('#d97706'), justifyContent: 'center', minHeight: 40, opacity: semMotivo ? 0.5 : 1 }}>
+                  {ocupado ? <Loader2 size={14} className="animate-spin" /> : <Pause size={12} />} Pausar e registrar ({nomeRepasse})
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{repasse === 'CLIENTE' ? 'O prazo para de contar até o cliente responder.' : 'O tempo até voltar fica registrado. Quando voltar, clique em Resolvido na demanda.'}</span>
+                <button onClick={() => setRepasse(null)} style={{ ...btn('#64748b', false), justifyContent: 'center' }}>Não repassei: é uma pausa minha</button>
+              </>
+            )}
+          </div>
+        )}
+        {!repasse && (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {MOTIVOS_PAUSA.map(m => <button key={m} disabled={ocupado} onClick={() => pausar(m)} style={{ ...btn('#dc2626', false), fontSize: 13, minHeight: 40, padding: '8px 12px' }}>{m}</button>)}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={outro} onChange={e => setOutro(e.target.value)} onKeyDown={e => e.key === 'Enter' && pausar(outro)} placeholder="Outro motivo" maxLength={300} className="ps-input" style={{ flex: 1, minHeight: 40 }} />
+              <button disabled={ocupado || !outro.trim()} onClick={() => pausar(outro)} style={{ ...btn('#dc2626'), minHeight: 40, opacity: !outro.trim() ? 0.5 : 1 }}><Pause size={12} /> Pausar</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -160,10 +215,10 @@ function ModalEspera({ implantacao, onClose }: { implantacao: { id: string; clie
   const [com, setCom] = useState('Sinval');
   const [salvando, setSalvando] = useState(false);
   const salvar = async () => {
-    if (motivo.trim().length < 3) return alert('Conte o motivo da espera.');
+    if (motivo.trim().length < 3) return alert('Escreva o motivo: o que foi repassado e por quê.');
     setSalvando(true);
     try {
-      await apiClient.abrirEspera(implantacao.id, { tipo, motivo: motivo.trim(), o_que_resolver: resolver.trim() || undefined, responsavel_nome: tipo === 'PROGRAMACAO' ? com.trim() || undefined : undefined });
+      await apiClient.abrirEspera(implantacao.id, { tipo, motivo: motivo.trim(), o_que_resolver: resolver.trim() || undefined, responsavel_nome: tipo === 'PROGRAMACAO' ? com.trim() || undefined : tipo === 'N3' ? 'N3' : undefined });
       avisar(); onClose();
     } catch (e) { alert(erroDe(e)); } finally { setSalvando(false); }
   };
@@ -186,7 +241,7 @@ function ModalEspera({ implantacao, onClose }: { implantacao: { id: string; clie
               </label>
             ))}
           </div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Motivo
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)' }}>Motivo (obrigatório)
             <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} className="ps-input w-full" placeholder="Ex.: erro ao importar o estoque do sistema anterior" />
           </label>
           {tipo !== 'PROCESSAMENTO' && (
@@ -209,6 +264,37 @@ function ModalEspera({ implantacao, onClose }: { implantacao: { id: string; clie
   );
 }
 
+/**
+ * Chamado interno voltou (30/10/2026): "Voltou e funcionou" fecha; "Voltou com problema" devolve ao mesmo setor
+ * com o motivo (obrigatório), abrindo nova rodada. Serve tanto com o chamado no setor quanto já em teste.
+ */
+export function BotoesChamado({ chamadoId, onFeito }: { chamadoId: string; onFeito?: () => void }) {
+  const [problema, setProblema] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const enviar = async (funcionou: boolean) => {
+    if (!funcionou && motivo.trim().length < 3) return alert('Escreva o motivo: o que ainda não funcionou.');
+    setOcupado(true);
+    try { await apiClient.chamadoVoltou(chamadoId, { funcionou, motivo: funcionou ? undefined : motivo.trim() }); setProblema(false); setMotivo(''); avisar(); onFeito?.(); }
+    catch (e) { alert(erroDe(e)); } finally { setOcupado(false); }
+  };
+  if (problema) return (
+    <span style={{ display: 'grid', gap: 6, width: '100%' }}>
+      <textarea autoFocus value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} maxLength={2000} className="ps-input w-full" placeholder="Motivo (obrigatório): o que ainda não funcionou" />
+      <span style={{ display: 'flex', gap: 6 }}>
+        <button disabled={ocupado || motivo.trim().length < 3} onClick={() => enviar(false)} style={{ ...btn('#b45309'), opacity: motivo.trim().length < 3 ? 0.5 : 1 }}>Devolver ao setor</button>
+        <button onClick={() => setProblema(false)} style={btn('#64748b', false)}>Cancelar</button>
+      </span>
+    </span>
+  );
+  return (
+    <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+      <button disabled={ocupado} onClick={() => enviar(true)} style={btn('#16a34a')}><CheckCircle size={12} /> Voltou e funcionou</button>
+      <button disabled={ocupado} onClick={() => setProblema(true)} style={btn('#b45309', false)}>Voltou com problema</button>
+    </span>
+  );
+}
+
 /** Aba "Meu dia": tempo do dia, sessões e esperas abertas (gestão escolhe o técnico). */
 export function PainelMeuDia({ gestao }: { gestao: boolean }) {
   const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
@@ -217,10 +303,11 @@ export function PainelMeuDia({ gestao }: { gestao: boolean }) {
   const [tecnicoId, setTecnicoId] = useState('');
   const [dia, setDia] = useState<any | null>(null);
   const [esperas, setEsperas] = useState<any[]>([]);
+  const [emTeste, setEmTeste] = useState<any[]>([]);
   const carregar = useCallback(async () => {
     try {
       const [d, e] = await Promise.all([apiClient.getDiaTecnico({ data, tecnico_id: tecnicoId || undefined }), apiClient.getEsperasAbertas()]);
-      setDia(d.data.data); setEsperas(e.data.data || []);
+      setDia(d.data.data); setEsperas(e.data.data || []); setEmTeste(e.data.em_teste || []);
     } catch { /* ignore */ }
   }, [data, tecnicoId]);
   useEffect(() => { carregar(); window.addEventListener('cronometro:mudou', carregar); return () => window.removeEventListener('cronometro:mudou', carregar); }, [carregar]);
@@ -280,10 +367,24 @@ export function PainelMeuDia({ gestao }: { gestao: boolean }) {
               <br /><span style={{ color: 'var(--t-text-muted)' }}>{e.motivo}{e.o_que_resolver ? ` · Precisa: ${e.o_que_resolver}` : ''}</span>
             </span>
             <span style={{ color: '#d97706', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtDur(Date.now() - new Date(e.inicio).getTime())}</span>
-            <button onClick={() => resolver(e.id)} style={btn('#16a34a')}><CheckCircle size={12} /> Resolvido</button>
+            {e.chamado_id ? <BotoesChamado chamadoId={e.chamado_id} /> : e.tipo !== 'PRE_REQUISITO' && <button onClick={() => resolver(e.id)} style={btn('#16a34a')}><CheckCircle size={12} /> Resolvido</button>}
           </div>
         ))}
       </div>
+      {emTeste.length > 0 && (
+        <div className="ps-card rounded-xl overflow-hidden" style={{ border: '1px solid #28639755' }}>
+          <div style={{ padding: '10px 14px', fontWeight: 700, fontSize: 13, color: 'var(--t-text-primary)', borderBottom: '1px solid var(--t-card-border)' }}>🧪 Chamados que voltaram: teste e responda</div>
+          {emTeste.map(t => (
+            <div key={t.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', borderTop: '1px solid var(--t-card-border)', fontSize: 13, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ flex: 1, minWidth: 220 }}>
+                <b style={{ color: 'var(--t-text-primary)' }}>{t.implantacao?.cliente_razao_social}</b> · {t.setor}{t.devolucoes ? ` · ${t.devolucoes} devolução(ões)` : ''}
+                <br /><span style={{ color: 'var(--t-text-muted)' }}>{t.motivo}{t.rodadas.at(-1)?.resposta ? ` · Resposta: ${t.rodadas.at(-1).resposta}` : ''}</span>
+              </span>
+              <BotoesChamado chamadoId={t.id} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

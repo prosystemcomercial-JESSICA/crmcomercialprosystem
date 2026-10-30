@@ -968,6 +968,7 @@ class ApiClient {
   async getTemposImplantacao(id: string) { return this.client.get(`/implantacoes/${id}/tempos`); }
   async abrirEspera(id: string, data: { tipo: string; motivo: string; o_que_resolver?: string; responsavel_nome?: string; responsavel_id?: string }) { return this.client.post(`/implantacoes/${id}/esperas`, data); }
   async resolverEspera(esperaId: string, resposta?: string) { return this.client.post(`/implantacoes/esperas/${esperaId}/resolver`, { resposta }); }
+  async chamadoVoltou(chamadoId: string, data: { funcionou: boolean; motivo?: string; resposta?: string }) { return this.client.post(`/implantacoes/chamados/${chamadoId}/voltou`, data); }
   async getEsperasAbertas() { return this.client.get('/implantacoes/esperas/abertas'); }
   // Portal de implantação e serviços (quadro, ficha, virada, treinamento, correções, avisos, painel, config)
   async getQuadroImplantacao(modulo?: 'IMPLANTACAO' | 'SERVICO' | null) { return this.client.get('/implantacoes/quadro', { params: modulo ? { modulo } : {} }); }
@@ -1006,8 +1007,8 @@ class ApiClient {
   }
   async agendarVirada(id: string, data: { quando: string; duracao_h?: number | null; motivo?: string; motivo_texto?: string; confirmar?: boolean }) { return this.client.post(`/implantacoes/${id}/agendar-virada`, data); }
   async registrarAssistida(id: string, data: { dia: string; vendas_ok: boolean; nfce_ok: boolean; estoque_ok: boolean; observacao?: string }) { return this.client.post(`/implantacoes/${id}/assistida`, data); }
-  async criarTarefaCliente(id: string, data: { padrao?: boolean; lista_usuarios?: boolean; titulo?: string; descricao?: string; prazo?: string; exige_arquivo?: boolean }) { return this.client.post(`/implantacoes/${id}/tarefas-cliente`, data); }
-  async acaoTarefaCliente(tid: string, acao: 'CONCLUIR' | 'DEVOLVER' | 'EXCLUIR' | 'REABRIR', motivo?: string) { return this.client.patch(`/implantacoes/tarefas-cliente/${tid}`, { acao, motivo }); }
+  async criarTarefaCliente(id: string, data: { padrao?: boolean; lista_usuarios?: boolean; titulo?: string; descricao?: string; prazo?: string; exige_arquivo?: boolean; bloqueia_inicio?: boolean }) { return this.client.post(`/implantacoes/${id}/tarefas-cliente`, data); }
+  async acaoTarefaCliente(tid: string, acao: 'CONCLUIR' | 'DEVOLVER' | 'EXCLUIR' | 'REABRIR' | 'BLOQUEIA' | 'NAO_BLOQUEIA', motivo?: string) { return this.client.patch(`/implantacoes/tarefas-cliente/${tid}`, { acao, motivo }); }
   async baixarArquivoTarefaCliente(tid: string) { return this.client.get(`/implantacoes/tarefas-cliente/${tid}/arquivo`, { responseType: 'blob' }); }
   async getResumoSuporte(clienteId: string) { return this.client.get('/implantacoes/resumo-suporte', { params: { cliente_id: clienteId } }); }
   async getIndicadoresImplantacao(mes: string) { return this.client.get('/implantacoes/indicadores', { params: { mes } }); }

@@ -1,5 +1,5 @@
 // Portal de implantação (fase 2): quadro, prazo (SLA), serviços e ficha de coleta. Puro (sem banco).
-import { janelasDaJornada, sobreposicao, diaSP, JORNADA_PADRAO, type Jornada } from './cronometro';
+import { janelasDaJornada, sobreposicao, unirIntervalos, diaSP, JORNADA_PADRAO, type Jornada } from './cronometro';
 
 // Demandas anteriores ao portal (no ar em 02/10/2026): ficam no CRM, mas não geram aviso nenhum
 // (nem ao cliente, nem à gestão/técnico). O quadro mostra só as dos últimos 60 dias.
@@ -162,14 +162,20 @@ export function prazosPadrao(o: { modulo: string; tipo_base?: string | null; ini
   return { prazo_virada: new Date(o.inicio.getTime() + t.virada * 864e5), prazo_finalizacao: new Date(o.inicio.getTime() + t.final * 864e5) };
 }
 
-export type SituacaoSla = { situacao: 'NO_PRAZO' | 'EM_RISCO' | 'ESTOURADO' | 'CUMPRIDO' | 'CUMPRIDO_ATRASO'; pct: number; prazo: Date };
+export type SituacaoSla = { situacao: 'NO_PRAZO' | 'EM_RISCO' | 'ESTOURADO' | 'CUMPRIDO' | 'CUMPRIDO_ATRASO' | 'AGUARDANDO_INICIO'; pct: number; prazo: Date };
 
-/** Situação do prazo: em risco a partir de 80% do tempo, estourado depois do prazo. */
-export function situacaoSla(inicio: Date | null | undefined, prazo: Date | null | undefined, concluido?: Date | null, agora = new Date()): SituacaoSla | null {
+/**
+ * Situação do prazo: em risco a partir de 80% do tempo, estourado depois do prazo.
+ * `pausaMs`: tempo de espera do cliente já somado ao prazo (não conta como tempo usado).
+ * `aguardandoInicio`: pré-requisitos do cliente pendentes, o prazo ainda não começou (30/10/2026).
+ */
+export function situacaoSla(inicio: Date | null | undefined, prazo: Date | null | undefined, concluido?: Date | null, agora = new Date(), o: { pausaMs?: number; aguardandoInicio?: boolean } = {}): SituacaoSla | null {
   if (!inicio || !prazo) return null;
-  const total = prazo.getTime() - inicio.getTime();
+  const pausa = o.pausaMs || 0;
+  const total = prazo.getTime() - inicio.getTime() - pausa;
   if (concluido) return { situacao: concluido <= prazo ? 'CUMPRIDO' : 'CUMPRIDO_ATRASO', pct: 100, prazo };
-  const pct = total > 0 ? Math.round(((agora.getTime() - inicio.getTime()) / total) * 100) : 100;
+  if (o.aguardandoInicio) return { situacao: 'AGUARDANDO_INICIO', pct: 0, prazo };
+  const pct = total > 0 ? Math.round(((agora.getTime() - inicio.getTime() - pausa) / total) * 100) : 100;
   return { situacao: agora > prazo ? 'ESTOURADO' : pct >= 80 ? 'EM_RISCO' : 'NO_PRAZO', pct: Math.max(0, pct), prazo };
 }
 
@@ -893,9 +899,38 @@ export function montarResumoSuporte(p: {
 // ─── Portal completo (05/10/2026): prazo pausado na espera do cliente e indicadores ─────
 
 type EsperaPrazo = { tipo: string; inicio: Date; fim?: Date | null };
-/** Tempo em que a demanda ficou esperando o CLIENTE (abertas contam até agora). Esse tempo não conta contra o técnico. */
+/** Esperas que pausam o prazo do técnico: o cliente no meio do trabalho e os pré-requisitos para começar. */
+export const TIPOS_ESPERA_CLIENTE = ['CLIENTE', 'PRE_REQUISITO'];
+/**
+ * Tempo em que a demanda ficou esperando o CLIENTE (abertas contam até agora). Esse tempo não conta contra o técnico.
+ * Esperas que se sobrepõem (pré-requisito e tarefa vencida ao mesmo tempo) contam uma vez só.
+ */
 export function msEsperaCliente(esperas: EsperaPrazo[], agora = new Date()): number {
-  return esperas.filter(e => e.tipo === 'CLIENTE').reduce((t, e) => t + Math.max(0, (e.fim || agora).getTime() - e.inicio.getTime()), 0);
+  const ints = esperas.filter(e => TIPOS_ESPERA_CLIENTE.includes(e.tipo)).map(e => ({ inicio: e.inicio, fim: e.fim || agora }));
+  return unirIntervalos(ints).reduce((t, i) => t + Math.max(0, i.fim.getTime() - i.inicio.getTime()), 0);
+}
+/** Pré-requisito do cliente ainda pendente: o prazo da demanda não começou. */
+export const aguardandoPreRequisito = (esperas: EsperaPrazo[]) => esperas.some(e => e.tipo === 'PRE_REQUISITO' && !e.fim);
+/** Situação do prazo já com a espera do cliente descontada e os pré-requisitos considerados. */
+export function slaDaDemanda(inicio: Date | null | undefined, prazo: Date | null | undefined, esperas: EsperaPrazo[], concluido?: Date | null, agora = new Date()): SituacaoSla | null {
+  const ate = concluido || agora;
+  return situacaoSla(inicio, prazoAjustado(prazo, esperas, ate), concluido, agora, { pausaMs: msEsperaCliente(esperas, ate), aguardandoInicio: !concluido && aguardandoPreRequisito(esperas) });
+}
+
+/**
+ * Pré-requisitos (30/10/2026, pedido da Jessica): itens do cliente sem os quais o técnico não consegue começar
+ * (equipamento, certificado, contador). Enquanto faltar algum, o prazo não começa: a espera PRE_REQUISITO vai da
+ * assinatura até a entrega do último item, e o prazo é somado com esse tempo (começa do zero na entrega).
+ * Cliente devolveu errado (item volta a pendente): a espera reabre.
+ */
+export const PRE_REQUISITO_PADRAO = /certificado|equipament|computador|contador|contabil/i;
+export const MOTIVO_PRE_REQUISITO = 'Pré-requisitos do cliente';
+export function esperaPreRequisito(inicioDemanda: Date, tarefas: { titulo: string; status: string; enviada_em?: Date | null; concluida_em?: Date | null }[], agora = new Date()) {
+  if (!tarefas.length) return null;
+  const pendentes = tarefas.filter(t => t.status === 'PENDENTE');
+  const entregas = tarefas.map(t => (t.enviada_em || t.concluida_em || agora).getTime());
+  const fim = pendentes.length ? null : new Date(Math.max(inicioDemanda.getTime(), ...entregas));
+  return { inicio: inicioDemanda, fim, motivo: `${MOTIVO_PRE_REQUISITO}: ${(pendentes.length ? pendentes : tarefas).map(t => t.titulo).join('; ')}`.slice(0, 1000), pendentes: pendentes.map(t => t.titulo) };
 }
 /** Prazo com a espera do cliente somada: o relógio do técnico pausa enquanto a loja não entrega o que precisa. */
 export function prazoAjustado(prazo: Date | null | undefined, esperas: EsperaPrazo[], agora = new Date()): Date | null {
@@ -921,6 +956,7 @@ export function alertaPrazoDemanda(i: any, esperas: EsperaPrazo[], agora = new D
   if (!servico && !viradaFeita && i.prazo_virada) { oque = 'virada/instalação'; prazo = new Date(i.prazo_virada); }
   else if (!fimFeito && i.prazo_finalizacao) { oque = servico ? 'conclusão do serviço' : 'finalização'; prazo = new Date(i.prazo_finalizacao); }
   else return null;
+  if (aguardandoPreRequisito(esperas)) return null; // prazo ainda não começou
   const alvo = prazoAjustado(prazo, esperas, agora)!;
   const dias = Math.ceil((alvo.getTime() - agora.getTime()) / 864e5);
   if (dias > antecedenciaDias) return null;

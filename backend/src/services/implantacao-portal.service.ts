@@ -6,14 +6,14 @@ import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { numeroWhatsapp, ultimos8 } from '@/lib/assistente/campanhas';
-import { diaSP, temposDaDemanda } from '@/lib/implantacao/cronometro';
+import { diaSP, temposDaDemanda, ticketsDaDemanda, ESPERAS_INTERNAS } from '@/lib/implantacao/cronometro';
 import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
   statusAssistida, type ModeloChecklist, type ExtraSistema,
   TAREFAS_CLIENTE_PADRAO, TAREFAS_CLIENTE_ANTIGAS, formularioDaTarefa, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
-  prazoAjustado, type MetasIndicadores, INICIO_ASSISTIDA,
+  prazoAjustado, slaDaDemanda, TIPOS_ESPERA_CLIENTE, esperaPreRequisito, PRE_REQUISITO_PADRAO, type MetasIndicadores, INICIO_ASSISTIDA,
   perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, ITEM_PERGUNTAS, type PerfilImplantacao,
   dadosDaFicha, itemPelaFicha, MARCADO_PELA_FICHA,
 } from '@/lib/implantacao/portal';
@@ -575,17 +575,59 @@ export async function criarTarefasClientePadrao(prisma: PrismaClient, imp: any, 
   prazo.setUTCHours(20, 59, 0, 0); // fim do dia (17h59 de Brasília)
   const lista = (cfg.tarefas_cliente || []).filter(t => t.trim().length >= 2);
   if (lista.length) await prisma.implantacaoTarefaCliente.createMany({ data: lista.map(t => dadosTarefaCliente(imp.id, t.trim(), prazo, por)) });
+  if (lista.length) await sincronizarPreRequisito(prisma, imp.id).catch(() => {});
   return lista.length;
 }
 
 /** Item pedido ao cliente: se o título tem formulário próprio, já sai com a explicação e sem exigir arquivo. */
-export function dadosTarefaCliente(implantacaoId: string, titulo: string, prazo: Date | null, por: string, extra: { descricao?: string | null; exige_arquivo?: boolean } = {}) {
+export function dadosTarefaCliente(implantacaoId: string, titulo: string, prazo: Date | null, por: string, extra: { descricao?: string | null; exige_arquivo?: boolean; bloqueia_inicio?: boolean } = {}) {
   const f = formularioDaTarefa(titulo);
-  return { implantacao_id: implantacaoId, titulo, prazo, criada_por: por, descricao: extra.descricao || f?.descricao || null, exige_arquivo: f ? f.exige_arquivo : extra.exige_arquivo ?? true };
+  return { implantacao_id: implantacaoId, titulo, prazo, criada_por: por, descricao: extra.descricao || f?.descricao || null, exige_arquivo: f ? f.exige_arquivo : extra.exige_arquivo ?? true,
+    bloqueia_inicio: extra.bloqueia_inicio ?? PRE_REQUISITO_PADRAO.test(titulo) };
+}
+
+/**
+ * Uma vez só (30/10/2026, "para todos os cards"): os itens já pedidos que impedem começar (certificado, equipamento,
+ * contador) passam a ser pré-requisito, e cada card com eles ganha a espera PRE_REQUISITO desde a assinatura.
+ */
+export async function marcarPreRequisitosAntigos(prisma: PrismaClient) {
+  const CHAVE_FEITO = 'implantacao.prerequisitos_v1';
+  if (await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_FEITO } })) return 0;
+  const todas = await prisma.implantacaoTarefaCliente.findMany({ where: { bloqueia_inicio: false }, select: { id: true, titulo: true, implantacao_id: true } });
+  const marcar = todas.filter(t => PRE_REQUISITO_PADRAO.test(t.titulo));
+  if (marcar.length) await prisma.implantacaoTarefaCliente.updateMany({ where: { id: { in: marcar.map(t => t.id) } }, data: { bloqueia_inicio: true } });
+  for (const id of new Set(marcar.map(t => t.implantacao_id))) await sincronizarPreRequisito(prisma, id).catch(() => {});
+  await prisma.configuracaoIntegracao.create({ data: { chave: CHAVE_FEITO, valor: JSON.stringify({ em: new Date().toISOString(), itens: marcar.length }), updated_by: 'system' } });
+  return marcar.length;
+}
+
+/**
+ * Pré-requisitos (30/10/2026): mantém a espera PRE_REQUISITO igual aos itens do cliente que impedem começar.
+ * Vai da assinatura até a entrega do último item (aberta enquanto faltar algum); sem itens marcados, some.
+ */
+export async function sincronizarPreRequisito(prisma: PrismaClient, implantacaoId: string, agora = new Date()) {
+  const imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId }, select: { data_assinatura: true, created_at: true } });
+  if (!imp) return;
+  const tarefas = await prisma.implantacaoTarefaCliente.findMany({ where: { implantacao_id: implantacaoId, bloqueia_inicio: true }, select: { titulo: true, status: true, enviada_em: true, concluida_em: true } });
+  const atual = await prisma.implantacaoEspera.findFirst({ where: { implantacao_id: implantacaoId, tipo: 'PRE_REQUISITO' }, orderBy: { inicio: 'asc' } });
+  const alvo = esperaPreRequisito(imp.data_assinatura || imp.created_at, tarefas, agora);
+  if (!alvo) { if (atual) await prisma.implantacaoEspera.deleteMany({ where: { implantacao_id: implantacaoId, tipo: 'PRE_REQUISITO' } }); return; }
+  const dia = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  if (!atual) {
+    await prisma.implantacaoEspera.create({ data: { implantacao_id: implantacaoId, tipo: 'PRE_REQUISITO', motivo: alvo.motivo, o_que_resolver: 'O cliente entregar pela página de acompanhamento', inicio: alvo.inicio, fim: alvo.fim, aberta_por_nome: 'Sistema', resolvida_por_nome: alvo.fim ? 'Sistema' : null } });
+    await linha(prisma, implantacaoId, 'NOTA', alvo.fim ? `⏳ Pré-requisitos do cliente entregues em ${dia(alvo.fim)}: o prazo conta a partir daí.` : `⏳ Prazo aguardando os pré-requisitos do cliente: ${alvo.pendentes.join('; ')}`);
+    return;
+  }
+  const mesmoFim = (atual.fim?.getTime() ?? null) === (alvo.fim?.getTime() ?? null);
+  if (mesmoFim && atual.motivo === alvo.motivo && atual.inicio.getTime() === alvo.inicio.getTime()) return;
+  await prisma.implantacaoEspera.update({ where: { id: atual.id }, data: { inicio: alvo.inicio, fim: alvo.fim, motivo: alvo.motivo, resolvida_por_nome: alvo.fim ? 'Sistema' : null, resposta: alvo.fim ? 'Cliente entregou os itens que impediam começar' : null } });
+  if (!atual.fim && alvo.fim) await linha(prisma, implantacaoId, 'NOTA', `✅ Cliente entregou os pré-requisitos: o prazo começa a contar agora (${dia(alvo.fim)}).`);
+  else if (atual.fim && !alvo.fim) await linha(prisma, implantacaoId, 'NOTA', `⏳ Prazo parado de novo: falta o cliente entregar ${alvo.pendentes.join('; ')}`);
 }
 
 /** Ninguém mais devendo nada vencido: fecha a espera "Cliente" aberta sozinha por tarefa vencida. */
 export async function fecharEsperaDeTarefa(prisma: PrismaClient, implantacaoId: string, por = 'Sistema') {
+  await sincronizarPreRequisito(prisma, implantacaoId).catch(() => {});
   const vencidas = await prisma.implantacaoTarefaCliente.count({ where: { implantacao_id: implantacaoId, status: 'PENDENTE', prazo: { lt: new Date() } } });
   if (vencidas) return;
   await prisma.implantacaoEspera.updateMany({ where: { implantacao_id: implantacaoId, tipo: 'CLIENTE', fim: null, motivo: { startsWith: MOTIVO_ESPERA_TAREFA } }, data: { fim: new Date(), resolvida_por_nome: por, resposta: 'Cliente enviou o que faltava pela página de acompanhamento' } });
@@ -636,11 +678,28 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
     if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao.id, origem: 'SISTEMA', texto: `${e.implantacao.cliente_razao_social}: a espera pela programação passou de ${cfg.programacao.lembrete_horas}h úteis. ${cfg.programacao.nome} foi lembrado${cfg.programacao.whatsapp ? '' : ' (sem WhatsApp configurado: avise pessoalmente)'}.` });
   }
 
-  // 2) Prazo (SLA): avisa uma vez quando entra em risco e quando estoura. A espera do cliente pausa o relógio.
-  const esperasCliente = await prisma.implantacaoEspera.findMany({ where: { tipo: 'CLIENTE', implantacao_id: { in: ativas.map(a => a.id) } }, select: { implantacao_id: true, tipo: true, inicio: true, fim: true } });
+  // 1b) Chamado interno que voltou e está em teste há 1 dia útil (jornada de 9h): lembra o técnico de fechar ou devolver.
+  const raizes = await prisma.implantacaoEspera.findMany({ where: { tipo: { in: ESPERAS_INTERNAS }, ticket_id: null, fechado_em: null }, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
+  const rodadasCh = raizes.length ? await prisma.implantacaoEspera.findMany({ where: { ticket_id: { in: raizes.map(r => r.id) } } }) : [];
+  for (const r of raizes) {
+    const rods = [r, ...rodadasCh.filter(x => x.ticket_id === r.id)].sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
+    const t = ticketsDaDemanda(rods, agora)[0];
+    if (!t || t.situacao !== 'EM_TESTE' || !r.implantacao.tecnico_id) continue;
+    const ult = rods[rods.length - 1];
+    const desde = ult.lembrete_em && ult.lembrete_em > ult.fim! ? ult.lembrete_em : ult.fim!;
+    if (horasUteisEntre(desde, agora) < 9) continue;
+    await prisma.implantacaoEspera.update({ where: { id: ult.id }, data: { lembrete_em: agora } });
+    await avisarTecnico(prisma, { para_id: r.implantacao.tecnico_id, implantacao_id: r.implantacao.id, origem: 'SISTEMA', texto: `${r.implantacao.cliente_razao_social}: o chamado ao ${t.setor} voltou e está esperando o seu teste. Marque "Funcionou" ou "Não funcionou" no card.` });
+  }
+
+  // 2) Prazo (SLA): avisa uma vez quando entra em risco e quando estoura. A espera do cliente pausa o relógio
+  // e, com pré-requisito pendente, o prazo nem começou.
+  await marcarPreRequisitosAntigos(prisma).catch(() => {});
+  const esperasCliente = await prisma.implantacaoEspera.findMany({ where: { tipo: { in: TIPOS_ESPERA_CLIENTE }, implantacao_id: { in: ativas.map(a => a.id) } }, select: { implantacao_id: true, tipo: true, inicio: true, fim: true } });
   for (const i of ativas) {
-    const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, esperasCliente.filter(e => e.implantacao_id === i.id), agora);
-    const s = situacaoSla(i.data_assinatura, prazo, null, agora);
+    const esp = esperasCliente.filter(e => e.implantacao_id === i.id);
+    const prazo = prazoAjustado(i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, esp, agora);
+    const s = slaDaDemanda(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, esp, null, agora);
     if (!s || (s.situacao !== 'EM_RISCO' && s.situacao !== 'ESTOURADO')) continue;
     const chave = `${s.situacao}:${prazo!.toISOString().slice(0, 10)}`;
     if (i.sla_aviso === chave) continue;
@@ -873,8 +932,8 @@ export async function responderOtavio(prisma: PrismaClient, token: string, numer
     if (!e) return responder('Não achei esse número na lista. Mande "resolvido" para ver as pendências.');
     const resposta = (m?.[2] || '').trim() || null;
     await prisma.implantacaoEspera.update({ where: { id: e.id }, data: { fim: new Date(), resolvida_por_nome: cfg.programacao.nome, resposta } });
-    await linha(prisma, e.implantacao_id, 'CRONOMETRO', `✅ Fim da espera (programação), resolvido por ${cfg.programacao.nome} pelo WhatsApp${resposta ? `: ${resposta}` : ''}`);
-    if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao_id, origem: 'SISTEMA', prioridade: 'URGENTE', texto: `${cfg.programacao.nome} resolveu a pendência de ${e.implantacao.cliente_razao_social}${resposta ? `: ${resposta}` : ''}. Pode retomar.` });
+    await linha(prisma, e.implantacao_id, 'CRONOMETRO', `🧪 Chamado interno voltou para teste: ${cfg.programacao.nome} marcou como resolvido pelo WhatsApp${resposta ? `: ${resposta}` : ''}`);
+    if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao_id, origem: 'SISTEMA', prioridade: 'URGENTE', texto: `${cfg.programacao.nome} devolveu o chamado de ${e.implantacao.cliente_razao_social}${resposta ? `: ${resposta}` : ''}. Teste e marque "Funcionou" ou "Não funcionou" no card.` });
     registrarAcaoAgente('otavio', `${cfg.programacao.nome} resolveu a pendência de ${e.implantacao.cliente_razao_social}`);
     return responder(`Obrigado! Marquei como resolvida a pendência de ${e.implantacao.cliente_razao_social} e avisei o técnico.`);
   }
@@ -888,7 +947,7 @@ export async function responderOtavio(prisma: PrismaClient, token: string, numer
   const contexto = demandas.map(d => {
     const t = temposDaDemanda(d.sessoes, []);
     const prazo = d.virada_fim_em || d.modulo === 'SERVICO' ? d.prazo_finalizacao : d.prazo_virada;
-    const sla = situacaoSla(d.data_assinatura, prazo, null);
+    const sla = slaDaDemanda(d.data_assinatura, prazo, d.esperas, null);
     const pendentes = d.checklist.filter(c => !c.feito && gruposDoProgresso(d.modulo, d.tipo_base).includes(c.grupo)).map(c => c.titulo);
     return {
       cliente: d.cliente_razao_social, modulo: d.modulo === 'SERVICO' ? `serviço ${TIPOS_SERVICO[d.tipo_servico || 'OUTRO']?.label}` : d.tipo_base === 'CONVERSAO' ? `conversão${d.sistema_anterior ? ` (de ${d.sistema_anterior})` : ''}` : 'banco zerado',
