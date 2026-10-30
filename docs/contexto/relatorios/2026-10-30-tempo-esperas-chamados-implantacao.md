@@ -19,6 +19,7 @@
 ## Verificado
 - `npx vitest run tests/implantacao`: 86 testes ok (11 arquivos), 9 deles novos.
 - `npx tsc --noEmit -p . --rootDir .` (backend) e `npx tsc --noEmit -p .` (frontend): sem erro nos arquivos mexidos.
+- **Publicado em 30/10/2026, 10h45** (`f1da907`): backup `pre-alter-20261030-104155.sql.gz`, ALTER conferido com o `prisma migrate diff` do servidor, `deploy-vps.sh` com pipeline, build, site e API ok; sem erro no log do backend; link do Sinval responde 404.
 - **Não verificado:** tela no navegador (sem foto), `next build` local (fica a cargo da CI), dados reais de produção (a leitura do banco foi bloqueada pela permissão da sessão) e o deploy (ver Pendente).
 
 ## Decisões e porquês
@@ -31,7 +32,7 @@
 - Itens que impedem começar por padrão: certificado, equipamento/computador, contador/contabilidade (`PRE_REQUISITO_PADRAO`).
 
 ## Pendente
-- **Publicar:** backup + os 2 `ALTER TABLE` (no ESTADO.md, entrada de 30/10) + `deploy-vps.sh <hash>`. Depende de a permissão da sessão liberar o acesso à VPS (acesso no arquivo local).
+- Conferir que a marcação inicial dos pré-requisitos rodou (chave `implantacao.prerequisitos_v1`).
 - Depois de publicado: trocar o selo da novidade para "No ar" e conferir na tela um card com pré-requisito pendente.
 - Jessica: dizer se quer outros itens marcados como "impede começar" por padrão e se, no futuro, o N3 e o Sinval marcarão a volta pelo próprio login.
 
