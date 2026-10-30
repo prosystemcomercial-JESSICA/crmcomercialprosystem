@@ -132,8 +132,16 @@ async function avisarGestao(prisma: PrismaClient, chave: string, texto: string, 
   await enviarAvisoGestao(prisma, 'lead_qualificado', texto, { somenteAprovadora: true }).catch(() => {});
 }
 
+/**
+ * O Sinval (desenvolvimento) recebe aviso, lembrete e link das pendências e pode marcar "resolvido"?
+ * 30/10/2026 (Jessica): AINDA NÃO. Por enquanto só o técnico registra e marca a volta dos chamados internos;
+ * nada é enviado ao Sinval. Para ligar no futuro, troque para true.
+ */
+export const SINVAL_RECEBE_CHAMADOS = false;
+
 /** Espera pela programação aberta: avisa o responsável (Sinval) no WhatsApp com o link das pendências. */
 export async function avisarProgramacao(prisma: PrismaClient, esperaId: string, lembrete = false) {
+  if (!SINVAL_RECEBE_CHAMADOS) return false;
   const cfg = await obterConfigPortal(prisma);
   const e = await prisma.implantacaoEspera.findUnique({ where: { id: esperaId }, include: { implantacao: { select: { cliente_razao_social: true, tecnico_nome: true } } } });
   if (!e || e.fim || e.tipo !== 'PROGRAMACAO') return false;
@@ -667,15 +675,17 @@ export async function rodarPortal(prisma: PrismaClient, agora = new Date()) {
   const hoje = diaSP(agora);
   const resumoGestao: string[] = []; // prazos e demandas sem técnico: um único resumo por rodada
 
-  // 1) Esperas da programação sem resposta: lembrete ao responsável e aviso ao técnico e à gestão.
-  const esperas = await prisma.implantacaoEspera.findMany({ where: { tipo: 'PROGRAMACAO', fim: null }, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
+  // 1) Chamado interno (desenvolvimento ou N3) com o setor há mais de X horas úteis: aviso ao técnico e à gestão
+  // (o Sinval só é lembrado se SINVAL_RECEBE_CHAMADOS estiver ligado).
+  const esperas = await prisma.implantacaoEspera.findMany({ where: { tipo: { in: ESPERAS_INTERNAS }, fim: null }, include: { implantacao: { select: { id: true, cliente_razao_social: true, tecnico_id: true } } } });
   for (const e of esperas) {
     if (horasUteisEntre(e.lembrete_em || e.inicio, agora) < cfg.programacao.lembrete_horas) continue;
-    const enviou = await avisarProgramacao(prisma, e.id, true);
+    const enviou = e.tipo === 'PROGRAMACAO' ? await avisarProgramacao(prisma, e.id, true) : false;
     if (!enviou) await prisma.implantacaoEspera.update({ where: { id: e.id }, data: { lembrete_em: agora } });
     const h = Math.round(horasUteisEntre(e.inicio, agora));
-    await avisarGestao(prisma, `espera.${e.id}.${hoje}`, `⏳ *${e.implantacao.cliente_razao_social}* está parada há ${h}h úteis esperando a programação (${cfg.programacao.nome}).\nMotivo: ${e.motivo}`);
-    if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao.id, origem: 'SISTEMA', texto: `${e.implantacao.cliente_razao_social}: a espera pela programação passou de ${cfg.programacao.lembrete_horas}h úteis. ${cfg.programacao.nome} foi lembrado${cfg.programacao.whatsapp ? '' : ' (sem WhatsApp configurado: avise pessoalmente)'}.` });
+    const setor = e.tipo === 'N3' ? 'o N3' : `o desenvolvimento (${cfg.programacao.nome})`;
+    await avisarGestao(prisma, `espera.${e.id}.${hoje}`, `⏳ *${e.implantacao.cliente_razao_social}*: chamado com ${setor} há ${h}h úteis.\nMotivo: ${e.motivo}`);
+    if (e.implantacao.tecnico_id) await avisarTecnico(prisma, { para_id: e.implantacao.tecnico_id, implantacao_id: e.implantacao.id, origem: 'SISTEMA', texto: `${e.implantacao.cliente_razao_social}: o chamado com ${setor} está aberto há ${h}h úteis. Cobre o setor e, quando voltar, marque no card.` });
   }
 
   // 1b) Chamado interno que voltou e está em teste há 1 dia útil (jornada de 9h): lembra o técnico de fechar ou devolver.
@@ -915,7 +925,7 @@ export async function responderOtavio(prisma: PrismaClient, token: string, numer
   const cfg = await obterConfigPortal(prisma);
   if (!cfg.agente_ativo || !texto?.trim()) return false;
   const fim = ultimos8(numero);
-  const ehProgramacao = !!cfg.programacao.whatsapp && ultimos8(cfg.programacao.whatsapp) === fim;
+  const ehProgramacao = SINVAL_RECEBE_CHAMADOS && !!cfg.programacao.whatsapp && ultimos8(cfg.programacao.whatsapp) === fim;
   const tecnicos = await prisma.usuarioCRM.findMany({ where: { status: 'ATIVO', cargo: { in: ['TECNICO_IMPLANTACAO', 'SUPERVISAO_TECNICA'] }, telefone: { not: null } }, select: { id: true, nome: true, telefone: true } });
   const tecnico = tecnicos.find(t => ultimos8((t.telefone || '').replace(/\D/g, '')) === fim);
   if (!ehProgramacao && !tecnico) return false;

@@ -10,7 +10,7 @@ import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, sincronizarPreRequisito, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, sincronizarPreRequisito, SINVAL_RECEBE_CHAMADOS, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -1175,7 +1175,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
 
   const esperasDaProgramacao = async (token: string) => {
     const cfg = await obterConfigPortal(prisma);
-    if (!token || token !== cfg.programacao.token) return null;
+    if (!SINVAL_RECEBE_CHAMADOS || !token || token !== cfg.programacao.token) return null; // link do Sinval desligado por enquanto (30/10/2026)
     const esperas = await prisma.implantacaoEspera.findMany({ where: { tipo: 'PROGRAMACAO', fim: null }, include: { implantacao: { select: { cliente_razao_social: true, tecnico_nome: true, tipo_base: true, sistema_anterior: true } } }, orderBy: { inicio: 'asc' } });
     const resolvidas = await prisma.implantacaoEspera.findMany({ where: { tipo: 'PROGRAMACAO', fim: { gte: new Date(Date.now() - 14 * 864e5) } }, include: { implantacao: { select: { cliente_razao_social: true } } }, orderBy: { fim: 'desc' }, take: 20 });
     return { nome: cfg.programacao.nome, esperas, resolvidas };
@@ -1208,7 +1208,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
   fastify.get('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;
     const cfg = await obterConfigPortal(prisma);
-    return reply.send({ status: 'success', data: { ...cfg, metas: { ...METAS_PADRAO, ...((cfg as any).metas || {}) }, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma), checklist_padrao: CHECKLIST_PADRAO } });
+    return reply.send({ status: 'success', data: { ...cfg, metas: { ...METAS_PADRAO, ...((cfg as any).metas || {}) }, sinval_recebe: SINVAL_RECEBE_CHAMADOS, link_programacao: `${URL_FRONT()}/programacao/${cfg.programacao.token}`, jornada: await obterJornada(prisma), checklist_padrao: CHECKLIST_PADRAO } });
   });
   fastify.put('/implantacoes/portal/config', async (request, reply) => {
     const u = exigirGestao(request, reply); if (!u) return;

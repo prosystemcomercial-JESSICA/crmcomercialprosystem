@@ -182,7 +182,7 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
     const espera = await prisma.implantacaoEspera.create({ data: { implantacao_id: id, ...b.data, aberta_por_id: u.id, aberta_por_nome: u.nome || null } });
     if (b.data.tipo === 'PROGRAMACAO') {
       const { avisarProgramacao } = await import('@/services/implantacao-portal.service');
-      await avisarProgramacao(prisma, espera.id).catch(() => {});
+      await avisarProgramacao(prisma, espera.id).catch(() => {}); // desligado enquanto SINVAL_RECEBE_CHAMADOS = false
     }
     await linhaDoTempo(prisma, id, `⏳ ${NOME_ESPERA[b.data.tipo][0].toUpperCase()}${NOME_ESPERA[b.data.tipo].slice(1)}: ${b.data.motivo}${b.data.o_que_resolver ? ` · Precisa: ${b.data.o_que_resolver}` : ''}${b.data.responsavel_nome ? ` · Com: ${b.data.responsavel_nome}` : ''}`, u);
     return reply.status(201).send({ status: 'success', data: espera });

@@ -2870,13 +2870,15 @@ export function ConfigPortalImplantacao() {
   return (
     <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))', alignItems: 'start' }}>
       <div style={{ ...cartao, padding: 16, display: 'grid', gap: 10 }}>
-        <div style={rotulo}>Programação (quem resolve as esperas)</div>
+        <div style={rotulo}>Desenvolvimento (chamados internos)</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <label style={{ fontSize: 12 }}>Nome<br /><input value={c.programacao.nome} onChange={e => set(['programacao', 'nome'], e.target.value)} className="ps-input" /></label>
-          <label style={{ fontSize: 12 }}>WhatsApp<br /><input value={c.programacao.whatsapp} onChange={e => set(['programacao', 'whatsapp'], e.target.value)} placeholder="27 99999-9999" className="ps-input" /></label>
-          <label style={{ fontSize: 12 }}>Lembrar depois de (horas úteis)<br />{num(c.programacao.lembrete_horas, n => set(['programacao', 'lembrete_horas'], n))}</label>
+          {c.sinval_recebe && <label style={{ fontSize: 12 }}>WhatsApp<br /><input value={c.programacao.whatsapp} onChange={e => set(['programacao', 'whatsapp'], e.target.value)} placeholder="27 99999-9999" className="ps-input" /></label>}
+          <label style={{ fontSize: 12 }}>Avisar o técnico e a gestão depois de (horas úteis)<br />{num(c.programacao.lembrete_horas, n => set(['programacao', 'lembrete_horas'], n))}</label>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Link das pendências (sem login, só as esperas da programação): <code style={{ wordBreak: 'break-all' }}>{c.link_programacao}</code>. Com o WhatsApp preenchido, ele recebe cada pendência na hora, com esse link, e pode responder "resolvido" pelo próprio WhatsApp.</div>
+        {c.sinval_recebe
+          ? <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Link das pendências (sem login, só as esperas da programação): <code style={{ wordBreak: 'break-all' }}>{c.link_programacao}</code>. Com o WhatsApp preenchido, ele recebe cada pendência na hora, com esse link, e pode responder "resolvido" pelo próprio WhatsApp.</div>
+          : <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Por enquanto o desenvolvimento não recebe aviso nem link: só o técnico registra o chamado e marca quando voltou. Passado esse tempo com o chamado aberto (desenvolvimento ou N3), o técnico e a gestão são avisados.</div>}
       </div>
       <div style={{ ...cartao, padding: 16, display: 'grid', gap: 10 }}>
         <div style={rotulo}>Prazos padrão (SLA)</div>

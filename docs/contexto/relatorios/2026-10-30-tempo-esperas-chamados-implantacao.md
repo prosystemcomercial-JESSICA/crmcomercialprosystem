@@ -14,6 +14,8 @@
 - **Relatório "Para onde vai o nosso tempo"** no Painel da gestão: executando x cliente x outros setores, tempo até voltar, taxa de devolução, chamados do cliente e visão por demanda.
 - Arquivos: `backend/prisma/schema.prisma`, `backend/src/lib/implantacao/{cronometro,portal}.ts`, `backend/src/routes/implantacao-{cronometro,portal}.ts`, `backend/src/services/implantacao-portal.service.ts`, `frontend/components/implantacao/{Cronometro,Portal}.tsx`, `frontend/lib/api-client.ts` e `backend/tests/implantacao-tempo-esperas.test.ts`. Commit: veja o `git log` de 30/10 ("feat(implantacao): tempo das demandas…").
 
+- **Depois (mesmo dia):** "O Sinval ainda não vai ter link! Será apenas o técnico por enquanto". `SINVAL_RECEBE_CHAMADOS = false` desliga o aviso, o lembrete, o link e o "resolvido" do Sinval; os lembretes de chamado aberto vão ao técnico e à gestão (desenvolvimento e N3).
+
 ## Verificado
 - `npx vitest run tests/implantacao`: 86 testes ok (11 arquivos), 9 deles novos.
 - `npx tsc --noEmit -p . --rootDir .` (backend) e `npx tsc --noEmit -p .` (frontend): sem erro nos arquivos mexidos.

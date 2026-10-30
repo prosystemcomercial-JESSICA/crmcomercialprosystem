@@ -116,7 +116,7 @@ export function ModalPausa({ onClose }: { onClose: () => void }) {
                 <button disabled={ocupado || semMotivo} onClick={repassar} style={{ ...btn('#d97706'), justifyContent: 'center', minHeight: 40, opacity: semMotivo ? 0.5 : 1 }}>
                   {ocupado ? <Loader2 size={14} className="animate-spin" /> : <Pause size={12} />} Pausar e registrar ({nomeRepasse})
                 </button>
-                <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{repasse === 'CLIENTE' ? 'O prazo para de contar até o cliente responder.' : 'O tempo até voltar fica registrado. Quando voltar, clique em Resolvido na demanda.'}</span>
+                <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>{repasse === 'CLIENTE' ? 'O prazo para de contar até o cliente responder.' : 'O tempo até voltar fica registrado. O setor não é avisado pelo sistema: combine com ele e, quando voltar, marque no card.'}</span>
                 <button onClick={() => setRepasse(null)} style={{ ...btn('#64748b', false), justifyContent: 'center' }}>Não repassei: é uma pausa minha</button>
               </>
             )}

@@ -1549,7 +1549,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 
 **Pausar e repassar: motivo obrigatório**
 - Ao clicar em **Pausar** numa demanda, a janela pergunta: **"A demanda saiu de você? Repassei para:"**
-  - **Desenvolvimento (Sinval)**: algo que só o desenvolvimento resolve (o Sinval continua recebendo o aviso e o link, como antes);
+  - **Desenvolvimento (Sinval)**: algo que só o desenvolvimento resolve;
   - **N3**: algo fora do seu escopo;
   - **Aguardando o cliente**: dados, acesso ou resposta dele.
 - O **motivo é obrigatório**: sem ele, o botão não salva. Escreva também o que precisa ser feito.
@@ -1560,7 +1560,7 @@ Os grupos do menu agora começam fechados a cada abertura ou recarregamento. Voc
 - Quando o setor devolver, abra o card (ou **Meu dia**) e responda:
   - **Voltou e funcionou**: o chamado é fechado;
   - **Voltou com problema**: escreva o que ainda não funciona; o chamado volta para o mesmo setor e conta como uma devolução.
-- Se o Sinval marcar como resolvido pelo link ou pelo WhatsApp, o chamado aparece como **"Voltou: testar"** e você recebe um aviso. Se ficar 1 dia útil sem resposta, o sistema lembra você.
+- Por enquanto o sistema **não avisa o Sinval nem o N3**: combine com eles como de costume e, quando voltar, marque no card. Só o técnico (e a gestão) marca a volta. Se o chamado ficar com o setor além do tempo definido em Configurações, você e a gestão recebem um aviso; se ficar em teste 1 dia útil sem resposta, o sistema lembra você.
 - No resumo do card, **Chamados desta demanda** mostra todos os chamados: os internos (com tempo com o setor, tempo em teste e devoluções) e os do cliente (as tarefas do cliente, com pedido, entrega e devoluções).
 - O prazo da demanda **não para** enquanto o chamado está com o desenvolvimento ou o N3: esse tempo é nosso. Ele aparece separado no relatório.
 
