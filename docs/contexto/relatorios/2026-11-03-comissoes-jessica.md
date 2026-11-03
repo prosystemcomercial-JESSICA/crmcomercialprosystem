@@ -28,6 +28,11 @@ A Jessica pediu primeiro para "montar o que eu vou receber": as instalações e 
 - Erro corrigido: a primeira inserção duplicou os 2 lançamentos da F. P. U. B., porque o `OR` sem parênteses anulou o `NOT EXISTS`. Os 2 foram apagados. Conferido depois: 24 lançamentos, R$ 2.610,20 e nenhuma `origem_id` duplicada.
 - A comissão de venda da Buritis (R$ 270) estava no nome da Sarah Barcelos e passou para a Jessica, a pedido dela, na comissão e no lançamento. Backup: `/root/backups/buritis-comissao-2026-11-03-194904.sql`. Nos próximos relatórios, a orientação dela é não mudar o dono das comissões.
 
+## Continuação: relatório de agosto (pago em 04/08/2026)
+- O relatório é o PDF "Relatorio_Comissao_Jessica_Sarah_2026-08-03": R$ 2.542,00 da Jessica e R$ 150,00 da Sarah. Todas as 19 comissões já estavam PAGA no CRM e nada mudou nelas.
+- No centro de custos, depois do backup `/root/backups/centro-custos-agosto-2026-11-03-195206.sql`, entraram 6 lançamentos (R$ 925), competência 08/2026, e o lançamento da supervisão da Jaru 2 foi corrigido de R$ 94 para R$ 90. Conferido depois: 19 lançamentos, R$ 2.692,00, nenhum duplicado.
+- **A decidir (Jessica):** existem duplicatas em aberto de itens já pagos (Malacacheta, Rede Shopfarma 3, Comunicação de Dados da Santa Helena; detalhes no ESTADO.md). Se ninguém mexer, elas podem entrar num fechamento futuro e ser pagas de novo.
+
 ## Pendente
 - **Jessica:** mandar os meses anteriores para dar baixa.
 - **Técnico:** o centro de custos não tem saídas de comissão desde 08/2026. É preciso investigar por que `sincronizarLancamentosDeComissao` (`backend/src/lib/comissao-fluxo.ts`) não está gerando os lançamentos.
