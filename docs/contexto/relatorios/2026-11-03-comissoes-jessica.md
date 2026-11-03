@@ -26,7 +26,7 @@ A Jessica pediu primeiro para "montar o que eu vou receber": as instalações e 
 - A Jessica mandou https://claude.ai/artifact/AfqnBC7reRjSS2jTJ7VKAe (R$ 2.610,20). As 24 comissões já estavam PAGA no CRM, então nada foi alterado nelas.
 - No centro de custos entraram 20 lançamentos, competência 10/2026, somando R$ 1.940,20. O backup está em `/root/backups/centro-custos-outubro-2026-11-03-194623.sql`. A Santefarma e a F. P. U. B. já existiam.
 - Erro corrigido: a primeira inserção duplicou os 2 lançamentos da F. P. U. B., porque o `OR` sem parênteses anulou o `NOT EXISTS`. Os 2 foram apagados. Conferido depois: 24 lançamentos, R$ 2.610,20 e nenhuma `origem_id` duplicada.
-- **A decidir (Jessica):** a comissão de venda da Buritis (R$ 270) está no nome da Sarah Barcelos.
+- A comissão de venda da Buritis (R$ 270) estava no nome da Sarah Barcelos e passou para a Jessica, a pedido dela, na comissão e no lançamento. Backup: `/root/backups/buritis-comissao-2026-11-03-194904.sql`. Nos próximos relatórios, a orientação dela é não mudar o dono das comissões.
 
 ## Pendente
 - **Jessica:** mandar os meses anteriores para dar baixa.
