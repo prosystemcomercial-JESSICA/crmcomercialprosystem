@@ -22,6 +22,12 @@ A Jessica pediu primeiro para "montar o que eu vou receber": as instalações e 
 - A competência no centro de custos é 11/2026, o mês do pagamento. A sincronização do sistema usaria o `periodo` da comissão (08 a 11/2026). Foi escolhida a data do pagamento porque a Jessica pediu os lançamentos "como pagos".
 - A Prime foi corrigida para R$ 52,50, que é o valor do relatório aprovado por ela.
 
+## Continuação: relatório de outubro (pago em 01/10/2026)
+- A Jessica mandou https://claude.ai/artifact/AfqnBC7reRjSS2jTJ7VKAe (R$ 2.610,20). As 24 comissões já estavam PAGA no CRM, então nada foi alterado nelas.
+- No centro de custos entraram 20 lançamentos, competência 10/2026, somando R$ 1.940,20. O backup está em `/root/backups/centro-custos-outubro-2026-11-03-194623.sql`. A Santefarma e a F. P. U. B. já existiam.
+- Erro corrigido: a primeira inserção duplicou os 2 lançamentos da F. P. U. B., porque o `OR` sem parênteses anulou o `NOT EXISTS`. Os 2 foram apagados. Conferido depois: 24 lançamentos, R$ 2.610,20 e nenhuma `origem_id` duplicada.
+- **A decidir (Jessica):** a comissão de venda da Buritis (R$ 270) está no nome da Sarah Barcelos.
+
 ## Pendente
 - **Jessica:** mandar os meses anteriores para dar baixa.
 - **Técnico:** o centro de custos não tem saídas de comissão desde 08/2026. É preciso investigar por que `sincronizarLancamentosDeComissao` (`backend/src/lib/comissao-fluxo.ts`) não está gerando os lançamentos.
