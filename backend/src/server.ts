@@ -386,6 +386,9 @@ async function iniciarSchedulerAssistente() {
       await registrarConversasNasObservacoes(prismaClient!, agora).catch((e: any) => console.error('[OBS-WPP]', e?.message));
       const { lembrarResponsavelDemo } = await import('./services/assistente-demo.service.js');
       await lembrarResponsavelDemo(prismaClient!, agora).catch((e: any) => console.error('[DEMO] lembrete responsável:', e?.message));
+      // Atividades de marketing (ex.: story com link para postar pelo app): WhatsApp + push ao responsável 1 h antes.
+      const { lembrarResponsavelAtividades } = await import('./services/lembrete-atividade.service.js');
+      await lembrarResponsavelAtividades(prismaClient!, agora).catch((e: any) => console.error('[LEMBRETE-ATIV]', e?.message));
       // Vigia dos backups: avisa a gestão no WhatsApp se o backup do servidor, do computador ou do MEGA falhar/atrasar.
       const { verificarBackups } = await import('./services/backup-monitor.service.js');
       await verificarBackups(prismaClient!).catch((e: any) => console.error('[BACKUP-VIGIA]', e?.message));
