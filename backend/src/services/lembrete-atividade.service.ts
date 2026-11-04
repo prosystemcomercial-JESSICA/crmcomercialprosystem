@@ -7,6 +7,15 @@ import { janelaLembrete, textoLembreteAtividade } from '@/lib/lembrete-atividade
 // pelo app). Vai do número da empresa para o telefone do usuário no CRM, mais o aviso no
 // celular (push). Uma vez por atividade (trava no banco). Não cria atividade nenhuma.
 
+/** Número escolhido pela pessoa só para estes lembretes (chave `lembrete_atividade.telefone.<usuarioId>`);
+ *  sem ele, o telefone do cadastro do usuário. O número fica só no banco, nunca no Git. */
+export async function telefoneDoLembrete(prisma: PrismaClient, usuarioId: string): Promise<string | null> {
+  const cfg = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `lembrete_atividade.telefone.${usuarioId}` } }).catch(() => null);
+  const u = cfg?.valor ? null : await prisma.usuarioCRM.findUnique({ where: { id: usuarioId }, select: { telefone: true } });
+  const fone = (cfg?.valor || u?.telefone || '').replace(/\D/g, '');
+  return fone.length >= 10 ? fone : null;
+}
+
 export async function lembrarResponsavelAtividades(prisma: PrismaClient, agora = new Date()): Promise<number> {
   const ats = await prisma.atividade.findMany({
     where: {
@@ -22,10 +31,10 @@ export async function lembrarResponsavelAtividades(prisma: PrismaClient, agora =
   let n = 0;
   for (const a of ats) {
     if (!(await podeEnviarUmaVez(prisma, `lembrete_atividade_resp.${a.id}`, 24 * 30))) continue;
-    const u = await prisma.usuarioCRM.findUnique({ where: { id: a.responsavel_id! }, select: { telefone: true } });
+    const fone = await telefoneDoLembrete(prisma, a.responsavel_id!);
     const texto = textoLembreteAtividade({ ...a, data_prevista: a.data_prevista! });
-    if (inst?.instance_token && u?.telefone && u.telefone.replace(/\D/g, '').length >= 10) {
-      try { await evo.enviarTexto(inst.instance_token, u.telefone, texto); n++; }
+    if (inst?.instance_token && fone) {
+      try { await evo.enviarTexto(inst.instance_token, fone, texto); n++; }
       catch (e: any) { console.error(`[LEMBRETE-ATIV] WhatsApp ${a.id}:`, e?.message); }
     }
     const hora = a.data_prevista!.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });

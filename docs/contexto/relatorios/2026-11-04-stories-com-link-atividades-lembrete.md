@@ -23,7 +23,8 @@ Jessica, com o link https://claude.ai/artifact/MtYZisF1EKc3gEZrH2YmbC: "Preciso 
 - O commit leva só a minha linha do `server.ts`, porque outra sessão tem mudanças do Heitor sem commit nesse arquivo.
 
 ## Pendente
-- A Jessica autoriza o acesso à produção. Depois: deploy do commit e `node scripts/criar-atividades-stories-link.cjs --gravar` no servidor, antes das 16h de 05/11.
+- A Jessica autoriza o acesso à produção. Depois: deploy do commit e `node scripts/criar-atividades-stories-link.cjs --gravar --telefone=<REMOVIDO>` no servidor (número no arquivo local), antes das 16h de 05/11.
+- Número do lembrete: a Jessica pediu um número próprio para estes avisos. Ele fica na chave `lembrete_atividade.telefone.<usuarioId>`, e o cadastro dela não muda.
 
 ## Próxima sessão
 - Rodar o script sem `--gravar` no servidor e conferir que acha uma única usuária Jessica com telefone cadastrado.

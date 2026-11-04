@@ -39,6 +39,15 @@ function descricao(titulo, link) {
   if (us.length !== 1) { console.log('Esperava 1 usuária Jessica, achei:', us.map(u => u.nome)); process.exit(1); }
   const j = us[0];
   console.log(`Responsável: ${j.nome} (${j.id}) · telefone ${j.telefone ? 'cadastrado' : 'FALTANDO (o lembrete no WhatsApp não sai)'}`);
+  // --telefone=<número>: número só destes lembretes (chave por usuário no banco; não muda o cadastro).
+  const arg = process.argv.find(a => a.startsWith('--telefone='));
+  if (arg) {
+    let fone = arg.split('=')[1].replace(/\D/g, '');
+    if (fone.length <= 11 && !fone.startsWith('55')) fone = `55${fone}`;
+    const chave = `lembrete_atividade.telefone.${j.id}`;
+    if (gravar) await p.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor: fone, updated_by: j.id }, update: { valor: fone, updated_by: j.id } });
+    console.log(`${gravar ? 'gravado' : 'gravaria'} telefone do lembrete: ${fone.slice(0, 4)}…${fone.slice(-4)}`);
+  }
   for (const [dia, titulo, link] of STORIES) {
     const data_prevista = new Date(`${dia}T17:00:00-03:00`);
     const t = `Postar story com link: ${titulo}`;
