@@ -2160,3 +2160,4 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 - Vale para qualquer atividade de marketing com responsável e horário, não só para os stories. Atividade marcada como realizada ou cancelada não é lembrada. Não há mudança de schema.
 $L
 - **Testes:** `backend/tests/lembrete-atividade.test.ts` (2).
+- **Número do lembrete (04/11/2026):** a Jessica escolheu receber estes lembretes num número diferente do cadastro. `telefoneDoLembrete` usa primeiro a chave `lembrete_atividade.telefone.<usuarioId>` (ConfiguracaoIntegracao) e, sem ela, o telefone do usuário. O cadastro não muda (o lembrete das demonstrações continua indo para ele). A chave é gravada pelo script com `--gravar --telefone=<número>`; o número fica só no banco e no arquivo local, nunca no Git.
