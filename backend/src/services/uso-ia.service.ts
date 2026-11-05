@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { somarPorAgente, usoAgenteVazio, type FonteAgente, type UsoAgente } from '@/lib/uso-ia-agentes';
 import { cotaGroqVazia, type CotaGroq } from '@/lib/ia-groq';
+import { custoUsd, tabelaDePrecos } from '@/lib/custo-ia';
 
 // Contador de uso das IAs por dia (OpenAI paga, Grok, Laya local grátis, Whisper local grátis). Conta em
 // memória e grava a cada rodada do agendador em ConfiguracaoIntegracao 'ia.uso.AAAA-MM-DD'.
@@ -19,8 +20,8 @@ export function registrarUsoIa(fonte: FonteIa) {
   pendente[dia][fonte]++;
 }
 
-/** Uma requisição de um assistente: conta a fonte, a falha e os tokens gastos. */
-export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: boolean; tokensEntrada?: number; tokensSaida?: number }) {
+/** Uma requisição de um assistente: conta a fonte, a falha, os tokens gastos e, nas pagas, o custo em dólar. */
+export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: boolean; tokensEntrada?: number; tokensSaida?: number; modelo?: string }) {
   const dia = hojeSP();
   const u = ((pendenteAgentes[dia] ||= {})[agente] ||= usoAgenteVazio());
   u[fonte]++;
@@ -28,6 +29,11 @@ export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: 
   u.tokens_entrada += r.tokensEntrada || 0;
   u.tokens_saida += r.tokensSaida || 0;
   if (fonte === 'groq') u.groq_tokens += (r.tokensEntrada || 0) + (r.tokensSaida || 0);
+  u.custo_gravado++;
+  if ((fonte === 'openai' || fonte === 'grok') && r.modelo) {
+    const usd = custoUsd(tabelaDePrecos(process.env), r.modelo, r.tokensEntrada || 0, r.tokensSaida || 0) || 0;
+    if (fonte === 'openai') u.custo_openai_usd += usd; else u.custo_grok_usd += usd;
+  }
 }
 
 /** O Groq não deu conta (falhou, limite, pedido grande demais) e o pedido foi para a IA paga. */

@@ -169,12 +169,13 @@ async function tentarGeminiGratis(prisma: PrismaClient, p: { sistema: string; pa
 
 async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string; modelo?: string }): Promise<any> {
   const fonte = p.grok ? 'grok' : 'openai';
+  const modelo = p.modelo || (p.grok ? MODELO_XAI : MODELO_OPENAI);
   registrarUsoIa(fonte);
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${p.grok ? chaveXai() : chaveOpenAI()}` },
     body: jsonParaIa({
-      model: p.modelo || (p.grok ? MODELO_XAI : MODELO_OPENAI),
+      model: modelo,
       instructions: p.sistema,
       // No modo JSON a OpenAI exige a palavra "json" na mensagem (não basta nas instruções).
       input: [{ role: 'user', content: p.json ? [...p.conteudo, { type: 'input_text', text: 'Responda em JSON.' }] : p.conteudo }],
@@ -193,7 +194,7 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
   }
   const data = await res.json();
   const t = tokensDaResposta(data);
-  registrarChamadaIa(p.agente, fonte, { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+  registrarChamadaIa(p.agente, fonte, { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida, modelo });
   return data;
 }
 
@@ -202,7 +203,8 @@ async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number
   const ext = extensaoAudio(mime);
   const form = new FormData();
   form.append('file', new Blob([Buffer.from(base64, 'base64')], { type: mime }), `audio.${ext}`);
-  form.append('model', process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe');
+  const modelo = process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-transcribe';
+  form.append('model', modelo);
   form.append('language', 'pt');
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST', headers: { Authorization: `Bearer ${chaveOpenAI()}` }, body: form, signal: AbortSignal.timeout(timeoutMs),
@@ -214,7 +216,7 @@ async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number
   }
   const data: any = await res.json();
   const t = tokensDaResposta(data);
-  registrarChamadaIa(agente, 'openai', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+  registrarChamadaIa(agente, 'openai', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida, modelo });
   const texto = String(data?.text || '').trim();
   if (!texto) throw new Error('A transcrição veio vazia.');
   return texto;

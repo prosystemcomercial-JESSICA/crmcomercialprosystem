@@ -2171,3 +2171,13 @@ Pedido da Jessica: "Conversas desvinculadas do funil não devem ter atuação do
 $L
 - **Testes:** `backend/tests/lembrete-atividade.test.ts` (2).
 - **Número do lembrete (04/11/2026):** a Jessica escolheu receber estes lembretes num número diferente do cadastro. `telefoneDoLembrete` usa primeiro a chave `lembrete_atividade.telefone.<usuarioId>` (ConfiguracaoIntegracao) e, sem ela, o telefone do usuário. O cadastro não muda (o lembrete das demonstrações continua indo para ele). A chave é gravada pelo script com `--gravar --telefone=<número>`; o número fica só no banco e no arquivo local, nunca no Git.
+
+### Atualização 05/11/2026: consumo das chaves pagas de IA em reais
+
+- **Pedido da Jessica:** "No painel de consumo da IA, preciso saber do consumo da chave em dinheiro, em reais".
+- **Como é calculado:** cada chamada paga (OpenAI e Grok) grava o custo em dólar pelo preço de tabela × tokens enviados e recebidos (`registrarChamadaIa` recebe o `modelo`; campos novos `custo_openai_usd`, `custo_grok_usd` e `custo_gravado` em `ia.agentes.<dia>`, sem mudança de schema). Regras puras em `backend/src/lib/custo-ia.ts`. Tabela (US$ por milhão de tokens, conferida em 05/11/2026): `gpt-6-luna` 0,10 / 0,50; `gpt-6-sol` 2,00 / 10,00; `gpt-4o-transcribe` 2,50 / 10,00; `grok-4.7` 2,00 / 6,00. `IA_PRECOS` no `.env` (JSON) troca ou acrescenta modelos. Sem desconto de cache: o valor fica igual ou um pouco acima da fatura. As IAs grátis (Groq, OpenRouter, Gemini, Whisper, Laya) não entram.
+- **Dias antigos:** de 29/10 a 04/11/2026 o custo não era gravado; `custoDoDia` estima pelos tokens de cada assistente (tira os tokens do Groq e divide o resto pelas chamadas de cada IA). No dia da publicação, a parte de antes da medição também é estimada. A tela marca "parte estimada".
+- **Reais:** `services/cotacao-dolar.service.ts` lê a cotação do dólar na AwesomeAPI (grátis, sem chave), no máximo a cada 6 horas, e guarda em `ConfiguracaoIntegracao` `ia.cotacao.usd` para usar se a consulta falhar. `IA_DOLAR` no `.env` fixa a cotação. Sem nada, usa 5,50 e avisa "cotação aproximada".
+- **API:** `GET /relatorios/desempenho` devolve `ia.custo` (`brl`, `usd`, `openai_brl`, `grok_brl`, `cotacao`, `estimado`, `por_dia`, `precos`) e `custo_brl` em cada linha de `ia.por_agente`.
+- **Tela:** em `/desempenho` e em Escritório › Métricas da IA: cartão "Gasto com a IA paga" (total em R$, OpenAI e Grok); na aba ⚡ Uso da IA, o quadro "Consumo das chaves pagas em reais" (total, US$, cotação usada, barras por dia, claras quando estimadas, e os preços usados); na tabela "Uso da IA por assistente", a coluna "Custo (R$)".
+- **Testes:** `backend/tests/custo-ia.test.ts` (8).

@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { requireGestor } from '../lib/scope';
 import { totalPorAgente } from '../lib/uso-ia-agentes';
 import { usoIaPorAgente, carregarCotaGroq } from '../services/uso-ia.service';
+import { custoDoDia, tabelaDePrecos } from '../lib/custo-ia';
+import { cotacaoDolar } from '../services/cotacao-dolar.service';
 
 // Desempenho unificado do setor (gestão): agentes de IA, suas intervenções, compromissos,
 // propostas e uso das IAs, tudo num só lugar e no mesmo período. Só lê dados que o CRM já registra.
@@ -94,7 +96,39 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
     }
     const totalIa = ia.reduce((s, d) => ({ openai: s.openai + d.openai, grok: s.grok + d.grok, laya: s.laya + d.laya, groq: s.groq + d.groq }), { openai: 0, grok: 0, laya: 0, groq: 0 });
     // Por assistente (contado desde 29/10/2026): requisições, falhas e tokens.
-    const porAgente = totalPorAgente(await usoIaPorAgente(prisma, chaves.map(k => k.slice(7))));
+    const usoDias = await usoIaPorAgente(prisma, chaves.map(k => k.slice(7)));
+    const porAgenteSoma = totalPorAgente(usoDias);
+    // Custo da chave em reais (05/11/2026): preço de tabela × tokens, convertido pela cotação do dólar.
+    // Antes de 05/11 o custo não era gravado: é estimado pelos tokens de cada assistente (marcado "estimado").
+    const precos = tabelaDePrecos(process.env);
+    const modelosPagos = { openai: precos[process.env.OPENAI_MODEL || 'gpt-6-luna'], grok: precos[process.env.XAI_MODEL || 'grok-4.7'] };
+    const cotacao = await cotacaoDolar(prisma);
+    const reais = (usd: number) => Math.round(usd * cotacao.valor * 100) / 100;
+    const custoAgente = new Map<string, { openai: number; grok: number }>();
+    const custoDia = new Map<string, { openai: number; grok: number; estimado: boolean }>();
+    for (const d of usoDias) {
+      const cd = { openai: 0, grok: 0, estimado: false };
+      for (const [agente, u] of Object.entries(d.agentes)) {
+        const c = custoDoDia(u, modelosPagos);
+        const t = custoAgente.get(agente) || { openai: 0, grok: 0 };
+        t.openai += c.openai; t.grok += c.grok; custoAgente.set(agente, t);
+        cd.openai += c.openai; cd.grok += c.grok; cd.estimado ||= c.estimado && c.openai + c.grok > 0;
+      }
+      custoDia.set(d.dia, cd);
+    }
+    const porAgente = porAgenteSoma.map(a => {
+      const c = custoAgente.get(a.agente) || { openai: 0, grok: 0 };
+      return { ...a, custo_brl: reais(c.openai + c.grok) };
+    });
+    const usdOpenai = [...custoDia.values()].reduce((s, c) => s + c.openai, 0);
+    const usdGrok = [...custoDia.values()].reduce((s, c) => s + c.grok, 0);
+    const custo = {
+      brl: reais(usdOpenai + usdGrok), usd: Math.round((usdOpenai + usdGrok) * 100) / 100,
+      openai_brl: reais(usdOpenai), grok_brl: reais(usdGrok),
+      cotacao, estimado: [...custoDia.values()].some(c => c.estimado),
+      por_dia: chaves.map(k => k.slice(7)).map(dia => { const c = custoDia.get(dia) || { openai: 0, grok: 0, estimado: false }; return { dia, brl: reais(c.openai + c.grok), estimado: c.estimado }; }),
+      precos: { openai: { modelo: process.env.OPENAI_MODEL || 'gpt-6-luna', ...modelosPagos.openai }, grok: { modelo: process.env.XAI_MODEL || 'grok-4.7', ...modelosPagos.grok } },
+    };
     // Groq grátis (29/10/2026): o que ele respondeu no lugar da paga, quando não deu conta e a cota do dia.
     const groq = {
       respondidas: porAgente.reduce((s, a) => s + a.groq, 0),
@@ -111,7 +145,7 @@ export async function desempenhoRoutes(fastify: FastifyInstance, options: { pris
       data: {
         periodo: { dias, de, ate }, agentes, intervencoes, compromissos,
         outras_atividades: outrasAtividades.map(x => ({ tipo: x.tipo, quantidade: x._count })),
-        propostas, ia: { por_dia: ia, total: totalIa, por_agente: porAgente, groq, sem_custo_pct: todas ? Math.round((gratis / todas) * 100) : 0 },
+        propostas, ia: { por_dia: ia, total: totalIa, por_agente: porAgente, groq, custo, sem_custo_pct: todas ? Math.round((gratis / todas) * 100) : 0 },
         laya,
       },
     });

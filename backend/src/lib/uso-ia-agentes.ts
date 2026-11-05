@@ -12,9 +12,11 @@ export type UsoAgente = {
   /** OpenRouter grátis (29/10/2026): respondidas. */
   openrouter: number;
   falhas: number; tokens_entrada: number; tokens_saida: number;
+  /** Custo em dólar pelo preço de tabela (05/11/2026, lib/custo-ia). custo_gravado = chamadas medidas; 0 = dia antigo, só estimativa. */
+  custo_openai_usd: number; custo_grok_usd: number; custo_gravado: number;
 };
 
-export const usoAgenteVazio = (): UsoAgente => ({ openai: 0, grok: 0, whisper: 0, groq: 0, groq_reserva: 0, groq_tokens: 0, gemini: 0, openrouter: 0, falhas: 0, tokens_entrada: 0, tokens_saida: 0 });
+export const usoAgenteVazio = (): UsoAgente => ({ openai: 0, grok: 0, whisper: 0, groq: 0, groq_reserva: 0, groq_tokens: 0, gemini: 0, openrouter: 0, falhas: 0, tokens_entrada: 0, tokens_saida: 0, custo_openai_usd: 0, custo_grok_usd: 0, custo_gravado: 0 });
 
 // Arquivo de serviço que chamou a IA → assistente. Vale quando a chamada não diz quem é (`agente`).
 const POR_ARQUIVO: Record<string, string> = {
@@ -56,6 +58,7 @@ export function somarPorAgente(a: Record<string, Partial<UsoAgente>>, b: Record<
       t.openai += u.openai || 0; t.grok += u.grok || 0; t.whisper += u.whisper || 0;
       t.groq += u.groq || 0; t.groq_reserva += u.groq_reserva || 0; t.groq_tokens += u.groq_tokens || 0; t.gemini += u.gemini || 0; t.openrouter += u.openrouter || 0;
       t.falhas += u.falhas || 0; t.tokens_entrada += u.tokens_entrada || 0; t.tokens_saida += u.tokens_saida || 0;
+      t.custo_openai_usd += u.custo_openai_usd || 0; t.custo_grok_usd += u.custo_grok_usd || 0; t.custo_gravado += u.custo_gravado || 0;
     }
   }
   return out;

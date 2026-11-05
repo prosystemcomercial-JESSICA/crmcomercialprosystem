@@ -12,7 +12,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 type Agente = { agente: string; nome: string; leads: number; contatados: number; responderam: number; efetivos: number; demos: number; sem_interesse: number; assumidas_por_pessoa: number; taxa_resposta: number; taxa_efetivo: number };
-type UsoAgente = { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; gemini?: number; openrouter?: number; falhas: number; tokens_entrada: number; tokens_saida: number };
+type UsoAgente = { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; gemini?: number; openrouter?: number; falhas: number; tokens_entrada: number; tokens_saida: number; custo_brl?: number };
+type CustoIa = {
+  brl: number; usd: number; openai_brl: number; grok_brl: number; estimado: boolean;
+  cotacao: { valor: number; em: string; fonte: 'fixa' | 'awesomeapi' | 'guardada' | 'aproximada' };
+  por_dia: { dia: string; brl: number; estimado: boolean }[];
+  precos: { openai: { modelo: string; entrada?: number; saida?: number }; grok: { modelo: string; entrada?: number; saida?: number } };
+};
 type Dados = {
   periodo: { dias: number };
   agentes: Agente[];
@@ -23,6 +29,7 @@ type Dados = {
   ia: {
     por_dia: { dia: string; openai: number; grok: number; laya: number; groq?: number }[]; total: { openai: number; grok: number; laya: number; groq?: number }; sem_custo_pct: number;
     por_agente?: UsoAgente[];
+    custo?: CustoIa;
     groq?: { respondidas: number; foram_para_paga: number; tokens: number; ligado: boolean; cota: { limite_dia: number | null; restante_dia: number | null; atualizado_em: number } };
   };
   laya: { acionada: number; confirmacoes: number };
@@ -36,6 +43,7 @@ const ABAS: { id: Aba; rotulo: string }[] = [
 const PERIODOS = [{ d: 1, r: 'Hoje' }, { d: 7, r: 'Últimos 7 dias' }, { d: 30, r: 'Últimos 30 dias' }, { d: 90, r: 'Últimos 90 dias' }];
 const STATUS_PROPOSTA: Record<string, string> = { ENVIADA: 'Enviada', VISUALIZADA: 'Visualizada', EM_NEGOCIACAO: 'Em negociação', ACEITA: 'Aceita', RECUSADA: 'Recusada', PERDIDA: 'Perdida', EXPIRADA: 'Expirada', RASCUNHO: 'Rascunho', CONTRATO_ENVIADO: 'Contrato enviado', CONTRATO_ASSINADO: 'Contrato assinado', CONTRATO_EM_GERACAO: 'Contrato em geração' };
 const fmt = (n: number) => n.toLocaleString('pt-BR');
+const reais = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
 const diaBr = (dia: string) => dia.split('-').reverse().slice(0, 2).join('/');
 const TIPO_ATV: Record<string, string> ={ LIGACAO: 'Ligações', EMAIL: 'E-mails', WHATSAPP: 'WhatsApp', VISITA: 'Visitas', TAREFA: 'Tarefas', OUTRO: 'Outros' };
 // Fontes do gráfico por dia: as grátis em tons de verde/rosa, as pagas em azul/cinza.
@@ -70,6 +78,32 @@ function Numero({ rotulo, valor, sub, onClick }: { rotulo: string; valor: string
 
 /** Barras horizontais de uma série só: nome à esquerda, barra com ponta arredondada, valor escrito.
  *  Com `onEscolher`, cada barra vira botão (ex.: clicar no agente abre o funil dele). */
+// Consumo da chave em reais (05/11/2026): total, por IA paga e por dia, com a cotação usada.
+function ConsumoEmReais({ c }: { c: CustoIa }) {
+  const max = Math.max(0.01, ...c.por_dia.map(p => p.brl));
+  const cot = c.cotacao.fonte === 'fixa' ? 'cotação fixa do servidor' : c.cotacao.fonte === 'aproximada' ? 'cotação aproximada (sem internet)' : `cotação de ${c.cotacao.em ? new Date(c.cotacao.em.replace(' ', 'T')).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'hoje'}`;
+  const preco = (p: { modelo: string; entrada?: number; saida?: number }) => p.entrada != null ? `${p.modelo}: US$ ${p.entrada} (enviados) e US$ ${p.saida} (recebidos) por milhão de tokens` : `${p.modelo}: sem preço cadastrado`;
+  return (
+    <div className="ps-card" style={{ padding: 14, borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t-text-primary)' }}>Consumo das chaves pagas em reais</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)', fontVariantNumeric: 'tabular-nums' }}>{reais(c.brl)}</div>
+        <div style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>OpenAI {reais(c.openai_brl)} · Grok {reais(c.grok_brl)} · US$ {c.usd.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · dólar a {reais(c.cotacao.valor)} ({cot})</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 70, marginTop: 10 }} aria-label="Gasto por dia">
+        {c.por_dia.map(p => (
+          <div key={p.dia} title={`${diaBr(p.dia)}: ${reais(p.brl)}${p.estimado ? ' (estimado)' : ''}`}
+            style={{ flex: 1, minWidth: 2, height: `${Math.max(p.brl ? 4 : 1, (p.brl / max) * 100)}%`, background: p.estimado ? '#fcd34d' : '#d97706', borderRadius: 2 }} />
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--t-text-muted)', marginTop: 8 }}>
+        Valor calculado pelo preço de tabela × tokens gastos ({preco(c.precos.openai)}; {preco(c.precos.grok)}). É uma estimativa: o valor exato é o da fatura da OpenAI e da xAI, que pode ser um pouco menor por desconto de cache. As IAs grátis (Groq, OpenRouter, Gemini, Whisper, Laya) não entram.
+        {c.estimado && ' Barras claras = dias antes de 05/11/2026, quando o custo ainda não era gravado: valor estimado pelos tokens de cada assistente.'}
+      </div>
+    </div>
+  );
+}
+
 function Barras({ titulo, itens, cor = '#2563eb', sufixo = '', onEscolher, escolhido }: {
   titulo: string; itens: { id?: string; rotulo: string; valor: number; dica?: string }[]; cor?: string; sufixo?: string;
   onEscolher?: (id: string) => void; escolhido?: string | null;
@@ -310,6 +344,8 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
             <Numero rotulo="Demonstrações marcadas" valor={d.compromissos.marcados} sub={`${d.compromissos.realizados} realizadas · ${d.compromissos.nao_compareceu} não compareceu`} onClick={() => setAba('compromissos')} />
             <Numero rotulo="Suas intervenções" valor={totalIntervencoes} sub={`${d.intervencoes.editadas} editadas · ${d.intervencoes.refeitas} refeitas · ${d.intervencoes.conversas_assumidas} assumidas`} onClick={() => setAba('geral')} />
             <Numero rotulo="Laya acionada" valor={fmt(d.laya.acionada)} sub={`${d.laya.confirmacoes} confirmações suas`} onClick={() => setAba('ia')} />
+            {d.ia.custo && <Numero rotulo="Gasto com a IA paga" valor={reais(d.ia.custo.brl)} onClick={() => setAba('ia')}
+              sub={`OpenAI ${reais(d.ia.custo.openai_brl)} · Grok ${reais(d.ia.custo.grok_brl)}${d.ia.custo.estimado ? ' · parte estimada' : ''}`} />}
             <Numero rotulo="IA sem custo" valor={`${d.ia.sem_custo_pct}%`} sub={`${d.ia.total.openai} chamadas à OpenAI (paga)`} onClick={() => setAba('ia')} />
             {d.ia.groq?.ligado && <Numero rotulo="Groq (grátis) respondeu" valor={fmt(d.ia.groq.respondidas)} onClick={() => setAba('ia')}
               sub={`${fmt(d.ia.groq.tokens)} tokens sem custo · ${fmt(d.ia.groq.foram_para_paga)} foram para a paga${d.ia.groq.cota.restante_dia != null && d.ia.groq.cota.limite_dia ? ` · cota: ${fmt(d.ia.groq.cota.restante_dia)} de ${fmt(d.ia.groq.cota.limite_dia)} pedidos/dia` : ''}`} />}
@@ -371,6 +407,7 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
           {aba === 'ia' && (
             <div style={{ display: 'grid', gap: 10 }}>
               <GraficoDia pontos={d.ia.por_dia} fontesDisponiveis={fontesDisponiveis} />
+              {d.ia.custo && <ConsumoEmReais c={d.ia.custo} />}
               {/* Uso da IA por assistente (contado desde 29/10/2026): quem fez cada requisição, falhas e tokens. */}
               <section style={grade(300)}>
                 <Barras titulo="Requisições à OpenAI (paga) por assistente" onEscolher={id => setUsoSel(s => s === id ? null : id)} escolhido={usoSel}
@@ -412,6 +449,7 @@ export default function PainelDesempenho({ compacto = false }: { compacto?: bool
                     { id: 'falhas', rotulo: 'Falhas', valor: a => a.falhas, cor: a => a.falhas ? '#dc2626' : undefined },
                     { id: 'tokens_entrada', rotulo: 'Tokens enviados', valor: a => a.tokens_entrada },
                     { id: 'tokens_saida', rotulo: 'Tokens recebidos', valor: a => a.tokens_saida },
+                    { id: 'custo_brl', rotulo: 'Custo (R$)', valor: a => a.custo_brl || 0, mostrar: a => reais(a.custo_brl || 0), cor: a => a.custo_brl ? '#b45309' : undefined },
                   ]} />
                 )}
               </div>
