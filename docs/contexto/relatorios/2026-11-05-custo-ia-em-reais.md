@@ -27,6 +27,12 @@ Jessica: "No Painel de consumo da IA, preciso saber do consumo da Chave em Dinhe
 - Dias de 29/10 a 04/11: os tokens eram somados de todas as IAs do assistente; a estimativa tira os do Groq e divide o resto pelas chamadas de cada IA.
 - Preços tirados de agregadores que citam as páginas oficiais (eesel.ai, anotherwrapper.com, pricepertoken.com): GPT-6 Luna US$ 0,10/0,50; Grok 4.7 US$ 2/6.
 
+## Segunda parte (tarde): painel completo
+- Pedido: "quero o valor total gasto do mês, média diária, dias que mais foi gasto, no que mais gastamos... passar o mouse e ver os gráficos".
+- Feito: `resumoCusto`/`diasDoResumo` em `backend/src/lib/custo-ia.ts`, rota lê o mês atual e o anterior, componente `frontend/components/desempenho/ConsumoIa.tsx`. Detalhes em `docs/produto/*` (Atualização 05/11/2026, tarde).
+- Verificado: 19 testes (`custo-ia` 11 + `uso-ia-agentes` 8), `tsc` limpo no frontend e sem erros novos no backend, print local com dados de exemplo (detalhe ao passar o mouse, filtro por assistente, visão por período). Os valores de produção são conferidos depois do deploy (ver o commit).
+- Decisão: a média do mês e do período ignora os dias antes de 29/10/2026 (sem contagem), para não ficar artificialmente baixa.
+
 ## Pendente
 - Conferir na tela de produção se o total bate com o painel de cobrança da OpenAI (Jessica). Se não bater, ajustar `IA_PRECOS`.
 - Opcional: chave de administrador da OpenAI para mostrar a fatura real.

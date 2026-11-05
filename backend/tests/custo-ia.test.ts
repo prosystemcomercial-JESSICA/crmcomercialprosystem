@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { custoUsd, tabelaDePrecos, estimarCustoAntigo, custoDoDia } from '../src/lib/custo-ia';
+import { custoUsd, tabelaDePrecos, estimarCustoAntigo, custoDoDia, resumoCusto, diasDoResumo } from '../src/lib/custo-ia';
 import { usoAgenteVazio } from '../src/lib/uso-ia-agentes';
 
 const tabela = tabelaDePrecos({});
@@ -49,5 +49,47 @@ describe('custoDoDia', () => {
     const c = custoDoDia(u, modelos);
     expect(c.estimado).toBe(true);
     expect(c.openai).toBeCloseTo(0.01 + 0.2 * 0.5);
+  });
+});
+
+describe('resumoCusto', () => {
+  // 1 chamada à OpenAI medida = US$ 1; cotação 5 → R$ 5.
+  const dia = (usd: number, agente = 'caroline') => ({ [agente]: { ...usoAgenteVazio(), openai: 1, custo_gravado: 1, custo_openai_usd: usd } });
+  const base = { cotacao: 5, modelos, nome: (a: string) => a.toUpperCase() };
+
+  it('mês atual, média só dos dias medidos, projeção e mês anterior', () => {
+    const dias = [
+      { dia: '2026-10-30', agentes: dia(2) },
+      { dia: '2026-11-01', agentes: dia(1) },
+      { dia: '2026-11-02', agentes: {} },
+      { dia: '2026-11-03', agentes: dia(3, 'rafael') },
+    ];
+    const r = resumoCusto({ ...base, dias, periodo: ['2026-11-02', '2026-11-03'], hoje: '2026-11-03' });
+    expect(r.dados_desde).toBe('2026-10-30');
+    expect(r.mes.brl).toBe(20);
+    expect(r.mes.media_dia).toBeCloseTo(20 / 3);
+    expect(r.mes.projecao_brl).toBeCloseTo(Math.round((20 / 3) * 100) / 100 * 30);
+    expect(r.mes.anterior).toEqual({ mes: '2026-10', brl: 10, dias_com_dados: 1, media_dia: 10 });
+    expect(r.mes.por_dia).toHaveLength(30);
+    expect((r.mes.por_dia[10] as any).futuro).toBe(true);
+    expect(r.periodo.brl).toBe(15);
+    expect(r.periodo.top_dias.map(d => d.dia)).toEqual(['2026-11-03']);
+    expect(r.periodo.por_agente).toEqual([expect.objectContaining({ agente: 'rafael', nome: 'RAFAEL', brl: 15, pct: 100, chamadas_pagas: 1, brl_por_chamada: 15 })]);
+    expect(r.periodo.por_dia[1].agentes).toEqual({ rafael: 15 });
+  });
+
+  it('dias antes da primeira contagem não baixam a média', () => {
+    const r = resumoCusto({ ...base, dias: [{ dia: '2026-11-03', agentes: dia(1) }], periodo: ['2026-11-01', '2026-11-02', '2026-11-03'], hoje: '2026-11-03' });
+    expect(r.periodo.media_dia).toBe(5);
+    expect(r.periodo.dias_medidos).toBe(1);
+  });
+
+  it('diasDoResumo junta o período, o mês até hoje e o mês anterior inteiro', () => {
+    const d = diasDoResumo(['2026-09-20'], '2026-11-02');
+    expect(d[0]).toBe('2026-09-20');
+    expect(d).toContain('2026-10-01');
+    expect(d).toContain('2026-10-31');
+    expect(d[d.length - 1]).toBe('2026-11-02');
+    expect(d).toHaveLength(1 + 31 + 2);
   });
 });
