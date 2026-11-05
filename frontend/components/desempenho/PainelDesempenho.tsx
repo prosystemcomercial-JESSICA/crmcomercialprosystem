@@ -15,7 +15,7 @@ type Agente = { agente: string; nome: string; leads: number; contatados: number;
 type UsoAgente = { agente: string; nome: string; openai: number; grok: number; whisper: number; groq?: number; groq_reserva?: number; gemini?: number; openrouter?: number; falhas: number; tokens_entrada: number; tokens_saida: number; custo_brl?: number };
 type CustoIa = {
   brl: number; usd: number; openai_brl: number; grok_brl: number; estimado: boolean;
-  cotacao: { valor: number; em: string; fonte: 'fixa' | 'awesomeapi' | 'guardada' | 'aproximada' };
+  cotacao: { valor: number; em: string; fonte: 'fixa' | 'bcb' | 'frankfurter' | 'guardada' | 'aproximada' };
   por_dia: { dia: string; brl: number; estimado: boolean }[];
   precos: { openai: { modelo: string; entrada?: number; saida?: number }; grok: { modelo: string; entrada?: number; saida?: number } };
 };
@@ -81,7 +81,8 @@ function Numero({ rotulo, valor, sub, onClick }: { rotulo: string; valor: string
 // Consumo da chave em reais (05/11/2026): total, por IA paga e por dia, com a cotação usada.
 function ConsumoEmReais({ c }: { c: CustoIa }) {
   const max = Math.max(0.01, ...c.por_dia.map(p => p.brl));
-  const cot = c.cotacao.fonte === 'fixa' ? 'cotação fixa do servidor' : c.cotacao.fonte === 'aproximada' ? 'cotação aproximada (sem internet)' : `cotação de ${c.cotacao.em ? new Date(c.cotacao.em.replace(' ', 'T')).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'hoje'}`;
+  const quando = c.cotacao.em.length > 10 ? new Date(c.cotacao.em.replace(' ', 'T')).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : c.cotacao.em ? diaBr(c.cotacao.em) : 'hoje';
+  const cot = c.cotacao.fonte === 'fixa' ? 'cotação fixa do servidor' : c.cotacao.fonte === 'aproximada' ? 'cotação aproximada (sem internet)' : `${c.cotacao.fonte === 'frankfurter' ? 'Banco Central Europeu' : 'Banco Central'}, ${quando}`;
   const preco = (p: { modelo: string; entrada?: number; saida?: number }) => p.entrada != null ? `${p.modelo}: US$ ${p.entrada} (enviados) e US$ ${p.saida} (recebidos) por milhão de tokens` : `${p.modelo}: sem preço cadastrado`;
   return (
     <div className="ps-card" style={{ padding: 14, borderRadius: 12, minWidth: 0 }}>
