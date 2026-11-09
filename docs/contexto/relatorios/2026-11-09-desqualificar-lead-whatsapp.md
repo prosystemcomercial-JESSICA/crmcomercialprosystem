@@ -13,7 +13,7 @@ Jessica: "Incluir desqualificar o lead na tela de whatsapp pedindo o motivo e pr
 ## Verificado
 - `npx vitest run tests/desqualificar-lead.test.ts tests/fora-do-funil.test.ts`: 7 de 7 passam.
 - Checagem de tipos: nenhum erro novo nos arquivos mudados (backend e frontend); os erros que aparecem em `routes/whatsapp.ts` e `relatorio-comercial.ts` são antigos, em outras linhas.
-- Deploy e teste na tela de produção: ver ESTADO.md (registrado depois do deploy).
+- Deploy `06ece3a` na VPS em 09/11 (backup, "banco sem alterações", build ok, PM2 online); o botão "Desqualificar lead" está no frontend publicado e a rota nova responde (401 sem login). Não verificado: desqualificar um lead de verdade pela tela (não usei dados reais).
 
 ## Decisões e porquês
 - Desqualificar = marcar **Perdido** com motivo, reaproveitando o campo `motivo_perda` e o formato da tela de Leads (`CHAVE` ou `CHAVE: detalhe`), para os dados caírem nos relatórios que já existem.
