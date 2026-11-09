@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { FecharLeadModal } from '@/components/ui/FecharLeadModal';
 import { showToast } from '@/components/ui/Toast';
+import { MOTIVOS_PERDA } from '@/lib/motivos-perda';
 import {
   Plus, Search, X, RefreshCw, Phone, Mail, MapPin, User,
   Building2, FileText, MessageSquare, Loader2, Send,
@@ -196,15 +197,6 @@ const TIPOS_LOJA_PROP = ['Nova Implantação', 'Migração', 'Upgrade', 'Filial'
 const ORIGENS_PROP = ['Indicação', 'Prospecção', 'WhatsApp', 'Visita', 'Tráfego Pago', 'Cliente Antigo', 'Evento'];
 const SEGMENTOS_PROP = ['Varejo', 'Supermercado', 'Farmácia', 'Drogaria', 'Padaria', 'Restaurante', 'Posto de Combustível', 'Autopeças', 'Outro'];
 
-const MOTIVOS_PERDA = [
-  { value: 'PRECO', label: 'Preço' },
-  { value: 'JA_TEM_FORNECEDOR', label: 'Já tem fornecedor' },
-  { value: 'SEM_ORCAMENTO', label: 'Sem orçamento' },
-  { value: 'TIMING', label: 'Timing não é agora' },
-  { value: 'SEM_INTERESSE', label: 'Sem interesse' },
-  { value: 'FUNCIONALIDADE_AUSENTE', label: 'Funcionalidade ausente' },
-  { value: 'OUTRO', label: 'Outro' },
-];
 
 const MENSAGENS_PROP: Record<string, { titulo: string; hero: string; valor: string }[]> = {
   farmacia: [

@@ -497,6 +497,7 @@ export async function relatorioComercialRoutes(fastify: FastifyInstance, options
     TIMING: 'Timing não é agora',
     SEM_INTERESSE: 'Sem interesse',
     FUNCIONALIDADE_AUSENTE: 'Funcionalidade ausente',
+    FORA_DO_PERFIL: 'Fora do perfil',
     OUTRO: 'Outro',
   };
 

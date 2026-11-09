@@ -16,6 +16,7 @@ import ProximaAcao from '@/components/whatsapp/ProximaAcao';
 import { ResumoNumeros as BolinhasNumeros, formatarNumero, type NumeroResumo } from '@/components/whatsapp/BolinhasNumeros';
 import { MidiaMensagem } from '@/components/whatsapp/MidiaMensagem';
 import { ResumoIa, SugerirRespostaBtn, TranscricaoAudio } from '@/components/whatsapp/IaConversa';
+import { MOTIVOS_PERDA } from '@/lib/motivos-perda';
 
 interface Conversa {
   id: string;
@@ -241,6 +242,8 @@ export default function WhatsappPage() {
   const [assumindo, setAssumindo] = useState(false);
   const [dragConvId, setDragConvId] = useState<string | null>(null);
   const [showReuniao, setShowReuniao] = useState(false);
+  // Desqualificar o lead pela conversa, com motivo obrigatório (09/11/2026).
+  const [desq, setDesq] = useState<{ motivo: string; detalhe: string; salvando: boolean; erro: string } | null>(null);
   const [reuniao, setReuniao] = useState({ data: '', duracao_minutos: 60, link: '', titulo: 'Reunião ProSystem' });
   const [salvandoReuniao, setSalvandoReuniao] = useState(false);
   // Vincular conversa a um cliente da base (+ registrar contato com cargo)
@@ -556,6 +559,19 @@ export default function WhatsappPage() {
       setAtiva(prev => prev?.id === ativa.id ? { ...prev, lead_id: null, fora_do_funil_em: fora, atendente_ia: null } : prev);
       setConversas(prev => prev.map(c => c.id === ativa.id ? { ...c, lead_id: null, fora_do_funil_em: fora, atendente_ia: null } : c));
     } catch (e: any) { console.error('Falha ao desvincular', e); }
+  };
+
+  const desqualificarLead = async () => {
+    if (!ativa || !desq) return;
+    setDesq(d => d && { ...d, salvando: true, erro: '' });
+    try {
+      await apiClient.desqualificarLeadConversa(ativa.id, desq.motivo, desq.detalhe.trim() || undefined);
+      setAtiva(prev => prev?.id === ativa.id ? { ...prev, bot_ativo: false, atendente_ia: null } : prev);
+      setDesq(null);
+      alert('Lead desqualificado. O motivo ficou salvo no lead.');
+    } catch (e: any) {
+      setDesq(d => d && { ...d, salvando: false, erro: e?.response?.data?.message || 'Não foi possível desqualificar agora.' });
+    }
   };
 
   // Abrir modal de vincular cliente: pré-preenche o nome com o do contato.
@@ -1228,6 +1244,7 @@ export default function WhatsappPage() {
                           { t: 'Agendar reunião', f: () => setShowReuniao(true), ver: true },
                           { t: 'Prioridade', f: () => setMenuPrioridade(true), ver: true },
                           { t: 'Etiquetar', f: () => setMenuEtiqueta(true), ver: true },
+                          { t: 'Desqualificar lead', f: () => setDesq({ motivo: '', detalhe: '', salvando: false, erro: '' }), ver: !!ativa.lead_id },
                           { t: 'Desvincular do funil', f: desvincularFunil, ver: !!ativa.lead_id },
                           { t: 'Pedir análise ao Rafael', f: pedirAnaliseRafael, ver: podeTransferir },
                         ].filter(b => b.ver).map(b => (
@@ -1255,6 +1272,7 @@ export default function WhatsappPage() {
                                 acao('Agendar reunião', () => setShowReuniao(true)),
                                 acao('Vincular a cliente da base', abrirVincCliente),
                                 podeTransferir && acao('Transferir vendedor', () => { abrirTransferir(); setMenuEtiqueta(false); }),
+                                ativa.lead_id && acao('Desqualificar lead', () => setDesq({ motivo: '', detalhe: '', salvando: false, erro: '' })),
                                 ativa.lead_id && acao('Desvincular do funil', desvincularFunil),
                                 podeTransferir && acao('Pedir análise ao Rafael', pedirAnaliseRafael),
                                 acao('Excluir conversa', () => excluirConversa(ativa.id), true),
@@ -1798,6 +1816,33 @@ export default function WhatsappPage() {
               <button onClick={() => setShowReuniao(false)} className="px-4 py-2 text-sm ">Cancelar</button>
               <button onClick={agendarReuniao} disabled={salvandoReuniao} className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#2563eb' }}>
                 {salvandoReuniao ? 'Agendando…' : 'Agendar e enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {desq && ativa && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Desqualificar lead">
+          <div className="ps-card rounded-lg p-5 w-full max-w-md">
+            <h3 className="text-sm font-semibold mb-1">Desqualificar lead</h3>
+            <p className="text-sm mb-4">{nomeContato(ativa)} sai do funil como perdido e os agentes param de falar com ele. O motivo fica salvo para os relatórios.</p>
+            <label htmlFor="desq-motivo" className="block text-xs font-medium mb-1">Motivo *</label>
+            <select id="desq-motivo" value={desq.motivo} onChange={e => setDesq(d => d && { ...d, motivo: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3">
+              <option value="">Selecione…</option>
+              {MOTIVOS_PERDA.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+            <label htmlFor="desq-detalhe" className="block text-xs font-medium mb-1">{desq.motivo === 'OUTRO' ? 'Descreva o motivo *' : 'Detalhe (opcional)'}</label>
+            <textarea id="desq-detalhe" value={desq.detalhe} onChange={e => setDesq(d => d && { ...d, detalhe: e.target.value })} rows={3} maxLength={500}
+              placeholder="Ex.: é distribuidora, não tem loja; já usa o sistema X"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3 resize-none" />
+            {desq.erro && <p className="text-xs text-red-600 mb-3">{desq.erro}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDesq(null)} className="px-4 py-2 text-sm">Cancelar</button>
+              <button onClick={desqualificarLead} disabled={desq.salvando || !desq.motivo || (desq.motivo === 'OUTRO' && !desq.detalhe.trim())}
+                className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ background: '#dc2626' }}>
+                {desq.salvando ? 'Salvando…' : 'Desqualificar'}
               </button>
             </div>
           </div>

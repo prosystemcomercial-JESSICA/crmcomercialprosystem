@@ -437,7 +437,7 @@ Tudo vale só abaixo de 768px, com classes `ios-*` em `app/ios.css`. No computad
   - barra de navegação translúcida com "‹ Conversas", nome, ⓘ (detalhes) e ⋯ (ações);
   - bolhas de 18pt de raio, enviadas em azul do sistema e recebidas em cinza #E9E9EB, texto de 17pt;
   - campo de mensagem em pílula na barra translúcida, com área segura.
-- **Folha de ações ⋯** (padrão action sheet): Assumir, Finalizar/Reabrir, Detalhes do atendimento, Prioridade, Etiquetar, Agendar reunião, Vincular a cliente da base, Transferir, Desvincular do funil, Excluir (em vermelho) e Cancelar. A fileira de botões só aparece no computador (`hidden md:contents`).
+- **Folha de ações ⋯** (padrão action sheet): Assumir, Finalizar/Reabrir, Detalhes do atendimento, Prioridade, Etiquetar, Agendar reunião, Vincular a cliente da base, Transferir, Desqualificar lead (com motivo), Desvincular do funil, Excluir (em vermelho) e Cancelar. A fileira de botões só aparece no computador (`hidden md:contents`).
 - **Detalhes ⓘ:** o painel lateral (Criar proposta, Observações, IA, funil etc.) abre como folha em tela cheia, com cabeçalho "Detalhes" e botão OK (estado `painelMobile`).
 - **Leads:**
   - título grande "Central de Leads";
@@ -1598,3 +1598,11 @@ $L
 - **Tela:** componente novo `frontend/components/desempenho/ConsumoIa.tsx`, na aba ⚡ Uso da IA (Desempenho e Escritório › Métricas da IA), no lugar do quadro simples. Botões "Este mês" e "Período escolhido". Cartões: gasto do mês (OpenAI e Grok), média por dia com a variação contra o mês anterior, previsão do mês, mês passado, dia de maior gasto, quem mais gastou e custo por chamada paga. Gráfico "Gasto por dia" com colunas OpenAI + Grok, linha tracejada da média e valor do dia de pico. Ao passar o mouse (ou com o teclado), aparece o detalhe do dia: total, OpenAI, Grok, chamadas pagas e os 3 assistentes que mais gastaram. "No que mais gastamos": ranking por assistente, e o clique filtra o gráfico de dias para aquele assistente. "Dias de maior gasto": os 5 maiores; passar o mouse destaca a coluna. "Por IA paga" (barra dividida) e "Média por dia da semana". O cartão do topo virou "Gasto com IA paga no mês" (média e previsão).
 - **Testes:** `backend/tests/custo-ia.test.ts` passa a ter 11.
 - **Para a Jessica:** em **Desempenho do setor › ⚡ Uso da IA**, o quadro "💰 Consumo das IAs pagas em reais" mostra o gasto do mês, a média por dia, a previsão até o fim do mês e a comparação com o mês passado. Passe o mouse sobre uma coluna do gráfico para ver o dia: quanto foi OpenAI, quanto foi Grok e quais assistentes mais gastaram. Clique num assistente em "No que mais gastamos" para ver só o dia a dia dele (clique de novo, ou em "Só … ✕", para voltar). Os botões "Este mês" e "Período escolhido" trocam o que o gráfico e os rankings mostram.
+
+### Novidade 09/11/2026: desqualificar o lead pelo WhatsApp, com motivo
+
+- Na conversa, abra o menu **…** (no celular, a folha de ações) e clique em **Desqualificar lead**. A opção só aparece quando a conversa tem lead no funil.
+- Escolha o **motivo** (Preço, Já tem fornecedor, Sem orçamento, Timing não é agora, Sem interesse, Funcionalidade ausente, Fora do perfil ou Outro). Se quiser, escreva um detalhe (ex.: "é distribuidora, não tem loja"). Em "Outro", o detalhe é obrigatório.
+- O lead vai para **Perdido** com o motivo, e os agentes param de falar com esse contato. A conversa continua no Inbox; quem responde é a equipe.
+- O motivo fica salvo no lead, com quem desqualificou e quando, para os relatórios de motivos de perda.
+- Diferença para **Desvincular do funil**: desvincular é para contato que não é venda (fornecedor, pessoal, suporte). Desqualificar é para lead de venda que não serve, e guarda o porquê.

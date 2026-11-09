@@ -13,7 +13,7 @@ import {
   whereListaConversas, whereAcaoConversa, whereLeituraConversa,
 } from '@/lib/whatsapp-empresa';
 import { TIPOS_CONTATO, decidirIdentificacao } from '@/lib/whatsapp-identificar';
-import { dadosSairDoFunil as dadosSairDoFunilSvc, vincularContatoCliente as vincularContatoClienteSvc } from '@/services/whatsapp-vinculo.service';
+import { dadosSairDoFunil as dadosSairDoFunilSvc, vincularContatoCliente as vincularContatoClienteSvc, desqualificarLead } from '@/services/whatsapp-vinculo.service';
 import { responderConfirmacaoCliente, limparConfirmacaoPendente, chaveConversa } from '@/services/whatsapp-confirmacao-cliente.service';
 import { serializarPorChave } from '@/lib/serializar';
 import { agendarAnaliseIa, textoParaIa } from '@/services/laya.service';
@@ -23,6 +23,7 @@ import { parseEvolutionEvento } from '@/lib/evolution-webhook-parser';
 import * as gratis from '@/services/whatsapp-gratis.service';
 import { instanciaDonaDoContato, limparCacheInstancias } from '@/services/whatsapp-roteador.service';
 import { VAGAS, NOMES_NUMEROS_EMPRESA, vagaPorNome, limiteDoDia, AVISO_LICENCA_GRATIS, chaveServidorDaVaga, normalizarServidorUazapi } from '@/lib/whatsapp-vagas';
+import { MOTIVOS_PERDA } from '@/lib/assistente/sdr';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'INTERESSADO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
@@ -748,6 +749,28 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     const upd = await prisma.whatsappConversa.update({ where: { id }, data: await dadosSairDoFunil(conversa, { semAgentes: true }) });
     emitirEventoConversa(upd.dono_id, 'conversa_atualizada', { conversaId: id });
     return reply.send({ status: 'success', data: { fora_do_funil_em: upd.fora_do_funil_em } });
+  });
+
+  // Desqualificar o lead pela conversa (pedido da Jessica, 09/11/2026): motivo obrigatório,
+  // guardado no lead (motivo_perda, mesmo formato da tela de Leads) e na tabela LeadPerda
+  // (quem, quando, valor). O lead continua vinculado; os agentes param de falar com o contato.
+  fastify.post('/whatsapp/conversas/:id/desqualificar', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      motivo: z.enum([...MOTIVOS_PERDA, 'FORA_DO_PERFIL']),
+      detalhe: z.string().trim().max(500).optional(),
+    }).refine(b => b.motivo !== 'OUTRO' || !!b.detalhe, { message: 'Descreva o motivo.' }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ status: 'error', message: body.error.issues[0]?.message || 'Informe o motivo.' });
+
+    const conversa = await prisma.whatsappConversa.findFirst({ where: { id, ...escopoDono(request) } });
+    if (!conversa) return reply.status(404).send({ status: 'error', message: 'Conversa não encontrada' });
+    if (!conversa.lead_id) return reply.status(400).send({ status: 'error', message: 'Esta conversa não tem lead no funil.' });
+    const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id } });
+    if (!lead) return reply.status(404).send({ status: 'error', message: 'Lead não encontrado' });
+
+    const motivoPerda = await desqualificarLead(prisma, id, lead, body.data.motivo, body.data.detalhe, getUser(request));
+    emitirEventoConversa(conversa.dono_id, 'conversa_atualizada', { conversaId: id });
+    return reply.send({ status: 'success', data: { motivo_perda: motivoPerda } });
   });
 
   // Tira a conversa do funil / vincula ao cliente: ver whatsapp-vinculo.service.

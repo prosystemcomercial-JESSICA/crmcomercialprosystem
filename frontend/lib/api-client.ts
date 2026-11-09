@@ -1522,6 +1522,9 @@ class ApiClient {
   async desvincularConversaFunil(id: string) {
     return this.client.post(`/whatsapp/conversas/${id}/desvincular`);
   }
+  async desqualificarLeadConversa(id: string, motivo: string, detalhe?: string) {
+    return this.client.post(`/whatsapp/conversas/${id}/desqualificar`, { motivo, detalhe });
+  }
   async agendarReuniaoWhatsapp(id: string, data: { data: string; duracao_minutos?: number; link?: string; titulo?: string; mensagem?: string }) {
     return this.client.post(`/whatsapp/conversas/${id}/reuniao`, data);
   }
