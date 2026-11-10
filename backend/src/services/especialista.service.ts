@@ -677,6 +677,8 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const hora = Number(partes.find(p => p.type === 'hour')?.value);
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
   const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  // Teto mensal de IA (10/11/2026): aviso único ao passar de 80% e ao estourar.
+  await import('./escritorio-painel.service').then(m => m.verificarTetoIa(prisma, agora)).catch(e => console.error('[IA] teto:', e?.message));
   // Reunião diária da equipe conduzida pelo Rafael (06/10/2026): dias úteis, das 8h às 10h, uma vez por dia.
   if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 8 && hora < 10 && await podeEnviarUmaVez(prisma, `rafael.reuniao.${hoje}`, 20)) {
     const { reuniaoDaEquipe } = await import('./equipe.service');

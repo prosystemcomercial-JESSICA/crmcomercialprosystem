@@ -8,9 +8,11 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 // e a própria mesa. Rotas pelos corredores (não atravessam mesas). Relógio com a
 // hora real e janela que muda de dia para noite no horário de São Paulo.
 
+// erro (10/11/2026): pausado pelo motor ou só falhando; fica na mesa com a luz vermelha e o motivo no balão.
+// precisa: há algo esperando a Jessica (balão amarelo "precisa de você").
 export type AgenteSala = {
-  id: string; nome: string; cor: string; status: 'trabalhando' | 'parado' | 'desligado';
-  ultima: { texto: string } | null;
+  id: string; nome: string; cor: string; status: 'trabalhando' | 'parado' | 'desligado' | 'erro';
+  ultima: { texto: string } | null; erro?: string | null; precisa?: string | null;
 };
 
 const LARG = 62, ALT = 36;
@@ -23,7 +25,7 @@ const ALA_X = 16.3;                         // a partir daqui: sala de reunião 
 const CORREDOR_ALA_Y = 3.85;                // corredor entre as duas salas
 const VELOCIDADE = 1.5;                     // células por segundo
 const AMARELO = '#f6c90e', AMARELO_SOMBRA = '#d9ac00';
-const COR_STATUS = { trabalhando: '#22c55e', parado: '#eab308', desligado: '#94a3b8' } as const;
+const COR_STATUS = { trabalhando: '#22c55e', parado: '#eab308', desligado: '#94a3b8', erro: '#ef4444' } as const;
 
 type P = { x: number; y: number };
 const iso = (x: number, y: number) => ({ x: (x - y) * LARG, y: (x + y) * ALT });
@@ -60,9 +62,11 @@ const mesaDe = (i: number) => {
 
 // O Rafael trabalha na sala dele (ala nova); os demais nas fileiras.
 const MESA_RAFAEL = { bx: 22.6, by: 1.3 };
-const mesaDeAgente = (id: string, i: number) => id === 'rafael'
+// A vaga nas fileiras pula o Rafael (10/11/2026): com 17 agentes a Joana caía numa 5ª fileira fora da sala
+// e o caminho dela virava NaN quando saía da mesa.
+const mesaDeAgente = (id: string, i: number, lista: { id: string }[]) => id === 'rafael'
   ? { bx: MESA_RAFAEL.bx, by: MESA_RAFAEL.by, lin: null as number | null, assento: { x: MESA_RAFAEL.bx + 0.62, y: MESA_RAFAEL.by - 0.38 } }
-  : mesaDe(i) as { bx: number; by: number; lin: number | null; assento: P };
+  : mesaDe(i - (lista.slice(0, i).some(x => x.id === 'rafael') ? 1 : 0)) as { bx: number; by: number; lin: number | null; assento: P };
 
 // Salas da ala direita.
 const MESA_REUNIAO = { x: 18.6, y: 1.75 };
@@ -271,9 +275,12 @@ type Props = {
   onVerTrabalho?: (id: string) => void;
   onChamar?: (id: string) => void;
   onLiberar?: (id: string) => void;
+  /** Setor escolhido no menu: os outros agentes ficam esmaecidos. */
+  destacar?: string[] | null;
 };
 
-export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar, zoom = 1, conversas = [] }: Props) {
+export default function SalaIsometrica({ agentes, selecionado, onSelecionar, chamados = {}, onVerTrabalho, onChamar, onLiberar, zoom = 1, conversas = [], destacar = null }: Props) {
+  const apagado = (id: string) => !!destacar && !destacar.includes(id);
   const agora = useRelogio();
   const estados = useRef<Record<string, Estado>>({});
   const agentesRef = useRef(agentes);
@@ -321,7 +328,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
       const lugarReuniao = (i: number) => LUGARES_REUNIAO[i % LUGARES_REUNIAO.length];
       let naSala = 0;
       lista.forEach((a, i) => {
-        const m = mesaDeAgente(a.id, i);
+        const m = mesaDeAgente(a.id, i, lista);
         let e = estados.current[a.id];
         if (!e) { e = estados.current[a.id] = { pos: { ...m.assento }, caminho: [], atividade: 'mesa', vaga: null, ate: agoraMs + 3000 + Math.random() * 6000, andando: false, chamado: null }; }
         const naMesa = e.atividade === 'mesa' && !e.caminho.length;
@@ -511,7 +518,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     </g>) });
 
   agentes.forEach((a, i) => {
-    const { bx, by, assento } = mesaDeAgente(a.id, i);
+    const { bx, by, assento } = mesaDeAgente(a.id, i, agentes);
     const e = estados.current[a.id];
     const pos = e?.pos || assento;
     const sentado = !e || (e.atividade === 'mesa' && !e.andando && Math.hypot(pos.x - assento.x, pos.y - assento.y) < 0.05);
@@ -520,10 +527,11 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     const trabalhando = a.status === 'trabalhando';
     const poseMesa: Pose = a.status === 'desligado' ? 'dormindo' : trabalhando ? 'digitando' : 'sentado';
     const topoMesa = iso(bx + 0.62, by + 0.12);
+    const opacidade = apagado(a.id) ? 0.28 : 1;
 
     // Mesa (com o boneco sentado, se ele estiver nela).
     itens.push({ k: bx + by + 0.6, el: (
-      <g key={`mesa-${a.id}`} className="mesa" tabIndex={0} role="button" aria-label={`Mesa de ${a.nome}`} onClick={() => onSelecionar(a.id)}
+      <g key={`mesa-${a.id}`} className="mesa" opacity={opacidade} tabIndex={0} role="button" aria-label={`Mesa de ${a.nome}${a.status === 'erro' ? ': com erro' : ''}`} onClick={() => onSelecionar(a.id)}
         onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelecionar(a.id); } }}>
         {sel && <polygon points={pts(iso(bx - 0.3, by - 0.8), iso(bx + 1.5, by - 0.8), iso(bx + 1.5, by + 1.1), iso(bx - 0.3, by + 1.1))} fill={a.cor} opacity={0.14} stroke={a.cor} strokeWidth={2.5} strokeDasharray="7 5" />}
         <Caixa x={bx + 0.32} y={by - 0.2} w={0.6} d={0.1} h={44} topo="#4338ca" esq="#3730a3" dir="#312e81" />
@@ -531,7 +539,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         <Caixa x={bx} y={by} w={1.2} d={0.7} h={30} topo="#fef3c7" esq="#e5c07b" dir="#d4a857" />
         <Caixa x={bx + 0.1} y={by + 0.15} w={0.35} d={0.4} h={2} z={30} topo="#94a3b8" esq="#64748b" dir="#475569" />
         <polygon points={pts(up(nb, 32), up(iso(bx + 0.12, by + 0.55), 32), up(iso(bx + 0.12, by + 0.55), 58), up(nb, 58))} fill="#1e293b" />
-        <polygon points={pts(up(nb, 35), up(iso(bx + 0.12, by + 0.52), 35), up(iso(bx + 0.12, by + 0.52), 55), up(nb, 55))} fill={a.status === 'desligado' ? '#0f172a' : '#38bdf8'} />
+        <polygon className={a.status === 'erro' ? 'tela-erro' : undefined} points={pts(up(nb, 35), up(iso(bx + 0.12, by + 0.52), 35), up(iso(bx + 0.12, by + 0.52), 55), up(nb, 55))} fill={a.status === 'desligado' ? '#0f172a' : a.status === 'erro' ? '#ef4444' : '#38bdf8'} />
         {a.status !== 'desligado' && <g className={trabalhando && sentado ? 'tela-linhas' : undefined}>
           {[0, 1, 2].map(k => <line key={k} x1={r1(nb.x - 3 - k)} y1={r1(nb.y - 50 + k * 5)} x2={r1(nb.x - 13 - k)} y2={r1(nb.y - 44 + k * 5)} stroke="#e0f2fe" strokeWidth={1.4} />)}
         </g>}
@@ -551,7 +559,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     posicoes[a.id] = { atividade: e && !e.andando ? e.atividade : null };
     if (!sentado) {
       itens.push({ k: pos.x + pos.y + (sentadoSofa ? 0.2 : 0), el: (
-        <g key={`fig-${a.id}`} transform={`translate(${r1(p.x)} ${r1(p.y - (sentadoSofa ? 16 : 0))})`} style={{ cursor: 'pointer' }} onClick={() => onSelecionar(a.id)}>
+        <g key={`fig-${a.id}`} opacity={opacidade} transform={`translate(${r1(p.x)} ${r1(p.y - (sentadoSofa ? 16 : 0))})`} style={{ cursor: 'pointer' }} onClick={() => onSelecionar(a.id)}>
           <Minifig id={a.id} cor={a.cor} pose={pose} atraso={-(i * 0.37)} />
         </g>) });
     }
@@ -559,9 +567,13 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     // Crachá e balão acompanham a pessoa.
     const cabeca = sentado ? { x: topoMesa.x, y: topoMesa.y - 30 - 92 } : { x: p.x, y: p.y - (sentadoSofa ? 16 : 0) - 106 - (pose === 'andando' ? 0 : 0) };
     cabecas[a.id] = cabeca;
-    const balao = trabalhando && a.ultima ? quebrar(a.ultima.texto) : null;
+    // Balão: o motivo do erro (vermelho), o que espera a Jessica (amarelo) ou a última ação de quem trabalha.
+    const tipoBalao = apagado(a.id) ? null : a.status === 'erro' && a.erro ? 'erro' : a.precisa ? 'precisa' : trabalhando && a.ultima ? 'acao' : null;
+    const balao = tipoBalao === 'erro' ? quebrar(`⚠ ${a.erro}`) : tipoBalao === 'precisa' ? quebrar(`✋ Precisa de você: ${a.precisa}`) : tipoBalao === 'acao' ? quebrar(a.ultima!.texto) : null;
+    const corBalao = tipoBalao === 'erro' ? '#ef4444' : tipoBalao === 'precisa' ? '#f59e0b' : a.cor;
+    const fundoBalao = tipoBalao === 'erro' ? '#fef2f2' : tipoBalao === 'precisa' ? '#fffbeb' : '#fff';
     rotulos.push(
-      <g key={`tag-${a.id}`} style={{ pointerEvents: 'none' }}>
+      <g key={`tag-${a.id}`} style={{ pointerEvents: 'none' }} opacity={opacidade}>
         <rect x={r1(cabeca.x - 50)} y={r1(cabeca.y - 12)} width={100} height={22} rx={11} fill="#0f172a" opacity={0.92} />
         <circle cx={r1(cabeca.x - 38)} cy={r1(cabeca.y - 1)} r={6.5} fill={a.cor} />
         <text x={r1(cabeca.x - 38)} y={r1(cabeca.y + 2)} fontSize={7.5} fontWeight={800} fill="#fff" textAnchor="middle">{a.nome[0]}</text>
@@ -582,7 +594,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         )}
         {balao && (
           <g className="balao">
-            <rect x={r1(cabeca.x - 90)} y={r1(cabeca.y - 22 - balao.length * 14)} width={180} height={balao.length * 14 + 10} rx={10} fill="#fff" stroke={a.cor} strokeWidth={1.5} />
+            <rect x={r1(cabeca.x - 90)} y={r1(cabeca.y - 22 - balao.length * 14)} width={180} height={balao.length * 14 + 10} rx={10} fill={fundoBalao} stroke={corBalao} strokeWidth={tipoBalao === 'acao' ? 1.5 : 2} />
             {balao.map((l, k) => <text key={k} x={r1(cabeca.x)} y={r1(cabeca.y - 22 - balao.length * 14 + 16 + k * 14)} fontSize={11} fill="#0f172a" textAnchor="middle">{l}</text>)}
           </g>
         )}
@@ -698,7 +710,7 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
     // Balão de proximidade: agente mais perto (até 1,5 célula).
     let perto: { a: AgenteSala; p: P; d: number } | null = null;
     agentes.forEach((a, i) => {
-      const e = estados.current[a.id]; const pos = e?.pos || mesaDeAgente(a.id, i).assento;
+      const e = estados.current[a.id]; const pos = e?.pos || mesaDeAgente(a.id, i, agentes).assento;
       const d = Math.hypot(pos.x - j.pos.x, pos.y - j.pos.y);
       if (d < 1.5 && (!perto || d < perto.d)) perto = { a, p: pos, d };
     });
@@ -777,6 +789,8 @@ export default function SalaIsometrica({ agentes, selecionado, onSelecionar, cha
         @keyframes flutuaDiamante{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-7px) rotate(4deg)}}
         .brilho-diamante{animation:pulsa 1.3s ease-in-out infinite}
         .luz-status-trabalhando{animation:pulsa 1.4s ease-in-out infinite}
+        .luz-status-erro,.tela-erro{animation:pisca .9s steps(2) infinite}
+        @keyframes pisca{50%{opacity:.25}}
         @keyframes pulsa{50%{opacity:.35}}
         .aura{animation:pulsa 1.4s ease-in-out infinite}
         .mesa{cursor:pointer}

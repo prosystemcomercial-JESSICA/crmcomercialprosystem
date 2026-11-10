@@ -14,8 +14,12 @@ export type EstadoProvedor = {
   ultimoErro: string | null; ultimaOk: number | null; ultimaFalha: number | null; chamadas: number;
 };
 
+const diaSP = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+
 export class SemaforoIa {
   estados: Partial<Record<ProvedorIa, EstadoProvedor>> = {};
+  /** Falhas por dia e provedor (o serviço grava em 'ia.falhas.<dia>' para o quadro de consumo). */
+  falhasPorDia: Record<string, Partial<Record<ProvedorIa, number>>> = {};
   constructor(private agora: () => number = Date.now) {}
   private e(p: ProvedorIa): EstadoProvedor {
     return (this.estados[p] ||= { falhas: 0, nivel: 0, bloqueadoAte: 0, ultimoErro: null, ultimaOk: null, ultimaFalha: null, chamadas: 0 });
@@ -31,6 +35,8 @@ export class SemaforoIa {
   falha(p: ProvedorIa, erro: string): boolean {
     const e = this.e(p);
     e.falhas++; e.chamadas++; e.ultimaFalha = this.agora(); e.ultimoErro = String(erro || 'sem detalhe').slice(0, 200);
+    const dia = (this.falhasPorDia[diaSP(this.agora())] ||= {});
+    dia[p] = (dia[p] || 0) + 1;
     if (e.falhas < FALHAS_PARA_PAUSAR && !GRAVE.test(e.ultimoErro)) return false;
     const min = PAUSAS_MIN[Math.min(e.nivel, PAUSAS_MIN.length - 1)];
     e.bloqueadoAte = this.agora() + min * 60_000;

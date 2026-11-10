@@ -1056,6 +1056,28 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', data: { agentes: cacheEscritorio.dados, conversas: conversasRecentes(6), gerado_em: new Date(cacheEscritorio.em).toISOString() } });
   });
 
+  // Escritório por setores (10/11/2026): saúde, quadro padrão, passagens do dia, "Esperando você" e consumo/teto de IA.
+  let cachePainel: { em: number; dados: any } | null = null;
+  fastify.get('/assistente/escritorio/painel', async (_request, reply) => {
+    if (!cachePainel || Date.now() - cachePainel.em > 30_000) {
+      const { montarEscritorio } = await import('@/services/escritorio.service');
+      const { painelEscritorio } = await import('@/services/escritorio-painel.service');
+      const agentes = cacheEscritorio && Date.now() - cacheEscritorio.em < 30_000 ? cacheEscritorio.dados : await montarEscritorio(prisma);
+      cachePainel = { em: Date.now(), dados: await painelEscritorio(prisma, agentes) };
+    }
+    return reply.send({ status: 'success', data: cachePainel.dados });
+  });
+
+  fastify.post('/assistente/escritorio/teto-ia', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const valor = Number((request.body as any)?.valor);
+    if (!Number.isFinite(valor) || valor < 0 || valor > 100000) return reply.status(400).send({ status: 'error', message: 'Informe um valor entre R$ 0 e R$ 100.000 (0 = sem teto).' });
+    const { CHAVE_TETO_IA } = await import('@/services/escritorio-painel.service');
+    await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_TETO_IA }, create: { chave: CHAVE_TETO_IA, valor: String(valor), updated_by: getUser(request)?.id || 'gestao' }, update: { valor: String(valor), updated_by: getUser(request)?.id || 'gestao' } });
+    cachePainel = null;
+    return reply.send({ status: 'success', message: valor ? `Teto mensal de IA: ${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Aviso no WhatsApp a partir de 80%.` : 'Teto removido.' });
+  });
+
   fastify.get('/assistente/escritorio/agentes/:id/historico', async (request, reply) => {
     const { id } = request.params as { id: string };
     const { AGENTES } = await import('@/lib/assistente/escritorio');

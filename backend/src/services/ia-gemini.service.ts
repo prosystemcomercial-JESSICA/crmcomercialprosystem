@@ -20,6 +20,27 @@ function registrarFalhaProvedor(p: ProvedorIa, erro: string) {
 }
 const NOME_PROVEDOR: Record<ProvedorIa, string> = { groq: 'Groq', openrouter: 'OpenRouter', openai: 'OpenAI', grok: 'Grok', gemini: 'Gemini' };
 const pausaDe = (p: ProvedorIa) => new Error(`${NOME_PROVEDOR[p]} em pausa por ${semaforoIa.voltaEm(p)} min (${semaforoIa.estados[p]?.ultimoErro || 'falhas seguidas'})`);
+// Falhas por provedor e dia: gravadas a cada minuto em 'ia.falhas.<dia>' (soma com o que já estava gravado).
+const falhasGravadas: Record<string, Partial<Record<ProvedorIa, number>>> = {};
+setInterval(() => {
+  const prisma = prismaAviso;
+  if (!prisma) return;
+  for (const [dia, porProv] of Object.entries(semaforoIa.falhasPorDia)) {
+    const ja = falhasGravadas[dia] || {};
+    const novas = Object.fromEntries(Object.entries(porProv).map(([p, n]) => [p, (n || 0) - (ja[p as ProvedorIa] || 0)]).filter(([, n]) => (n as number) > 0)) as Partial<Record<ProvedorIa, number>>;
+    if (!Object.keys(novas).length) continue;
+    falhasGravadas[dia] = { ...porProv };
+    const chave = `ia.falhas.${dia}`;
+    void prisma.configuracaoIntegracao.findUnique({ where: { chave } }).then(r => {
+      let atual: Record<string, number> = {};
+      try { atual = r ? JSON.parse(r.valor) : {}; } catch { atual = {}; }
+      for (const [p, n] of Object.entries(novas)) atual[p] = (atual[p] || 0) + (n || 0);
+      const valor = JSON.stringify(atual);
+      return prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: 'sistema' }, update: { valor } });
+    }).catch(() => {});
+  }
+}, 60_000).unref?.();
+
 /** Para o painel: estado de cada provedor (sem chave, ok, pausado) e o último erro. */
 export async function estadoProvedoresIa(prisma: PrismaClient) {
   const chaves = await provedoresComChave(prisma);

@@ -1402,6 +1402,9 @@ class ApiClient {
   async getEscritorio() {
     return this.client.get('/assistente/escritorio');
   }
+  /** Escritório por setores: saúde, quadros, passagens do dia, "Esperando você" e consumo de IA (10/11/2026). */
+  async getEscritorioPainel() { return this.client.get('/assistente/escritorio/painel'); }
+  async salvarTetoIa(valor: number) { return this.client.post('/assistente/escritorio/teto-ia', { valor }); }
 
   // Campanhas pelo WhatsApp (novidades para clientes / reativação de leads).
   async listarCampanhasWhatsapp() {
