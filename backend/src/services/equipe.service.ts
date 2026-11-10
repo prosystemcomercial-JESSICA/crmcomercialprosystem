@@ -104,6 +104,14 @@ export async function perguntarAJessica(prisma: PrismaClient, p: { pergunta: str
   const chave = normalPergunta(texto);
   const ja = await prisma.agenteNota.findMany({ where: { tipo: 'PERGUNTA', created_at: { gte: new Date(Date.now() - 90 * 864e5) } }, select: { texto: true, resolvida_em: true }, take: 400 }).catch(() => []);
   if (ja.some(n => normalPergunta(n.texto) === chave)) return null;
+  // A Laya responde o que a Jessica já respondeu (10/11/2026): 87 perguntas abertas, muitas repetidas com outras palavras.
+  const { respostaJaDada } = await import('./laya-cerebro.service');
+  const jaDada = await respostaJaDada(prisma, texto).catch(() => null);
+  if (jaDada) {
+    await anotar(prisma, { de: 'laya', para: 'rafael', tipo: 'RESPOSTA', assunto: texto.slice(0, 150), texto: jaDada, ref: p.ref || null });
+    registrarAcaoAgente('laya', `respondeu ao Rafael com o que a Jessica já tinha dito: "${texto.slice(0, 60)}"`);
+    return null;
+  }
   const nota = await anotar(prisma, { de: 'rafael', para: GESTORA, tipo: 'PERGUNTA', assunto: String(p.assunto || 'Pergunta do Rafael').slice(0, 160), texto, ref: p.ref || null });
   if (nota) registrarAcaoAgente('rafael', `perguntou à Jessica: "${texto.slice(0, 60)}"`);
   return nota;

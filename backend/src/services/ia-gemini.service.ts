@@ -4,6 +4,27 @@ import { cabeNoGroq, lerCotaGroq } from '@/lib/ia-groq';
 import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
 import { catalogo, funcaoDoAgente, planoDaRota, validarRotas, type Modelo, type Provedor, type Rota } from '@/lib/ia-rotas';
+import { semaforoIa, type ProvedorIa } from '@/lib/ia-semaforo';
+
+// Semáforo (10/11/2026): provedor em pausa não é chamado; a pausa que começa agora avisa a gestão uma vez (6 h).
+let prismaAviso: PrismaClient | null = null;
+function registrarFalhaProvedor(p: ProvedorIa, erro: string) {
+  if (!semaforoIa.falha(p, erro) || !prismaAviso) return;
+  const prisma = prismaAviso;
+  void (async () => {
+    const { podeEnviarUmaVez } = await import('./envio-unico.service');
+    if (!(await podeEnviarUmaVez(prisma, `ia.pausa.${p}`, 6))) return;
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🚦 *IA ${NOME_PROVEDOR[p]} em pausa por ${semaforoIa.voltaEm(p)} min*: ${erro.slice(0, 160)}\nOs agentes seguem com as outras IAs e tentam de novo sozinhos. Se for chave ou crédito, resolva no servidor.`);
+  })().catch(() => {});
+}
+const NOME_PROVEDOR: Record<ProvedorIa, string> = { groq: 'Groq', openrouter: 'OpenRouter', openai: 'OpenAI', grok: 'Grok', gemini: 'Gemini' };
+const pausaDe = (p: ProvedorIa) => new Error(`${NOME_PROVEDOR[p]} em pausa por ${semaforoIa.voltaEm(p)} min (${semaforoIa.estados[p]?.ultimoErro || 'falhas seguidas'})`);
+/** Para o painel: estado de cada provedor (sem chave, ok, pausado) e o último erro. */
+export async function estadoProvedoresIa(prisma: PrismaClient) {
+  const chaves = await provedoresComChave(prisma);
+  return semaforoIa.resumo(p => !!chaves[p]);
+}
 
 // Cliente mínimo do Gemini (Google AI Studio). A chave fica em Configurações
 // (ConfiguracaoIntegracao 'assistente.gemini_chave') ou na variável GEMINI_API_KEY.
@@ -75,6 +96,7 @@ export async function chaveGemini(prisma: PrismaClient): Promise<string | null> 
 // `escolhido` = modelo escolhido em Configurações › Modelos de IA (vale mesmo com GROQ_FORA).
 async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string; modelo?: string; escolhido?: boolean }): Promise<string | null> {
   if (!chaveGroq() || (!p.escolhido && groqFora().some(a => p.agente === a || p.agente === `conversa-${a}`))) return null;
+  if (semaforoIa.bloqueado('groq')) return null;
   const cota = await carregarCotaGroq(prisma);
   if (!cabeNoGroq(cota, p.sistema + p.texto, { maxEntrada: GROQ_MAX_ENTRADA })) { registrarReservaGroq(p.agente); return null; }
   try {
@@ -98,8 +120,10 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
     const t = tokensDaResposta(data);
     registrarUsoIa('groq');
     registrarChamadaIa(p.agente, 'groq', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+    semaforoIa.sucesso('groq');
     return texto;
   } catch (e) {
+    registrarFalhaProvedor('groq', (e as Error)?.message || '');
     console.warn('[GROQ] não respondeu, usando a IA paga:', (e as Error)?.message);
     registrarReservaGroq(p.agente);
     return null;
@@ -110,7 +134,7 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
 async function tentarOpenRouter(p: { sistema: string; texto: string; json?: boolean; temperatura?: number; agente: string; modelo?: string }): Promise<string | null> {
   if (!chaveOpenRouter()) return null;
   if (openRouter.dia !== hojeSP()) Object.assign(openRouter, { dia: hojeSP(), usados: 0 });
-  if (openRouter.usados >= OPENROUTER_LIMITE_DIA || openRouter.bloqueadoAte > Date.now()) return null;
+  if (openRouter.usados >= OPENROUTER_LIMITE_DIA || openRouter.bloqueadoAte > Date.now() || semaforoIa.bloqueado('openrouter')) return null;
   if (Math.ceil((p.sistema + p.texto).length / 3) > GROQ_MAX_ENTRADA * 4) return null;
   openRouter.usados++;
   try {
@@ -141,8 +165,10 @@ async function tentarOpenRouter(p: { sistema: string; texto: string; json?: bool
     const t = tokensDaResposta(data);
     registrarUsoIa('openrouter');
     registrarChamadaIa(p.agente, 'openrouter', { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida });
+    semaforoIa.sucesso('openrouter');
     return texto;
   } catch (e) {
+    registrarFalhaProvedor('openrouter', (e as Error)?.message || '');
     console.warn('[OPENROUTER] não respondeu:', (e as Error)?.message);
     registrarChamadaIa(p.agente, 'openrouter', { ok: false });
     return null;
@@ -170,6 +196,7 @@ async function tentarGeminiGratis(prisma: PrismaClient, p: { sistema: string; pa
 async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolean; busca?: boolean; timeoutMs: number; grok?: boolean; agente: string; modelo?: string }): Promise<any> {
   const fonte = p.grok ? 'grok' : 'openai';
   const modelo = p.modelo || (p.grok ? MODELO_XAI : MODELO_OPENAI);
+  if (semaforoIa.bloqueado(fonte)) throw pausaDe(fonte);
   registrarUsoIa(fonte);
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -183,18 +210,20 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
       ...(p.json ? { text: { format: { type: 'json_object' } } } : {}),
     }),
     signal: AbortSignal.timeout(p.timeoutMs),
-  }).catch(e => { registrarChamadaIa(p.agente, fonte, { ok: false }); throw e; });
+  }).catch(e => { registrarChamadaIa(p.agente, fonte, { ok: false }); registrarFalhaProvedor(fonte, e?.message || 'sem resposta'); throw e; });
   if (!res.ok) {
     registrarChamadaIa(p.agente, fonte, { ok: false });
-    if (res.status === 401) throw new Error('A chave da IA é inválida. Confira no servidor.');
-    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    const falha = (msg: string) => { registrarFalhaProvedor(fonte, msg); return new Error(msg); };
+    if (res.status === 401) throw falha('A chave da IA é inválida. Confira no servidor.');
+    if (res.status === 429) throw falha('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
     // O motivo que a IA devolveu vai junto: "indisponível" sozinho escondia o pedido recusado (14/10/2026).
     const motivo = await res.json().then((j: any) => j?.error?.code || j?.error?.message || '').catch(() => '');
-    throw new Error(`IA indisponível (HTTP ${res.status}${motivo ? `: ${String(motivo).slice(0, 120)}` : ''}).`);
+    throw falha(`IA indisponível (HTTP ${res.status}${motivo ? `: ${String(motivo).slice(0, 120)}` : ''}).`);
   }
   const data = await res.json();
   const t = tokensDaResposta(data);
   registrarChamadaIa(p.agente, fonte, { ok: true, tokensEntrada: t.entrada, tokensSaida: t.saida, modelo });
+  semaforoIa.sucesso(fonte);
   return data;
 }
 
@@ -247,6 +276,11 @@ function conteudoOpenAI(partes: Parte[]): any[] {
 
 /** Uma chamada à API do Gemini (texto, imagem, PDF ou busca no Google). Conta no uso por assistente. */
 async function chamarApiGemini(chave: string, p: { modelo: string; sistema: string; partes: Parte[]; json?: boolean; busca?: boolean; temperatura?: number; timeoutMs: number; agente: string }): Promise<Resultado> {
+  if (semaforoIa.bloqueado('gemini')) throw pausaDe('gemini');
+  try { const r = await chamarApiGeminiBruto(chave, p); semaforoIa.sucesso('gemini'); return r; }
+  catch (e) { registrarFalhaProvedor('gemini', (e as Error)?.message || ''); throw e; }
+}
+async function chamarApiGeminiBruto(chave: string, p: { modelo: string; sistema: string; partes: Parte[]; json?: boolean; busca?: boolean; temperatura?: number; timeoutMs: number; agente: string }): Promise<Resultado> {
   registrarUsoIa('gemini');
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${p.modelo}:generateContent`, {
     method: 'POST',
@@ -342,6 +376,7 @@ async function seguirRota(prisma: PrismaClient, agente: string, q: Pedido): Prom
 /** Chamada com busca na internet: devolve o texto e as fontes consultadas. */
 // `agente` = quem pediu (conta no uso por assistente); sem ele, vale o arquivo que chamou.
 export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: string; pergunta: string; timeoutMs?: number; agente?: string }): Promise<Resultado> {
+  prismaAviso = prisma;
   const agente = p.agente || agenteDaPilha(new Error().stack);
   const rota = await seguirRota(prisma, agente, { sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 180_000 });
   if (rota.resultado) return { texto: rota.resultado.texto, fontes: rota.resultado.fontes.slice(0, 15) };
@@ -362,6 +397,7 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
 }
 
 export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; partes: Parte[]; json?: boolean; temperatura?: number; timeoutMs?: number; simples?: boolean; agente?: string }): Promise<string> {
+  prismaAviso = prisma;
   const soTexto = p.partes.every(x => 'text' in x);
   // Lido antes de qualquer await: depois dele a pilha perde quem chamou. Áudio conta como transcrição.
   const agente = p.agente || (p.partes.some(x => 'inline_data' in x && x.inline_data.mime_type.startsWith('audio/')) ? 'transcricao' : agenteDaPilha(new Error().stack));

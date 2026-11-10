@@ -25,8 +25,10 @@ export type ConfigHeitor = {
   cursor: { onda: number; cidade: number; lugar: number };
   lugares: Record<string, string[]>; // bairros de cada cidade (a cidade inteira vem primeiro)
   ultima_rodada: string | null; ultimo_erro: string | null;
+  /** Freio (10/11/2026): com mais leads do Heitor que isso esperando a Caroline, ele para de cadastrar. */
+  fila_max: number;
 };
-const PADRAO: ConfigHeitor = { ativo: false, cadastros_dia: 30, envios_dia: 15, segmentos: ['farmacia', 'padaria'], cursor: { onda: 0, cidade: 0, lugar: 0 }, lugares: {}, ultima_rodada: null, ultimo_erro: null };
+const PADRAO: ConfigHeitor = { ativo: false, cadastros_dia: 30, envios_dia: 15, segmentos: ['farmacia', 'padaria'], cursor: { onda: 0, cidade: 0, lugar: 0 }, lugares: {}, ultima_rodada: null, ultimo_erro: null, fila_max: 150 };
 
 export async function obterConfigHeitor(prisma: PrismaClient): Promise<ConfigHeitor> {
   const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE } }).catch(() => null);
@@ -35,6 +37,7 @@ export async function obterConfigHeitor(prisma: PrismaClient): Promise<ConfigHei
   const cfg: ConfigHeitor = { ...PADRAO, ...c, cursor: { ...PADRAO.cursor, ...(c.cursor || {}) }, lugares: c.lugares || {} };
   cfg.cadastros_dia = Math.max(1, Math.min(60, Math.round(cfg.cadastros_dia || 30)));
   cfg.envios_dia = Math.max(0, Math.min(30, Math.round(cfg.envios_dia ?? 15)));
+  cfg.fila_max = Math.max(20, Math.min(2000, Math.round(cfg.fila_max || 150)));
   cfg.segmentos = (cfg.segmentos || []).filter(s => ['farmacia', 'padaria'].includes(s));
   if (!cfg.segmentos.length) cfg.segmentos = ['farmacia', 'padaria'];
   return cfg;
@@ -283,6 +286,11 @@ export async function rodadaHeitor(prisma: PrismaClient, agora = new Date()): Pr
     const hoje = await prisma.prospeccaoLocal.count({ where: { status: 'CADASTRADO', cadastrado_em: { gte: inicioDoDia(agora) } } });
     let cota = cfg.cadastros_dia - hoje;
     if (cota <= 0) return { cadastrados: 0, encontrados: 0, mensagem: `Cota do dia cumprida (${cfg.cadastros_dia}).` };
+    const naFila = await prisma.sdrLead.count({ where: { criado_por: 'heitor', status: 'FILA' } });
+    if (naFila >= cfg.fila_max) {
+      registrarAcaoAgente('heitor', `segurou a prospecção: ${naFila} leads dele esperando a Caroline (limite ${cfg.fila_max})`);
+      return { cadastrados: 0, encontrados: 0, mensagem: `Fila da Caroline cheia (${naFila} leads do Heitor esperando). Volto quando baixar de ${cfg.fila_max}.` };
+    }
     registrarAcaoAgente('heitor', 'conferindo quem já encontrou');
     cadastrados += await completarECadastrar(prisma, cfg, cota);
     cota -= cadastrados;

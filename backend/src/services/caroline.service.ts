@@ -45,7 +45,8 @@ const chaveCfg = (a: PerfilSdr) => (a === 'caroline' ? 'assistente.caroline' : `
 // inicia_em: o agente só começa a partir desse horário (ex.: segunda 9h).
 // aprovar_abertura: o primeiro contato passa pela aprovação (padrão = aprovar). A Jessica desligou só o primeiro
 // contato em 14/10/2026 para a fila andar; retomadas seguem pela opção aprovar.
-export type ConfigCaroline = { ativa: boolean; aprovar: boolean; aprovar_abertura?: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null };
+// pausada_ate (10/11/2026): pausa automática após falhas; vencida, o agente volta sozinho na próxima rodada.
+export type ConfigCaroline = { ativa: boolean; aprovar: boolean; aprovar_abertura?: boolean; limite: number; ativada_em: string | null; pausada_motivo: string | null; inicia_em?: string | null; pausada_ate?: string | null };
 const PADRAO: ConfigCaroline = { ativa: false, aprovar: true, limite: 30, ativada_em: null, pausada_motivo: null, inicia_em: null };
 
 export async function obterConfigAgente(prisma: PrismaClient, agente: PerfilSdr): Promise<ConfigCaroline> {
@@ -57,7 +58,7 @@ export const obterConfigCaroline = (prisma: PrismaClient) => obterConfigAgente(p
 export async function salvarConfigAgente(prisma: PrismaClient, agente: PerfilSdr, novo: Partial<ConfigCaroline>, userId: string) {
   const atual = await obterConfigAgente(prisma, agente);
   const cfg: ConfigCaroline = { ...atual, ...novo };
-  if (novo.ativa && !atual.ativa) { cfg.pausada_motivo = null; if (!cfg.ativada_em) cfg.ativada_em = new Date().toISOString(); }
+  if (novo.ativa && !atual.ativa) { cfg.pausada_motivo = null; cfg.pausada_ate = null; if (!cfg.ativada_em) cfg.ativada_em = new Date().toISOString(); }
   cfg.limite = Math.max(1, Math.min(30, Math.round(cfg.limite || 30)));
   const valor = JSON.stringify(cfg);
   const chave = chaveCfg(agente);
@@ -67,7 +68,7 @@ export async function salvarConfigAgente(prisma: PrismaClient, agente: PerfilSdr
 export const salvarConfigCaroline = (prisma: PrismaClient, novo: Partial<ConfigCaroline>, userId: string) => salvarConfigAgente(prisma, 'caroline', novo, userId);
 
 /** Agente ligado e já dentro do horário de início (inicia_em). */
-const trabalhando = (cfg: ConfigCaroline, agora: Date) => cfg.ativa && (!cfg.inicia_em || agora >= new Date(cfg.inicia_em));
+export const trabalhando = (cfg: ConfigCaroline, agora: Date) => cfg.ativa && (!cfg.inicia_em || agora >= new Date(cfg.inicia_em)) && !(cfg.pausada_ate && agora < new Date(cfg.pausada_ate));
 
 // ── Entrada dos leads ───────────────────────────────────────────────────────
 
@@ -1044,7 +1045,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (fase === 'resposta') {
     const desdeAgente = ultimasDoAgente[0]?.created_at || sdr.desde;
     const novas = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'ENTRADA', created_at: { gt: desdeAgente } }, select: { conteudo: true, tipo: true } });
-    if (soRoboDaLoja(novas)) {
+    // Sinal de vez (Laya, 10/11/2026): sem mensagem nova do cliente depois da última fala do agente, ninguém escreve.
+    if (ultimasDoAgente.length && !novas.length) return 'nada';
+    // Porteira de robô: quando as regras não pegam a saudação automática, a Laya decide (só com interlocutor ainda desconhecido).
+    const dR: any = sdr.dados || {};
+    const pessoaConhecida = dR.interlocutor === 'decisor' || dR.interlocutor === 'atendente';
+    const roboPelaLaya = !soRoboDaLoja(novas) && !pessoaConhecida && novas.length <= 3
+      && await import('./laya-cerebro.service').then(m => m.layaEhRobo(prisma, novas.filter(m => m.tipo === 'TEXTO').map(m => m.conteudo || ''))).catch(() => false);
+    if (soRoboDaLoja(novas) || roboPelaLaya) {
       // Só respondeu o robô da loja (boas-vindas, horários, catálogo, folheto, encerramento ou pesquisa de nota).
       // Nenhum agente responde a robô (pedido da Jessica, 14/10/2026: o Julio agradeceu o robô da Nevespan um minuto
       // depois). O lead fica marcado como "só o robô respondeu" e segue o ritmo normal de retomada; na retomada o agente
@@ -1052,7 +1060,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       const dA: any = sdr.dados || {};
       const encerrou = novas.filter(m => m.tipo === 'TEXTO').every(m => ehEncerramentoAutomatico(m.conteudo));
       await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), dados: { ...dA, interlocutor: dA.interlocutor === 'decisor' || dA.interlocutor === 'atendente' ? dA.interlocutor : 'robo', robo_respondeu_em: new Date().toISOString() } } });
-      registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: ${encerrou ? 'o robô encerrou o atendimento' : 'só o robô respondeu'}, não respondeu ao robô`);
+      registrarAcaoAgente(agenteDe(sdr), `recebeu a mensagem automática da loja de ${sdr.nome || 'um lead'}: ${encerrou ? 'o robô encerrou o atendimento' : roboPelaLaya ? 'a Laya identificou o robô' : 'só o robô respondeu'}, não respondeu ao robô`);
       return 'nada';
     }
     if (ultimasDoAgente.length && novas.length && novas.every(m => m.tipo === 'TEXTO' && ehSoConfirmacao(m.conteudo))) {
@@ -1165,6 +1173,28 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     await prisma.sdrLead.update({ where: { id: sdr.id }, data: { status: 'AGUARDANDO', ultima_caroline_em: new Date(), dados: { ...d, retomar_em: d.retomar_em && new Date(d.retomar_em) > amanha ? d.retomar_em : amanha.toISOString() } } });
     return 'nada';
   }
+  // Conferência de saída da Laya (10/11/2026): link quebrado, texto cortado, repetição ou nota baixa contra as
+  // lições do Rafael não saem. Uma reescrita; se continuar ruim, a mensagem espera a Jessica (fila de aprovação).
+  {
+    const { layaConfereSaida } = await import('./laya-cerebro.service');
+    const base = { agente: agenteDe(sdr), conversaId: sdr.conversaId, ultimasDoAgente: ultimasDoAgente.map(u => u.conteudo || ''), fase };
+    const c = await layaConfereSaida(prisma, { ...base, mensagens: r.mensagens });
+    if (!c.ok) {
+      const nova = await gerarResposta(prisma, sdr, fase, `REVISÃO DA LAYA (siga à risca): ${c.motivo}. Reescreva curta e completa, sem repetir o que você já disse, com o link inteiro ou sem link, respondendo ao que a pessoa disse por último.`);
+      const c2 = nova ? await layaConfereSaida(prisma, { ...base, mensagens: nova.mensagens }) : c;
+      if (nova && c2.ok) { r = nova; registrarAcaoAgente('laya', `corrigiu uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`); }
+      else {
+        registrarAcaoAgente('laya', `segurou uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`);
+        const final = nova || r;
+        await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: final.mensagens.join('\n\n'), acao: JSON.stringify({ acao: final.acao, nota: final.nota, nota_motivo: final.nota_motivo, duvida: final.duvida, motivo_perda: final.motivo_perda, laya_motivo: c.motivo.slice(0, 300) }) } });
+        if (fase === 'abertura' && !sdr.primeiro_envio_em) await prisma.sdrLead.update({ where: { id: sdrId }, data: { primeiro_envio_em: new Date() } });
+        const { anotar } = await import('./equipe.service');
+        await anotar(prisma, { de: 'laya', para: 'rafael', tipo: 'DUVIDA', assunto: `Segurei uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || sdr.numero}`, texto: `${c.motivo}. A mensagem ficou esperando a Jessica.`, ref: sdr.conversaId }).catch(() => {});
+        emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
+        return 'aprovacao';
+      }
+    }
+  }
   await atualizarTermometro(prisma, sdr, r);
   if (r.dados.perfil === 'concorrente' || r.dados.perfil === 'consultor') {
     const { podeEnviarUmaVez } = await import('./envio-unico.service');
@@ -1221,6 +1251,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   }
   await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), status: 'ENVIADA_AUTO', acao: r.acao, decidido_em: agora } });
   await prisma.sdrLead.update({ where: { id: sdrId }, data: base });
+  if (fase === 'resposta') void import('./laya-cerebro.service').then(m => m.layaMarcarOrientacoesAplicadas(prisma, sdr.conversaId!)).catch(() => {});
   // Cliente adiou ("estou viajando", "quando voltar eu chamo"): o agente confirmou uma vez e agora espera a data.
   // Cliente adiou (viagem, "quando voltar eu chamo"...): o agente pergunta UMA vez quando; sem data, volta em 5 dias.
   {
@@ -1521,6 +1552,17 @@ const falhouEm = new Map<string, number>();
 const falhasSeguidas: Record<string, number> = {};
 const ultimasFalhasAgente: Record<string, string[]> = {};
 const ultimoAvisoFalha: Record<string, number> = {};
+const PAUSA_FALHAS_MS = 60 * 60_000;
+
+/** Pausa automática vencida: o agente volta sozinho e o Escritório registra. */
+async function religarQuemVenceuAPausa(prisma: PrismaClient, cfgs: Record<PerfilSdr, ConfigCaroline>, agora: Date) {
+  for (const a of AGENTES_SDR) {
+    const c = cfgs[a];
+    if (!c.pausada_ate || new Date(c.pausada_ate) > agora) continue;
+    cfgs[a] = await salvarConfigAgente(prisma, a, { pausada_ate: null, pausada_motivo: null }, 'sistema');
+    registrarAcaoAgente(a, 'voltou sozinho(a) depois da pausa de 1 h');
+  }
+}
 
 // Conversa já existente no WhatsApp da empresa (mesmo número com/sem 9) ou uma nova, ligada ao lead.
 // Nome para chamar o cliente. O cadastro (proposta/lead) às vezes traz o sócio da Receita e não
@@ -1795,6 +1837,7 @@ async function retomarComApresentacao(prisma: PrismaClient, token: string, ativo
 
 export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): Promise<void> {
   const cfgs = Object.fromEntries(await Promise.all(AGENTES_SDR.map(async a => [a, await obterConfigAgente(prisma, a)] as const))) as Record<PerfilSdr, ConfigCaroline>;
+  await religarQuemVenceuAPausa(prisma, cfgs, agora);
   const ativos = AGENTES_SDR.filter(a => trabalhando(cfgs[a], agora));
   if (!ativos.length) return;
   const inst = await obterInstanciaEmpresa(prisma);
@@ -1990,8 +2033,11 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
     falhasSeguidas[ag] = (falhasSeguidas[ag] || 0) + 1;
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     if (falhasSeguidas[ag] >= 3) {
-      await salvarConfigAgente(prisma, ag, { ativa: false, pausada_motivo: `3 falhas seguidas no primeiro contato. Última: ${motivo}`.slice(0, 300) }, ag);
-      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} pausou sozinho(a)*: 3 falhas seguidas no primeiro contato.\n${lista.map(x => `• ${x}`).join('\n')}\nResolva o motivo e religue no Escritório.`).catch(() => {});
+      // Pausa de 1 h que volta sozinha (10/11/2026): antes desligava de vez e a Caroline ficou 11 dias parada
+      // sem ninguém religar. O motivo (chave, crédito, número) costuma ser resolvido no servidor.
+      await salvarConfigAgente(prisma, ag, { pausada_ate: new Date(Date.now() + PAUSA_FALHAS_MS).toISOString(), pausada_motivo: `3 falhas seguidas no primeiro contato. Última: ${motivo}`.slice(0, 300) }, ag);
+      registrarAcaoAgente(ag, 'pausou por 1 h depois de 3 falhas seguidas; volta sozinho(a)');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `⚠️ *${PERFIS_SDR[ag].nome} pausou por 1 hora*: 3 falhas seguidas no primeiro contato.\n${lista.map(x => `• ${x}`).join('\n')}\nVolta sozinho(a) às ${new Date(Date.now() + PAUSA_FALHAS_MS).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}. Se for chave ou crédito da IA, resolva no servidor.`).catch(() => {});
       falhasSeguidas[ag] = 0; ultimasFalhasAgente[ag] = [];
     } else if (Date.now() - (ultimoAvisoFalha[ag] || 0) > 30 * 60_000) {
       ultimoAvisoFalha[ag] = Date.now();
