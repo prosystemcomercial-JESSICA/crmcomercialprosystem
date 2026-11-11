@@ -20,3 +20,20 @@ describe('Laya guardiã: conferência pura', () => {
     expect(cobertura(pergunta, 'O fluxo de produtos comprados para revenda usados na produção é lançado como consumo interno.')).toBeLessThan(0.3);
   });
 });
+
+describe('Laya guardiã · fase da conversa (11/11/2026)', () => {
+  it('não pede nota da IA no primeiro contato nem quando o cliente nunca escreveu', async () => {
+    const { precisaNotaIa } = await import('../src/lib/laya-guardia');
+    expect(precisaNotaIa('abertura', [])).toBe(false);
+    expect(precisaNotaIa('abertura', [{ direcao: 'ENTRADA' }])).toBe(false);
+    expect(precisaNotaIa('retomada', [{ direcao: 'SAIDA' }, { direcao: 'SAIDA' }])).toBe(false);
+    expect(precisaNotaIa('retomada', [{ direcao: 'SAIDA' }, { direcao: 'ENTRADA' }])).toBe(true);
+    expect(precisaNotaIa('resposta', [{ direcao: 'ENTRADA' }])).toBe(true);
+  });
+  it('avisa a IA de que retomada e encerramento não esperam resposta nova do cliente', async () => {
+    const { avisoDaFase } = await import('../src/lib/laya-guardia');
+    expect(avisoDaFase('retomada')).toContain('retomada programada');
+    expect(avisoDaFase('encerramento')).toContain('encerramento');
+    expect(avisoDaFase('resposta')).toBe('');
+  });
+});

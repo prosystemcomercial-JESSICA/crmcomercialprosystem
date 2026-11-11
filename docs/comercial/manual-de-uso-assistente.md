@@ -1636,3 +1636,8 @@ $L
 
 ### Resumo diário da Marta
 - Nos dias úteis, entre 8h e 10h, a Marta manda no seu WhatsApp o que espera você: mensagens para aprovar, perguntas do Rafael, documentos, quem parou e números de WhatsApp desconectados, com o link do Escritório.
+
+### Laya: o que ela segura e o que não segura mais (11/11/2026)
+- A Laya confere toda mensagem dos agentes antes de sair. Ela sempre segura link quebrado, texto cortado no meio, repetição e mais de 3 mensagens de uma vez.
+- A nota de qualidade (de 0 a 10) agora só vale quando o cliente já escreveu algo. Primeiro contato e retomada de quem está em silêncio não ficam mais presos por "não aguardar resposta".
+- O que ela segurar aparece em Escritório › Esperando você, para aprovar, editar ou descartar.

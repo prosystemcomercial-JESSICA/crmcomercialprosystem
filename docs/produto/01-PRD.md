@@ -2239,3 +2239,10 @@ $L
 - **Banco:** sem mudança de esquema (`EspecialistaDoc.tipo` é texto livre; `UPGRADE` é novo).
 - **Testes:** `backend/tests/olivia-perdas.test.ts` (3), `mila-upgrade.test.ts` (3) e `escritorio-setores.test.ts` (5, com o resumo da Marta).
 - **Limite conhecido:** o descadastro do Informativo continua sendo "responda SAIR"; essas respostas não são processadas automaticamente.
+
+### Atualização 11/11/2026: a Laya guardiã deixa de segurar primeiro contato e retomada
+
+- **O que aconteceu:** a conferência de saída da Laya (10/11) dava nota de 0 a 10 a toda mensagem dos SDRs com a régua de uma conversa em andamento. Em primeiro contato e retomada ela tirava nota por "enviou sem aguardar resposta humana" e, desde a manhã de 11/11, segurou quase tudo o que a Caroline escreveu (30 mensagens na fila de aprovação).
+- **Correção (`backend/src/lib/laya-guardia.ts`, `services/laya-cerebro.service.ts`):** a nota da IA só é pedida quando há algo do cliente para responder (`precisaNotaIa`: fase diferente de `abertura` e pelo menos uma mensagem de entrada na conversa). No primeiro contato e em conversa em que o cliente nunca escreveu valem só as regras puras (link quebrado, texto cortado, repetição, mais de 3 mensagens). Em `retomada` e `encerramento` o pedido de nota avisa a IA de que escrever sem resposta nova do cliente é o esperado (`avisoDaFase`).
+- **Fila de 11/11:** a pedido da Jessica, as mensagens seguradas foram decididas por um script único no servidor, pela mesma função do botão Aprovar (`decidirMensagem`), com 3 a 4 minutos entre os envios. Foram descartadas, sem reescrita, as de 21/10, a de texto cortado e a que ignorava um horário combinado.
+- **Testes:** `backend/tests/laya-guardia.test.ts` ganhou 2 casos (4 no total).

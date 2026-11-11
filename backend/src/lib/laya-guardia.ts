@@ -48,3 +48,19 @@ export function cobertura(pergunta: string, texto: string): number {
   let n = 0; a.forEach(w => { if (b.has(w)) n++; });
   return n / a.size;
 }
+
+/**
+ * A nota da IA só vale quando há algo do cliente para responder (11/11/2026). Num primeiro contato, ou numa
+ * conversa em que o cliente nunca escreveu, ela tirava nota por "não aguardar resposta" e segurava tudo o que
+ * a Caroline escrevia. Nesses casos valem só as regras puras (link, corte, repetição, excesso).
+ */
+export function precisaNotaIa(fase: string, historico: { direcao: string }[]): boolean {
+  return fase !== 'abertura' && historico.some(m => m.direcao === 'ENTRADA');
+}
+
+/** O que a IA precisa saber sobre a fase para não punir o que é esperado nela. */
+export function avisoDaFase(fase: string): string {
+  if (fase === 'retomada') return 'ATENÇÃO À FASE: esta é uma retomada programada depois de o cliente ficar sem responder. Retomar o contato e escrever sem uma resposta nova do cliente é o esperado: não tire nota por isso. Avalie só se a retomada cumpre o que foi combinado, não repete o que já foi dito e segue as lições.';
+  if (fase === 'encerramento') return 'ATENÇÃO À FASE: esta é a mensagem de encerramento depois de o cliente ficar sem responder. Encerrar sem uma resposta nova do cliente é o esperado: não tire nota por isso.';
+  return '';
+}

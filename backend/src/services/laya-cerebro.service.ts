@@ -140,7 +140,7 @@ export type ConferenciaLaya = { ok: true } | { ok: false; motivo: string };
  * contra as lições recentes do Rafael para este agente e para a equipe. Nota abaixo de 6 = não sai assim.
  */
 export async function layaConfereSaida(prisma: PrismaClient, p: { agente: string; conversaId: string; mensagens: string[]; ultimasDoAgente: string[]; fase: string }): Promise<ConferenciaLaya> {
-  const { conferirPura } = await import('../lib/laya-guardia');
+  const { conferirPura, precisaNotaIa, avisoDaFase } = await import('../lib/laya-guardia');
   const puros = conferirPura({ mensagens: p.mensagens, ultimas: p.ultimasDoAgente });
   if (puros.length) return { ok: false, motivo: puros.join('; ') };
   try {
@@ -151,6 +151,8 @@ export async function layaConfereSaida(prisma: PrismaClient, p: { agente: string
       prisma.whatsappMensagem.findMany({ where: { conversaId: p.conversaId }, orderBy: { created_at: 'desc' }, take: 8, select: { direcao: true, conteudo: true, transcricao: true, tipo: true } }),
     ]);
     if (!licoes.length && !daConversa.length) return { ok: true };
+    // Primeiro contato ou cliente que nunca escreveu: não há o que responder, valem só as regras puras (11/11/2026).
+    if (!precisaNotaIa(p.fase, historico)) return { ok: true };
     const conversa = historico.reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : 'Agente'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n');
     const { chamarGemini } = await import('./ia-gemini.service');
     const { lerJsonIa } = await import('../lib/assistente/ia-texto');
@@ -158,6 +160,7 @@ export async function layaConfereSaida(prisma: PrismaClient, p: { agente: string
       sistema: LAYA_SISTEMA,
       partes: [{ text: [
         `Dê uma nota de 0 a 10 para a PRÓXIMA MENSAGEM do agente nesta conversa de WhatsApp (fase: ${p.fase}). Critérios, do mais grave ao menos: 1) responde ao que a pessoa acabou de dizer e cumpre o que foi combinado (ex.: falar com outra pessoa, retornar numa data); 2) não insiste depois de objeção ou pedido de tempo; 3) não afirma recurso, preço ou prazo que não esteja no material; 4) curta, natural, termina com uma pergunta fácil ou um próximo passo; 5) segue as lições do Rafael abaixo. Nota 6 ou mais = pode sair. {"nota": 0-10, "problema": "o que impede de sair, em uma frase, ou vazio"}`,
+        avisoDaFase(p.fase),
         '', '=== LIÇÕES DO RAFAEL (especialista) ===', ...licoes.map(l => `- ${l.texto.replace(/\s+/g, ' ').slice(0, 400)}`),
         ...(daConversa.length ? ['=== CORREÇÕES PENDENTES NESTA CONVERSA ===', ...daConversa.map(l => `- ${l.texto.replace(/\s+/g, ' ').slice(0, 400)}`)] : []),
         '', '=== CONVERSA (últimas mensagens) ===', conversa,
