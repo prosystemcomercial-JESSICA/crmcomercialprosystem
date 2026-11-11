@@ -242,7 +242,7 @@ export default function EscritorioPage() {
                           onSelecionar={id => selecionar(id || null)} chamados={chamados} destacar={setorAtual ? setorAtual.id : null}
                           onSetor={id => { setVista(id as Vista); setSel(null); }} />
                       : <p style={{ padding: 60, textAlign: 'center', color: 'var(--t-text-muted)' }}>Abrindo o escritório…</p>}
-                    <p className="esc-dica">Clique num agente para ver o quadro dele, ou no nome de uma sala para ver só aquele setor. Quem passa trabalho para outro vai até a mesa dele.</p>
+                    <p className="esc-dica">Clique num agente para ver o quadro dele, ou no nome de uma sala para ver só aquele setor. Quem passa trabalho para outro vai até a mesa dele. Use <b>Tela cheia</b> para ver o escritório grande e <b>Visitar</b> para entrar numa sala; na hora livre, a equipe conversa no café.</p>
                   </div>
                   {mostrar && <FeedAoVivo agentes={mostrar} conversas={conversasAgentes} passagens={painel?.passagens || []} esperando={painel?.saude.esperando || 0}
                     onAgente={id => selecionar(id)} onEsperando={() => setVista('esperando')} />}

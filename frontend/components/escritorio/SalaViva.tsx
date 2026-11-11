@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { TEMAS, temaDoDia, sortearDialogo, type TemaId, type Dialogo } from './sala-temas';
 
 // Escritório vivo (10/11/2026, substitui a sala isométrica): planta baixa com uma sala por setor, café,
 // sala de reunião e a sala da Jessica, ligadas por corredores. Os bonecos andam suavemente (a posição é
 // escrita direto no elemento a cada quadro, sem redesenhar a sala). Quem passa trabalho para outro agente
 // (passagens de hoje e conversas registradas) caminha até a mesa dele e os dois trocam balões; quem está
 // parado vai ao café e conversa por lá. Somente visual: nada é enviado nem gravado.
+// 11/11/2026: tela cheia, visita às salas (zoom, e a "Você" anda até lá), conversas casuais de vários turnos
+// no café (filmes, novelas, futebol…) e temas de feriado (sala-temas.ts).
 
 export type AgenteSala = {
   id: string; nome: string; cor: string; status: 'trabalhando' | 'parado' | 'desligado' | 'erro';
@@ -54,6 +57,11 @@ const MESA_REUNIAO = { x: 1000, y: 130 };
 const reuniaoLugar = (i: number, n: number): P => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return { x: MESA_REUNIAO.x + Math.cos(a) * 150, y: MESA_REUNIAO.y + 8 + Math.sin(a) * 74 }; };
 const SALA_JESSICA: P[] = [{ x: 945, y: 668 }, { x: 990, y: 680 }, { x: 1100, y: 680 }, { x: 1145, y: 668 }];
 const JESSICA = { mesa: { x: 1045, y: 600 }, assento: { x: 1052, y: 588 } };
+
+/** Onde a Jessica para ao visitar uma sala (perto da porta, fora das mesas). */
+const pontoVisita = (s: Sala): P => s.lado === 'baixo' ? { x: s.porta.x, y: s.y + s.h - 40 } : s.lado === 'cima' ? { x: s.porta.x, y: s.y + 40 } : { x: s.x + 50, y: s.porta.y };
+// Lugares dos enfeites de feriado (cantos livres das salas).
+const ENFEITES: P[] = [{ x: 350, y: 28 }, { x: 740, y: 28 }, { x: 350, y: 388 }, { x: 740, y: 388 }, { x: 1140, y: 28 }, { x: 1140, y: 268 }, { x: 1140, y: 488 }, { x: 830, y: 640 }];
 
 const PAPO_CAFE = ['☕ Café novo saindo!', '😄 Que dia bom de vendas', '🥐 Alguém quer pão de queijo?', '📈 Hoje rendeu', '🙌 Bora que a meta vem', '😂 Essa foi boa'];
 const PAPO_REUNIAO = ['📊 Vamos ver os números', '🎯 Qual a meta da semana?', '💡 Tive uma ideia', '✅ Combinado!'];
@@ -107,6 +115,8 @@ function montarMesas(ids: string[]): Lugares {
 type Estado = { pos: P; caminho: P[]; alvo: 'mesa' | 'lugar' | 'visita' | 'chamado'; lugar: string | null; ate: number; chamado: Chamado | null; visita: boolean; preso: boolean; esq: boolean };
 type Visita = { de: string; para: string; falas: { quem: string; texto: string }[]; fase: 'indo' | 'falando'; i: number; prox: number };
 type Fala = { t: string; tipo: 'fala' | 'acao' | 'papo'; ate: number };
+type Papo = { a: string; b: string; falas: Dialogo; i: number; prox: number };
+const TEMA_GUARDADO = 'escritorio-tema';
 
 type Props = {
   agentes: AgenteSala[]; conversas?: ConversaSala[]; passagens?: PassagemSala[];
@@ -118,17 +128,43 @@ type Props = {
 
 export default function SalaViva({ agentes, conversas = [], passagens = [], selecionado, onSelecionar, chamados = {}, destacar = null, onSetor }: Props) {
   const caixa = useRef<HTMLDivElement>(null);
-  const [escala, setEscala] = useState(0.7);
+  const [dim, setDim] = useState({ w: 840, h: 0 });
   useEffect(() => {
     const el = caixa.current; if (!el) return;
-    const ro = new ResizeObserver(() => setEscala(Math.max(0.5, el.clientWidth / LARG)));
+    const ro = new ResizeObserver(() => setDim({ w: el.clientWidth, h: el.clientHeight }));
     ro.observe(el); return () => ro.disconnect();
   }, []);
 
+  // Tela cheia: a caixa cobre a janela (classe "cheia") e, onde o navegador permite, entra em tela cheia de verdade.
+  const [cheia, setCheia] = useState(false);
+  const [visita, setVisita] = useState<string | null>(null);
+  const alternarCheia = () => {
+    const el = caixa.current;
+    if (cheia) { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); setCheia(false); }
+    else { setCheia(true); el?.requestFullscreen?.().catch(() => {}); }
+  };
+  useEffect(() => {
+    if (!cheia && !visita) return;
+    const saiu = () => { if (!document.fullscreenElement) setCheia(false); };
+    const tecla = (ev: KeyboardEvent) => { if (ev.key !== 'Escape') return; if (visita) setVisita(null); else setCheia(false); };
+    document.addEventListener('fullscreenchange', saiu); window.addEventListener('keydown', tecla);
+    return () => { document.removeEventListener('fullscreenchange', saiu); window.removeEventListener('keydown', tecla); };
+  }, [cheia, visita]);
+
+  // Tema: automático pela data (São Paulo) ou escolhido à mão (fica guardado neste navegador).
+  const [temaEscolha, setTemaEscolha] = useState<'auto' | TemaId>('auto');
+  const [temaHoje, setTemaHoje] = useState<TemaId>('nenhum');
+
+  const escolherTema = (v: string) => { setTemaEscolha(v as 'auto' | TemaId); try { localStorage.setItem(TEMA_GUARDADO, v); } catch { /* idem */ } };
+  const tema = TEMAS[temaEscolha === 'auto' ? temaHoje : temaEscolha];
+
   const ids = agentes.map(a => a.id).join(',');
   const mesas = useMemo(() => montarMesas(ids.split(',').filter(Boolean)), [ids]);
-  const ref = useRef({ agentes, conversas, passagens, chamados, mesas });
-  useEffect(() => { ref.current = { agentes, conversas, passagens, chamados, mesas }; });
+  const ref = useRef({ agentes, conversas, passagens, chamados, mesas, visita, tema: tema.id });
+  useEffect(() => { ref.current = { agentes, conversas, passagens, chamados, mesas, visita, tema: tema.id }; });
+  const papos = useRef<Papo[]>([]);
+  const jessicaEl = useRef<HTMLDivElement>(null);
+  const jessica = useRef<{ pos: P; caminho: P[]; destino: string | null; esq: boolean }>({ pos: { ...JESSICA.assento }, caminho: [], destino: null, esq: false });
   const estados = useRef<Record<string, Estado>>({});
   const elementos = useRef<Record<string, HTMLDivElement | null>>({});
   const visitas = useRef<Visita[]>([]);
@@ -150,6 +186,15 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
   useEffect(() => {
     let vivo = true, ultimo = performance.now(), raf = 0;
     let proxVisita = performance.now() + 2500, proxPapo = performance.now() + 3000, proxAcao = performance.now() + 1500, proxLimpa = 0, filaIdx = 0;
+    let ultimoPapo: Dialogo | undefined;
+    const andar = (e: { pos: P; caminho: P[]; esq: boolean }, passo: number) => {
+      let resta = passo;
+      while (resta > 0 && e.caminho.length) {
+        const alvo = e.caminho[0], dx = alvo.x - e.pos.x, dy = alvo.y - e.pos.y, d = Math.hypot(dx, dy);
+        if (Math.abs(dx) > 0.5) e.esq = dx < 0;
+        if (d <= resta) { e.pos = { ...alvo }; e.caminho.shift(); resta -= d; } else { e.pos = { x: e.pos.x + dx / d * resta, y: e.pos.y + dy / d * resta }; resta = 0; }
+      }
+    };
 
     const fila = (): Omit<Visita, 'fase' | 'i' | 'prox'>[] => {
       const { conversas: cv, passagens: ps } = ref.current;
@@ -229,13 +274,7 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
             }
           }
         }
-        // Anda pelo caminho.
-        let resta = VEL * dt;
-        while (resta > 0 && e.caminho.length) {
-          const alvo = e.caminho[0], dx = alvo.x - e.pos.x, dy = alvo.y - e.pos.y, d = Math.hypot(dx, dy);
-          if (Math.abs(dx) > 0.5) e.esq = dx < 0;
-          if (d <= resta) { e.pos = { ...alvo }; e.caminho.shift(); resta -= d; } else { e.pos = { x: e.pos.x + dx / d * resta, y: e.pos.y + dy / d * resta }; resta = 0; }
-        }
+        andar(e, VEL * dt);
         const el = elementos.current[a.id];
         if (el) {
           el.style.transform = `translate3d(${e.pos.x.toFixed(1)}px,${e.pos.y.toFixed(1)}px,0)`;
@@ -247,18 +286,48 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
         }
       });
 
-      // Papo no café e na reunião: quem está parado junto troca uma frase.
+      // A Jessica anda até a sala que está sendo visitada (e volta para a mesa dela ao sair).
+      const j = jessica.current, vis = ref.current.visita;
+      if (vis !== j.destino) {
+        j.destino = vis;
+        const s = vis ? SALA[vis] : null;
+        j.caminho = !s || s.id === 'jessica' ? rota(j.pos, JESSICA.assento) : [...rota(j.pos, s.corredor), s.porta, pontoVisita(s)];
+      }
+      andar(j, VEL * 1.5 * dt);
+      const jel = jessicaEl.current;
+      if (jel) {
+        jel.style.transform = `translate3d(${j.pos.x.toFixed(1)}px,${j.pos.y.toFixed(1)}px,0)`;
+        jel.style.zIndex = String(Math.round(j.pos.y));
+        jel.classList.toggle('andando', j.caminho.length > 0);
+        jel.classList.toggle('esq', j.esq);
+        jel.classList.toggle('na-mesa', !j.caminho.length && !j.destino);
+      }
+
+      // Conversas casuais no café: duas pessoas paradas trocam algumas falas (filmes, novelas, feriado…).
+      const noCafe = (id: string) => { const e = estados.current[id]; return !!e && !e.caminho.length && e.alvo === 'lugar'; };
+      papos.current = papos.current.filter(p => {
+        if (!noCafe(p.a) || !noCafe(p.b) || p.i >= p.falas.length) return false;
+        if (t >= p.prox) { falar(p.i % 2 ? p.b : p.a, p.falas[p.i++], 'papo', 3400); p.prox = t + 3600; }
+        return true;
+      });
       if (t > proxPapo) {
         proxPapo = t + 4200;
-        (['cafe', 'reuniao'] as const).forEach(zona => {
-          const ali = lista.filter(a => { const e = estados.current[a.id]; return e && !e.caminho.length && (zona === 'cafe' ? e.alvo === 'lugar' : e.chamado === 'reuniao'); });
-          const livres = ali.filter(a => !falasRef.current[a.id]);
-          if (ali.length >= 2 && livres.length) {
-            const quem = livres[Math.floor(Math.random() * livres.length)];
-            const frases = zona === 'cafe' ? PAPO_CAFE : PAPO_REUNIAO;
-            falar(quem.id, frases[Math.floor(Math.random() * frases.length)], 'papo', 3000);
-          }
-        });
+        const emPapo = (id: string) => papos.current.some(p => p.a === id || p.b === id);
+        const cafe = lista.filter(a => noCafe(a.id) && !emPapo(a.id) && !falasRef.current[a.id]);
+        if (cafe.length >= 2 && !papos.current.length) {
+          const a = cafe.splice(Math.floor(Math.random() * cafe.length), 1)[0];
+          const ea = estados.current[a.id];
+          const dist = (id: string) => Math.hypot(estados.current[id].pos.x - ea.pos.x, estados.current[id].pos.y - ea.pos.y);
+          const b = cafe.sort((x, y) => dist(x.id) - dist(y.id))[0];
+          const eb = estados.current[b.id];
+          const falas = ultimoPapo = sortearDialogo(ref.current.tema, ultimoPapo);
+          ea.esq = eb.pos.x < ea.pos.x; eb.esq = ea.pos.x < eb.pos.x;
+          ea.ate = eb.ate = t + falas.length * 3600 + 2500; // ficam no café até a conversa acabar
+          papos.current.push({ a: a.id, b: b.id, falas, i: 0, prox: t });
+        } else if (cafe.length === 1 && Math.random() < 0.4) falar(cafe[0].id, PAPO_CAFE[Math.floor(Math.random() * PAPO_CAFE.length)], 'papo', 3000);
+        const reuniao = lista.filter(a => { const e = estados.current[a.id]; return e && !e.caminho.length && e.chamado === 'reuniao'; });
+        const livres = reuniao.filter(a => !falasRef.current[a.id]);
+        if (reuniao.length >= 2 && livres.length) falar(livres[Math.floor(Math.random() * livres.length)].id, PAPO_REUNIAO[Math.floor(Math.random() * PAPO_REUNIAO.length)], 'papo', 3000);
       }
       // Quem trabalha mostra de vez em quando o que fez por último.
       if (t > proxAcao) {
@@ -284,17 +353,40 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
     const tic = () => {
       const f = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
       setHora(f); const h = Number(f.slice(0, 2)); setNoite(h >= 19 || h < 6);
+      const [d, m, a] = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date()).split('/').map(Number);
+      setTemaHoje(temaDoDia(a, m, d));
     };
-    tic(); const i = setInterval(tic, 20_000); return () => clearInterval(i);
+    const lerTema = () => { try { const g = localStorage.getItem(TEMA_GUARDADO); if (g && (g === 'auto' || g in TEMAS)) setTemaEscolha(g as 'auto' | TemaId); } catch { /* sem armazenamento: fica no automático */ } };
+    lerTema(); tic(); const i = setInterval(tic, 20_000); return () => clearInterval(i);
   }, []);
 
   const apagada = (salaId: string) => !!destacar && SETORES[destacar] && salaId !== destacar && salaId in SETORES;
   const agenteApagado = (id: string) => !!destacar && !!SETORES[destacar] && mesas[id]?.sala !== destacar;
   const porSala = (sid: string) => agentes.filter(a => mesas[a.id]?.sala === sid);
 
+  // Enquadramento: escritório inteiro (na página ou centralizado em tela cheia) ou zoom na sala visitada.
+  const base = Math.max(0.5, dim.w / LARG);
+  const altura = cheia && dim.h ? dim.h : (ALT + TOPO) * base;
+  const sv = visita ? SALA[visita] : null;
+  const z = sv ? Math.min(dim.w / (sv.w + 60), altura / (sv.h + 60 + TOPO)) : cheia ? Math.min(dim.w / LARG, altura / (ALT + TOPO)) : base;
+  const tx = sv ? dim.w / 2 - (sv.x + sv.w / 2) * z : cheia ? (dim.w - LARG * z) / 2 : 0;
+  const ty = sv ? altura / 2 - (sv.y + sv.h / 2) * z + TOPO * z / 2 : TOPO * z + (cheia ? (altura - (ALT + TOPO) * z) / 2 : 0);
+
   return (
-    <div ref={caixa} className="sv-caixa" style={{ height: (ALT + TOPO) * escala }}>
-      <div className={`sv-palco${noite ? ' noite' : ''}`} style={{ width: LARG, height: ALT, top: TOPO * escala, transform: `scale(${escala})` }}>
+    <div ref={caixa} className={`sv-caixa${cheia ? ' cheia' : ''}${sv ? ' visitando' : ''}`} style={cheia ? undefined : { height: altura }}>
+      <div className="sv-barra">
+        {sv && <button className="sv-bt" onClick={() => setVisita(null)}>← Escritório inteiro</button>}
+        {sv && <span className="sv-onde">Visitando: {sv.nome}</span>}
+        <label className="sv-bt sv-tema">
+          <span className="sv-so-leitor">Tema do escritório</span>
+          <select value={temaEscolha} onChange={ev => escolherTema(ev.target.value)}>
+            <option value="auto">🗓️ Tema automático{temaHoje !== 'nenhum' ? ` (hoje: ${TEMAS[temaHoje].nome})` : ''}</option>
+            {Object.values(TEMAS).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
+          </select>
+        </label>
+        <button className="sv-bt" onClick={alternarCheia} aria-pressed={cheia}>{cheia ? '✕ Sair da tela cheia' : '⛶ Tela cheia'}</button>
+      </div>
+      <div className={`sv-palco${noite ? ' noite' : ''}`} style={{ width: LARG, height: ALT, transform: `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px) scale(${z.toFixed(4)})` }}>
         {/* corredores */}
         <div className="sv-corredor" style={{ left: 20, top: 340, width: 795, height: 40 }} />
         <div className="sv-corredor" style={{ left: 780, top: 20, width: 35, height: 680 }} />
@@ -312,6 +404,7 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
                     {erro && <i className="sv-placa-erro" aria-hidden />}{s.nome}<small>{trab}/{lista.length} trabalhando</small>
                   </button>
                 : <span className="sv-placa estatica">{s.nome}{s.id === 'jessica' && hora ? <small>{hora}</small> : null}</span>}
+              {visita !== s.id && <button className="sv-visitar" onClick={() => setVisita(s.id)} aria-label={`Visitar ${s.nome}`}>🔍 Visitar</button>}
             </div>
           );
         })}
@@ -328,6 +421,14 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
         {[[30, 300], [740, 300], [30, 660], [740, 660], [1150, 220], [1150, 440]].map(([x, y], k) => <span key={k} className="sv-planta" style={{ left: x, top: y, zIndex: y + 20 }}>🪴</span>)}
         {SALAS.filter(s => s.id in SETORES).map(s => <span key={`q-${s.id}`} className="sv-quadro" style={{ left: s.x + s.w / 2 - 40, top: s.y + 10 }} />)}
 
+        {/* tema de feriado: enfeites, varal no corredor e partículas caindo */}
+        {tema.destaque && <span className="sv-enfeite grande" style={{ left: 905, top: 296, zIndex: 350 }} aria-hidden>{tema.destaque}</span>}
+        {tema.enfeites.length > 0 && ENFEITES.map((p, k) => <span key={`e-${k}`} className="sv-enfeite" style={{ left: p.x, top: p.y, zIndex: 6 }} aria-hidden>{tema.enfeites[k % tema.enfeites.length]}</span>)}
+        {tema.varal && <div className="sv-varal" aria-hidden>{tema.varal.repeat(14)}</div>}
+        {tema.particulas.length > 0 && Array.from({ length: 16 }, (_, k) => (
+          <span key={`p-${tema.id}-${k}`} className="sv-floco" style={{ left: (k * 83 + 30) % LARG, animationDuration: `${9 + (k % 5) * 2}s`, animationDelay: `${-k * 1.3}s` }} aria-hidden>{tema.particulas[k % tema.particulas.length]}</span>
+        ))}
+
         {/* mesas dos agentes */}
         {agentes.map(a => {
           const m = mesas[a.id]; if (!m) return null;
@@ -339,8 +440,9 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
         })}
 
         {/* Jessica */}
-        <div className="sv-av na-mesa" style={{ transform: `translate3d(${JESSICA.assento.x}px,${JESSICA.assento.y}px,0)`, zIndex: JESSICA.assento.y }} aria-label="Jessica (você)">
-          <Boneco id="jessica" cor="#1e3a8a" />
+        <div ref={jessicaEl} className="sv-av na-mesa" aria-label="Jessica (você)">
+          <span className="sv-chao" />
+          <Boneco id="jessica" cor="#1e3a8a" chapeu={tema.chapeu} />
           <span className="sv-nome voce">⭐ Você</span>
         </div>
 
@@ -356,10 +458,10 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
               style={{ ['--c' as string]: a.cor }}
               aria-label={`${a.nome}: ${a.status === 'erro' ? 'com erro' : a.status}${a.precisa ? `, precisa de você: ${a.precisa}` : ''}`}
               title={`${a.nome}${a.funcao ? ` · ${a.funcao}` : ''}\n${a.erro ? `Erro: ${a.erro}` : a.precisa ? `Precisa de você: ${a.precisa}` : a.ultima?.texto || ''}`}
-              onClick={() => onSelecionar(a.id)}
+              onClick={() => { onSelecionar(a.id); if ((cheia || sv) && a.ultima) falar(a.id, a.ultima.texto, 'acao', 5000); }}
               onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelecionar(a.id); } }}>
               <span className="sv-chao" />
-              <Boneco id={a.id} cor={a.cor} />
+              <Boneco id={a.id} cor={a.cor} chapeu={a.status === 'desligado' ? null : tema.chapeu} />
               <span className="sv-nome"><i className="sv-luz" />{a.nome}</span>
               {a.status === 'erro' && <span className="sv-selo erro" aria-hidden>!</span>}
               {a.status !== 'erro' && a.precisa && <span className="sv-selo precisa" aria-hidden>✋</span>}
@@ -376,7 +478,7 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
   );
 }
 
-function Boneco({ id, cor }: { id: string; cor: string }) {
+function Boneco({ id, cor, chapeu = null }: { id: string; cor: string; chapeu?: string | null }) {
   const [cabelo, longo, pele] = VISUAL[id] || ['#3f2a1d', false];
   return (
     <span className="sv-fig" style={{ ['--c' as string]: cor, ['--h' as string]: cabelo, ['--p' as string]: pele || '#f1c27d' }}>
@@ -385,6 +487,7 @@ function Boneco({ id, cor }: { id: string; cor: string }) {
       <span className="sv-tronco" />
       <span className="sv-braco e" /><span className="sv-braco d" />
       <span className="sv-cabeca"><span className="sv-cabelo" /><span className="sv-olhos" /></span>
+      {chapeu === 'gorro' ? <span className="sv-gorro" /> : chapeu ? <span className="sv-chapeu">{chapeu}</span> : null}
     </span>
   );
 }
@@ -392,7 +495,28 @@ function Boneco({ id, cor }: { id: string; cor: string }) {
 function EstilosSala() {
   return <style>{`
     .sv-caixa{position:relative;width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
-    .sv-palco{position:absolute;left:0;transform-origin:0 0;background:#dfe5ee;font-family:inherit;border-radius:14px}
+    .sv-caixa.cheia{position:fixed;inset:0;z-index:9999;height:100dvh;background:#0f172a;overflow:hidden}
+    .sv-caixa.visitando{overflow:hidden}
+    .sv-barra{position:absolute;right:8px;top:6px;z-index:9500;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;max-width:calc(100% - 16px)}
+    .sv-bt{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;font:700 12.5px/1.2 inherit;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.14)}
+    .sv-bt:hover{border-color:#2563eb}
+    .sv-bt:focus-visible,.sv-visitar:focus-visible,.sv-tema:focus-within{outline:3px solid #2563eb;outline-offset:2px}
+    .sv-tema select{border:none;background:transparent;color:inherit;font:inherit;cursor:pointer;outline:none;max-width:170px}
+    .sv-onde{padding:6px 12px;border-radius:999px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:700}
+    .sv-so-leitor{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+    .sv-visitar{position:absolute;right:12px;bottom:10px;padding:4px 10px;border-radius:999px;border:none;background:rgba(255,255,255,.92);color:#334155;font:700 11.5px/1.2 inherit;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.14);z-index:5;opacity:.75;transition:opacity .2s}
+    .sv-visitar:hover,.sv-visitar:focus-visible{opacity:1;box-shadow:0 0 0 2px var(--tom)}
+    .sv-enfeite{position:absolute;font-size:20px;pointer-events:none;animation:sv-balanca 3s ease-in-out infinite alternate;transform-origin:50% 0}
+    .sv-enfeite.grande{font-size:46px;animation:none;filter:drop-shadow(0 4px 4px rgba(15,23,42,.2))}
+    .sv-varal{position:absolute;left:28px;top:343px;width:745px;overflow:hidden;white-space:nowrap;font-size:14px;letter-spacing:10px;line-height:1;pointer-events:none;z-index:2}
+    .sv-floco{position:absolute;top:-30px;font-size:16px;pointer-events:none;z-index:8500;opacity:.85;animation:sv-cai linear infinite}
+    .sv-chapeu{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);font-size:13px;line-height:1}
+    .sv-gorro{position:absolute;left:5px;bottom:46px;width:20px;height:11px;border-radius:11px 14px 0 0;background:#dc2626}
+    .sv-gorro::before{content:"";position:absolute;left:-2px;right:-2px;bottom:-2px;height:5px;border-radius:3px;background:#fff}
+    .sv-gorro::after{content:"";position:absolute;right:-4px;top:-2px;width:7px;height:7px;border-radius:50%;background:#fff}
+    @keyframes sv-cai{to{transform:translate(40px,${ALT + 40}px) rotate(200deg)}}
+    @keyframes sv-balanca{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}
+    .sv-palco{position:absolute;left:0;top:0;transform-origin:0 0;background:#dfe5ee;font-family:inherit;border-radius:14px;transition:transform .6s cubic-bezier(.3,.7,.2,1)}
     .sv-palco::after{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;background:linear-gradient(160deg,rgba(255,236,190,.18),transparent 45%);z-index:9000;transition:background 2s}
     .sv-palco.noite::after{background:rgba(30,27,75,.1)}
     .sv-corredor{position:absolute;background:repeating-linear-gradient(90deg,#cfd8e3 0 38px,#c8d2de 38px 40px)}
@@ -483,6 +607,6 @@ function EstilosSala() {
     @keyframes sv-sobe{0%{opacity:0;transform:translateY(4px)}30%{opacity:1}100%{opacity:0;transform:translate(6px,-12px)}}
     @keyframes sv-pop{from{opacity:0;transform:translateX(-50%) translateY(6px) scale(.85)}to{opacity:1;transform:translateX(-50%) scale(1)}}
     @keyframes sv-ponto{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-3px);opacity:1}}
-    @media (prefers-reduced-motion:reduce){.sv-palco *{animation:none!important}}
+    @media (prefers-reduced-motion:reduce){.sv-palco{transition:none}.sv-palco *{animation:none!important}.sv-floco{display:none}}
   `}</style>;
 }
