@@ -28,3 +28,26 @@ describe('escritório por setores', () => {
     expect(situacaoTeto(101, 130, 100).nivel).toBe('estourou');
   });
 });
+
+describe('resumo diário da Marta', () => {
+  it('conta por tipo, marca "+" no teto e lista o que precisa de atenção', async () => {
+    const { textoResumoMarta } = await import('../src/lib/assistente/escritorio-setores');
+    const t = textoResumoMarta({
+      esperando: [{ tipo: 'mensagem' }, { tipo: 'pergunta' }, { tipo: 'pergunta' }],
+      comErro: [{ nome: 'Zequinha', motivo: '3 falhas seguidas' }], whatsappFora: ['Número 2'], iasPausadas: [],
+      link: 'https://exemplo/escritorio', tetos: { pergunta: 2 },
+    });
+    expect(t).toContain('• 1 mensagem(ns) dos agentes para aprovar');
+    expect(t).toContain('• 2+ pergunta(s) do Rafael');
+    expect(t).not.toContain('documento(s)');
+    expect(t).toContain('Zequinha parou: 3 falhas seguidas');
+    expect(t).toContain('WhatsApp desconectado: Número 2');
+    expect(t).toContain('https://exemplo/escritorio');
+  });
+  it('sem nada parado diz isso e não abre a seção de atenção', async () => {
+    const { textoResumoMarta } = await import('../src/lib/assistente/escritorio-setores');
+    const t = textoResumoMarta({ esperando: [], comErro: [], whatsappFora: [], iasPausadas: [], link: 'x' });
+    expect(t).toContain('Nada parado com você');
+    expect(t).not.toContain('Precisa de atenção');
+  });
+});

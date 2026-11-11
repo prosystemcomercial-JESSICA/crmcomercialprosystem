@@ -122,6 +122,7 @@ export async function painelEscritorio(prisma: PrismaClient, agentes: EstadoAgen
     'rafael>luiz_felipe': notas('rafael', 'luiz_felipe', ['ORIENTACAO']),
     'laya>caroline': seguradasHoje + notas('laya', 'rafael'),
     'olivia>rafael': notas('olivia', 'rafael'),
+    'olivia>caroline': notas('olivia', 'caroline'),
     'sofia>joana': leadsSofia,
     'joana>zequinha': informativos,
     'helena>mila': notas('helena', 'mila'),
@@ -174,4 +175,21 @@ export async function painelEscritorio(prisma: PrismaClient, agentes: EstadoAgen
     esperando: esperando.length,
   };
   return { setores: SETORES, saude, quadros, passagens, esperando, consumo };
+}
+
+/** Resumo diário da Marta (11/11/2026): dias úteis de manhã, uma vez, só para a gestora. */
+export async function resumoDiarioMarta(prisma: PrismaClient, agora = new Date()) {
+  const { montarEscritorio } = await import('./escritorio.service');
+  const p = await painelEscritorio(prisma, await montarEscritorio(prisma), agora);
+  const { textoResumoMarta } = await import('@/lib/assistente/escritorio-setores');
+  const base = (process.env.FRONTEND_URL || '').split(',')[0]?.trim().replace(/\/$/, '') || 'https://comercial.prosystemnet.com';
+  const texto = textoResumoMarta({
+    esperando: p.esperando, comErro: p.saude.agentes.com_erro, whatsappFora: p.saude.whatsapp.desconectados,
+    iasPausadas: p.saude.ias.com_falha.map(x => x.provedor), link: `${base}/escritorio`, tetos: { mensagem: 60, pergunta: 50, documento: 60 },
+  });
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', texto, { somenteAprovadora: true });
+  const { registrarAcaoAgente } = await import('@/lib/assistente/escritorio');
+  registrarAcaoAgente('marta', `mandou o resumo do dia para a Jessica (${p.esperando.length} esperando)`);
+  return texto;
 }

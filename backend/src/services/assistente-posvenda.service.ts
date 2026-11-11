@@ -117,10 +117,33 @@ export async function rodarPosVenda(prisma: PrismaClient, agora = new Date()): P
 }
 
 /** Resposta aos botões da pesquisa. true = consumida. */
+/**
+ * Helena → Mila (11/11/2026): toda nota da pesquisa vai para a Mila (conversa gravada no mural). Nota ruim ou regular marca o
+ * cliente como "em atenção" na base (sai das ofertas de upgrade e aparece para o CS).
+ */
+export async function passarNotaParaMila(prisma: PrismaClient, d: { propostaId: string; empresa: string; nota: 1 | 2 | 3; cnpj?: string | null }) {
+  const atencao = d.nota <= 2;
+  const digitos = (d.cnpj || '').replace(/\D/g, '');
+  let marcados = 0;
+  if (atencao && digitos.length === 14) {
+    const mascara = digitos.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    marcados = (await prisma.cliente.updateMany({ where: { cnpj: { in: [digitos, mascara] }, situacao: 'ATIVA' }, data: { risco_atencao: true } })).count;
+  }
+  const { registrarAcaoAgente } = await import('@/lib/assistente/escritorio');
+  registrarAcaoAgente('helena', `passou para a Mila a nota de ${d.empresa}`);
+  registrarAcaoAgente('mila', atencao ? `recebeu da Helena: ${d.empresa} precisa de atenção${marcados ? ' (marcado na base)' : ''}` : `recebeu da Helena a nota ótima de ${d.empresa}`);
+  const { registrarConversaAgentes } = await import('@/lib/assistente/conversas-agentes');
+  registrarConversaAgentes('helena', 'mila', 'Pesquisa de satisfação', [
+    { quem: 'helena', texto: `Mila, ${d.empresa} respondeu a pesquisa: ${NOME_NOTA[d.nota]}.${atencao ? ' Precisa de atenção.' : ''}` },
+    { quem: 'mila', texto: atencao ? 'Obrigada, Helena. Coloquei em atenção e vou acompanhar de perto.' : 'Que bom! Anotado na conta.' },
+  ]);
+  return { atencao, marcados };
+}
+
 export async function responderPesquisa(prisma: PrismaClient, token: string, conversaId: string, numero: string, botaoId: string | null | undefined): Promise<boolean> {
   const b = lerBotaoPesquisa(botaoId);
   if (!b) return false;
-  const p = await prisma.propostaComercial.findUnique({ where: { id: b.id }, select: { id: true, responsavel_telefone: true, nome_fantasia: true, razao_social: true, wpp_pesquisa_nota: true } });
+  const p = await prisma.propostaComercial.findUnique({ where: { id: b.id }, select: { id: true, responsavel_telefone: true, nome_fantasia: true, razao_social: true, wpp_pesquisa_nota: true, cnpj: true } });
   if (!p || ultimos8(p.responsavel_telefone || '') !== ultimos8(numero)) return false;
   if (p.wpp_pesquisa_nota == null) {
     await prisma.$executeRawUnsafe('UPDATE PropostaComercial SET wpp_pesquisa_nota = ? WHERE id = ?', b.nota, p.id);
@@ -128,6 +151,7 @@ export async function responderPesquisa(prisma: PrismaClient, token: string, con
     const { enviarAvisoGestao } = await import('./assistente-gestao.service');
     await enviarAvisoGestao(prisma, 'pesquisa_satisfacao', `${b.nota === 1 ? '🚨' : b.nota === 2 ? '⚠️' : '💙'} *Pesquisa de satisfação*\n${empresa}: ${NOME_NOTA[b.nota]}`);
     if (b.nota === 1) await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { prioridade: 'CRITICA', sla_prazo_em: calcularSlaPrazo('CRITICA') } }).catch(() => {});
+    await passarNotaParaMila(prisma, { propostaId: p.id, empresa, nota: b.nota, cnpj: p.cnpj }).catch(e => console.error('[POSVENDA] nota para a Mila:', e?.message));
   }
   const texto = textoRespostaPesquisa(b.nota);
   const r = await evo.enviarTexto(token, numero, texto).catch(() => ({} as any));

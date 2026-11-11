@@ -296,6 +296,15 @@ export async function decidirDoc(prisma: PrismaClient, id: string, aprovar: bool
     await prisma.agenteInstrucao.updateMany({ where: { agente: d.agente_alvo, ativa: true, texto: { startsWith: prefixo } }, data: { ativa: false } });
     await prisma.agenteInstrucao.create({ data: { agente: d.agente_alvo, ativa: true, criado_por: userId, texto: `${prefixo}: use esta diretriz no PRIMEIRO contato e nas retomadas.\n${d.conteudo}`.slice(0, 6000) } });
   }
+  // Oferta de upgrade da Mila (11/11/2026): aprovada, entra na fila de e-mails.
+  if (d.tipo === 'UPGRADE' && d.origem === 'mila') await import('./mila-upgrade.service').then(m => m.iniciarEnvioUpgrade(prisma, id));
+  // Argumentos da Olívia (11/11/2026): aprovados, viram instrução do agente (substitui a versão anterior).
+  if (d.origem === 'olivia' && d.agente_alvo) {
+    const prefixo = 'ARGUMENTOS CONTRA CONCORRENTES (Olívia, aprovado pela gestão)';
+    await prisma.agenteInstrucao.updateMany({ where: { agente: d.agente_alvo, ativa: true, texto: { startsWith: prefixo } }, data: { ativa: false } });
+    await prisma.agenteInstrucao.create({ data: { agente: d.agente_alvo, ativa: true, criado_por: userId, texto: `${prefixo}: use quando o lead disser que já usa ou escolheu outro sistema. Nunca fale mal do concorrente nem cite preço.\n${d.conteudo}`.slice(0, 6000) } });
+    registrarAcaoAgente(d.agente_alvo as any, 'recebeu os argumentos da Olívia contra concorrentes');
+  }
   // Critérios de qualificação: passam para a Laya (pergunta nova que ela responde em cada conversa).
   if (/crit[eé]rios de qualifica[cç][aã]o para a laya/i.test(d.titulo)) {
     const { lerCriteriosQualificacao } = await import('@/lib/laya');
@@ -365,6 +374,50 @@ export async function pesquisarConcorrentes(prisma: PrismaClient, foco: string |
   registrarAcaoAgente('rafael', 'recebeu o panorama da concorrência da Olívia');
   await avisar(prisma, [`🔍 *Olívia mapeou a concorrência (${cs.length} empresas)*`, r?.resumo?.slice(0, 300) || '', ...cs.slice(0, 6).map(c => `• ${c.nome}${c.avaliacoes ? `: ${String(c.avaliacoes).slice(0, 60)}` : ''}`), '', 'Detalhes e respostas prontas no Escritório › painel do Rafael › Concorrência.'].join('\n'));
   return { resumo: r?.resumo || '', documentos: gravados };
+}
+
+/**
+ * Olívia · perdas para concorrentes (11/11/2026): conta os leads perdidos para outro sistema (números do CRM),
+ * escreve a leitura e os argumentos para a Caroline. Aprovado pela Jessica, vira instrução da Caroline.
+ */
+export async function relatorioPerdasConcorrentes(prisma: PrismaClient, dias = 90) {
+  const { resumoPerdasConcorrentes, tabelaPerdas } = await import('@/lib/assistente/olivia-perdas');
+  const leads = await prisma.lead.findMany({
+    where: { etapa_comercial: 'PERDIDO', deleted_at: null, updated_at: { gte: new Date(Date.now() - dias * 864e5) } },
+    select: { motivo_perda: true, sistema_atual: true, segmento: true },
+  });
+  const r = resumoPerdasConcorrentes(leads);
+  if (!r.paraConcorrente) { registrarAcaoAgente('olivia', `conferiu ${r.perdidos} perda(s) em ${dias} dias: nenhuma para concorrente`); return null; }
+  const panorama = await prisma.especialistaDoc.findFirst({ where: { tipo: 'CONCORRENCIA', origem: 'olivia', status: 'APROVADO', titulo: { startsWith: 'Panorama' } }, orderBy: { decidido_em: 'desc' }, select: { conteudo: true } });
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  const pergunta = [
+    'Abaixo estão os números reais de leads que a Prosystem perdeu para outros sistemas. Não altere nem invente números.',
+    '1) Escreva uma leitura curta (até 6 frases): para quem estamos perdendo, em qual segmento e o que os motivos escritos pela equipe indicam.',
+    '2) Escreva argumentos para a Caroline (SDR, primeiro contato pelo WhatsApp) usar quando o lead disser que já usa ou escolheu outro sistema. Um por concorrente da tabela (e um genérico para "Não informado"). Cada um com: o que o lead costuma dizer, uma pergunta de descoberta e uma resposta curta de WhatsApp (até 300 caracteres, sem travessão).',
+    'Regras: nunca falar mal do concorrente, nunca citar preço ou desconto, nunca afirmar algo sobre o concorrente que não esteja no panorama abaixo. Sem informação sobre um concorrente, o argumento deve ser só de descoberta (perguntar o que falta hoje).',
+    'Responda APENAS com JSON: {"leitura": string, "argumentos": [{"concorrente": string, "o_lead_diz": string, "pergunte": string, "responda": string}]}',
+    '', '=== NÚMEROS (CRM) ===', tabelaPerdas(r, dias),
+    r.detalhes.length ? `\n=== MOTIVOS ESCRITOS PELA EQUIPE ===\n${r.detalhes.map(d => `- ${d.slice(0, 200)}`).join('\n')}` : '',
+    panorama ? `\n=== PANORAMA DA CONCORRÊNCIA (aprovado) ===\n${panorama.conteudo.slice(0, 6000)}` : '\n(Sem panorama aprovado: use só argumentos de descoberta.)',
+  ].join('\n');
+  // Se a IA falhar, o relatório sai só com os números do CRM.
+  const ia = lerJsonIa<{ leitura: string; argumentos: { concorrente: string; o_lead_diz: string; pergunte: string; responda: string }[] }>(
+    await chamarGemini(prisma, { sistema: OLIVIA + (await instrucoesPara(prisma, 'olivia')), partes: [{ text: pergunta }], json: true, temperatura: 0.3, timeoutMs: 150_000 }).catch(() => ''));
+  const args = (ia?.argumentos || []).filter(a => a?.concorrente && a?.responda).slice(0, 12);
+  const gravados = [await gravarDoc(prisma, { tipo: 'CONCORRENCIA', titulo: 'Perdas para concorrentes', conteudo: [`# Perdas para concorrentes · últimos ${dias} dias`, '', tabelaPerdas(r, dias), '', '## Leitura da Olívia', ia?.leitura || '(a IA não respondeu desta vez; os números acima são do CRM)'].join('\n') }, 'olivia', { resumo: r })];
+  if (args.length) {
+    const md = ['Quando o lead disser que já usa ou escolheu outro sistema (sem falar mal de ninguém, sem preço):', '',
+      ...args.flatMap(a => [`- **${a.concorrente}**`, `  - O lead diz: ${a.o_lead_diz}`, `  - Pergunte: ${a.pergunte}`, `  - Responda: ${String(a.responda).slice(0, 400)}`])].join('\n');
+    gravados.push(await gravarDoc(prisma, { tipo: 'EXEMPLO', titulo: 'Argumentos para a Caroline: lead que já usa outro sistema', conteudo: md, agente_alvo: 'caroline' }, 'olivia', { resumo: r }));
+  }
+  const maior = r.porConcorrente[0];
+  registrarAcaoAgente('olivia', `contou ${r.paraConcorrente} perda(s) para concorrentes e escreveu ${args.length} argumento(s) para a Caroline`);
+  if (args.length) import('@/lib/assistente/conversas-agentes').then(m => m.registrarConversaAgentes('olivia', 'caroline', 'Perdas para concorrentes', [
+    { quem: 'olivia', texto: `Caroline, perdemos ${r.paraConcorrente} lead(s) para outros sistemas em ${dias} dias. O mais citado: ${maior.nome} (${maior.total}).` },
+    { quem: 'caroline', texto: 'Obrigada, Olívia. Assim que a Jessica aprovar, uso os argumentos nas conversas.' },
+  ])).catch(() => {});
+  await avisar(prisma, [`🔍 *Olívia: ${r.paraConcorrente} de ${r.perdidos} perdas foram para concorrentes (${dias} dias)*`, ...r.porConcorrente.slice(0, 5).map(c => `• ${c.nome}: ${c.total}`), '', args.length ? `Escrevi ${args.length} argumento(s) para a Caroline. Aprove no Escritório › painel do Rafael › Concorrência.` : 'Relatório no Escritório › painel do Rafael › Concorrência.'].join('\n'));
+  return { resumo: r, documentos: gravados };
 }
 
 /** Rotina: revisão das conversas de seg a sex às 17h; estudo toda quarta às 9h. */
@@ -679,6 +732,10 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   const hoje = agora.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   // Teto mensal de IA (10/11/2026): aviso único ao passar de 80% e ao estourar.
   await import('./escritorio-painel.service').then(m => m.verificarTetoIa(prisma, agora)).catch(e => console.error('[IA] teto:', e?.message));
+  // Resumo diário da Marta (11/11/2026): dias úteis, das 8h às 10h, o que espera a Jessica.
+  if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 8 && hora < 10 && await podeEnviarUmaVez(prisma, `marta.resumo.${hoje}`, 20)) {
+    await import('./escritorio-painel.service').then(m => m.resumoDiarioMarta(prisma, agora)).catch(e => console.error('[MARTA] resumo:', e?.message));
+  }
   // Reunião diária da equipe conduzida pelo Rafael (06/10/2026): dias úteis, das 8h às 10h, uma vez por dia.
   if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia) && hora >= 8 && hora < 10 && await podeEnviarUmaVez(prisma, `rafael.reuniao.${hoje}`, 20)) {
     const { reuniaoDaEquipe } = await import('./equipe.service');
@@ -723,9 +780,20 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   if (dia === 'Mon' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `mila.estudo.${hoje}`, 20)) {
     await estudarRetencao(prisma).catch(e => console.error('[MILA] estudo:', e?.message));
   }
+  // Mila: a cada 15 dias, na quarta à tarde, monta a oferta de upgrade para a base; os e-mails aprovados saem em lotes nos dias úteis.
+  if (dia === 'Wed' && hora >= 14 && hora < 16 && await podeEnviarUmaVez(prisma, 'mila.upgrade', 24 * 13)) {
+    await import('./mila-upgrade.service').then(m => m.proporOfertaUpgrade(prisma, agora)).catch(e => console.error('[MILA] upgrade:', e?.message));
+  }
+  if (!['Sat', 'Sun'].includes(dia) && hora >= 8 && hora < 18) {
+    await import('./mila-upgrade.service').then(m => m.enviarOfertasUpgrade(prisma, agora)).catch(e => console.error('[MILA] envio do upgrade:', e?.message));
+  }
   // Olívia: a cada 15 dias, na terça de manhã (a trava de 14 dias evita repetir na semana seguinte).
   if (dia === 'Tue' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, 'olivia.concorrencia', 24 * 13)) {
     await pesquisarConcorrentes(prisma).catch(e => console.error('[OLIVIA]', e?.message));
+  }
+  // Olívia: uma vez por mês, na sexta de manhã, as perdas para concorrentes e os argumentos para a Caroline.
+  if (dia === 'Fri' && hora >= 9 && hora < 12 && await podeEnviarUmaVez(prisma, 'olivia.perdas', 24 * 27)) {
+    await relatorioPerdasConcorrentes(prisma).catch(e => console.error('[OLIVIA] perdas:', e?.message));
   }
 }
 

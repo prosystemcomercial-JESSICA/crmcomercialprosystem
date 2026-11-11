@@ -18,10 +18,11 @@ const VERSOES = [
 export default function PainelJoana() {
   const [itens, setItens] = useState<Item[] | null>(null);
   const [escrevendo, setEscrevendo] = useState(false);
+  const [publico, setPublico] = useState<{ clientes: number; leads: number } | null>(null);
   const [sel, setSel] = useState(0);
   const [versao, setVersao] = useState<'clientes' | 'lista' | 'whatsapp'>('clientes');
   const [msg, setMsg] = useState<string | null>(null);
-  const carregar = useCallback(() => apiClient.joanaEdicoes().then(r => { setItens(r.data.data.edicoes); setEscrevendo(r.data.data.escrevendo); }).catch(() => setItens([])), []);
+  const carregar = useCallback(() => apiClient.joanaEdicoes().then(r => { setItens(r.data.data.edicoes); setEscrevendo(r.data.data.escrevendo); setPublico(r.data.data.publico || null); }).catch(() => setItens([])), []);
   useEffect(() => { carregar(); const t = setInterval(carregar, 30_000); return () => clearInterval(t); }, [carregar]);
 
   const acao = async (fn: () => Promise<any>) => { try { const r = await fn(); setMsg(r.data?.message || 'Pronto.'); } catch (e: any) { setMsg(e?.response?.data?.message || 'Não deu certo.'); } carregar(); };
@@ -83,7 +84,7 @@ export default function PainelJoana() {
           {it.status === 'PROPOSTO' && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button style={btn('#16a34a')} onClick={() => {
-                if (window.confirm('Aprovar e enviar o Informativo?\n\n• Clientes ativos: e-mail (em lotes nos dias úteis)\n• Lista Informativo: e-mail + WhatsApp pelo Zequinha (ritmo seguro)\n\nDepois de aprovado não dá para desfazer os envios já feitos.')) acao(() => apiClient.joanaAprovar(it.id));
+                if (window.confirm(`Aprovar e enviar o Informativo?\n\n• Clientes ativos: ${publico ? `${publico.clientes} e-mail(s)` : 'e-mail'} (em lotes nos dias úteis)\n• Leads em aberto com e-mail: ${publico ? `${publico.leads} e-mail(s)` : 'e-mail'} (fora perdidos e descadastrados)\n• Quem tem a etiqueta Informativo Prosystem: também WhatsApp pelo Zequinha (ritmo seguro)\n\nDepois de aprovado não dá para desfazer os envios já feitos.`)) acao(() => apiClient.joanaAprovar(it.id));
               }}>✅ Aprovar e enviar</button>
               <button style={btn('var(--t-content-bg)', '#dc2626')} onClick={() => acao(() => apiClient.joanaArquivar(it.id))}>Arquivar</button>
             </div>

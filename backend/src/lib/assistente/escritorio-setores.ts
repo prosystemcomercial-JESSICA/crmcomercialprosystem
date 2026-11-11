@@ -21,6 +21,7 @@ export const LIGACOES: { de: string; para: string; tipo: 'passa' | 'orienta'; ro
   { de: 'rafael', para: 'luiz_felipe', tipo: 'orienta', rotulo: 'orientações' },
   { de: 'laya', para: 'caroline', tipo: 'orienta', rotulo: 'mensagens conferidas' },
   { de: 'olivia', para: 'rafael', tipo: 'orienta', rotulo: 'concorrência' },
+  { de: 'olivia', para: 'caroline', tipo: 'orienta', rotulo: 'argumentos contra concorrentes' },
   { de: 'sofia', para: 'joana', tipo: 'passa', rotulo: 'pesquisas' },
   { de: 'joana', para: 'zequinha', tipo: 'passa', rotulo: 'Informativo' },
   { de: 'helena', para: 'mila', tipo: 'passa', rotulo: 'pesquisas de satisfação' },
@@ -46,4 +47,33 @@ export function situacaoTeto(gasto: number, previsao: number, teto: number): { u
   if (!(teto > 0)) return { usado: 0, nivel: 'sem_teto', previsao_estoura: false };
   const usado = gasto / teto;
   return { usado, nivel: usado >= 1 ? 'estourou' : usado >= 0.8 ? 'atencao' : 'ok', previsao_estoura: previsao > teto };
+}
+
+/**
+ * Resumo diário da Marta (11/11/2026): o que espera a Jessica, numa mensagem só de WhatsApp. `tetos` são os
+ * limites de itens que o painel carrega por tipo; chegando neles o número ganha "+".
+ */
+export function textoResumoMarta(p: {
+  esperando: { tipo: 'mensagem' | 'pergunta' | 'documento' }[];
+  comErro: { nome: string; motivo: string }[]; whatsappFora: string[]; iasPausadas: string[]; link: string;
+  tetos?: Partial<Record<'mensagem' | 'pergunta' | 'documento', number>>;
+}): string {
+  const n = (t: 'mensagem' | 'pergunta' | 'documento') => p.esperando.filter(e => e.tipo === t).length;
+  const txt = (t: 'mensagem' | 'pergunta' | 'documento') => `${n(t)}${p.tetos?.[t] && n(t) >= p.tetos[t]! ? '+' : ''}`;
+  const filas = [
+    n('mensagem') ? `• ${txt('mensagem')} mensagem(ns) dos agentes para aprovar` : '',
+    n('pergunta') ? `• ${txt('pergunta')} pergunta(s) do Rafael` : '',
+    n('documento') ? `• ${txt('documento')} documento(s) para aprovar` : '',
+  ].filter(Boolean);
+  const alertas = [
+    ...p.comErro.map(e => `• ${e.nome} parou: ${e.motivo}`.slice(0, 200)),
+    p.whatsappFora.length ? `• WhatsApp desconectado: ${p.whatsappFora.join(', ')}` : '',
+    p.iasPausadas.length ? `• IA em pausa: ${p.iasPausadas.join(', ')}` : '',
+  ].filter(Boolean);
+  return [
+    '☀️ *Resumo da Marta: o que espera você hoje*',
+    ...(filas.length ? filas : ['Nada parado com você. 🎉']),
+    ...(alertas.length ? ['', '*Precisa de atenção*', ...alertas] : []),
+    '', `Abrir o Escritório: ${p.link}`,
+  ].join('\n');
 }

@@ -63,7 +63,14 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     if (!requireGestor(request, reply)) return;
     const b = z.object({ tema: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
     const { estudarRetencao } = await import('../services/especialista.service');
-    const ok = emSegundoPlano('mila', () => estudarRetencao(prisma, b.success ? b.data.tema || null : null));
+    const tema = b.success ? b.data.tema || null : null;
+    // Tema "upgrade": em vez de estudar, a Mila monta a oferta de upgrade para a base (11/11/2026).
+    if (tema && /^\s*upgrade\s*$/i.test(tema)) {
+      const { proporOfertaUpgrade } = await import('../services/mila-upgrade.service');
+      const foi = emSegundoPlano('mila', () => proporOfertaUpgrade(prisma));
+      return reply.send({ status: 'success', message: foi ? 'A Mila está montando a oferta de upgrade. Ela aparece em "Para aprovar" em 1 a 2 minutos.' : 'A Mila já está trabalhando.' });
+    }
+    const ok = emSegundoPlano('mila', () => estudarRetencao(prisma, tema));
     return reply.send({ status: 'success', message: ok ? 'A Mila começou a estudar retenção. Os documentos aparecem aqui em alguns minutos.' : 'A Mila já está estudando.' });
   });
 
@@ -90,8 +97,12 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
   fastify.post('/especialista/concorrentes', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const b = z.object({ foco: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
-    const { pesquisarConcorrentes } = await import('../services/especialista.service');
-    const ok = emSegundoPlano('concorrentes', () => pesquisarConcorrentes(prisma, b.success ? b.data.foco || null : null));
+    const { pesquisarConcorrentes, relatorioPerdasConcorrentes } = await import('../services/especialista.service');
+    // Junto com o panorama sai o relatório de perdas para concorrentes (11/11/2026).
+    const ok = emSegundoPlano('concorrentes', async () => {
+      await pesquisarConcorrentes(prisma, b.success ? b.data.foco || null : null);
+      await relatorioPerdasConcorrentes(prisma).catch(e => console.error('[OLIVIA] perdas:', e?.message));
+    });
     return reply.send({ status: 'success', message: ok ? 'A Olívia começou a pesquisar a concorrência (alguns minutos).' : 'A Olívia já está pesquisando.' });
   });
 

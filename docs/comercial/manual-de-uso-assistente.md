@@ -1606,3 +1606,33 @@ $L
 - O lead vai para **Perdido** com o motivo, e os agentes param de falar com esse contato. A conversa continua no Inbox; quem responde é a equipe.
 - O motivo fica salvo no lead, com quem desqualificou e quando, para os relatórios de motivos de perda.
 - Diferença para **Desvincular do funil**: desvincular é para contato que não é venda (fornecedor, pessoal, suporte). Desqualificar é para lead de venda que não serve, e guarda o porquê.
+
+## Escritório vivo e agentes mais autônomos (11/11/2026)
+
+### Escritório
+- A sala agora é uma planta baixa: uma sala para cada setor, a sala de reunião, o café e a sua sala. Os agentes andam, vão à mesa de quem recebe o trabalho deles e conversam em balões. Quem está parado vai ao café.
+- **Clique no nome de uma sala** para ver só aquele setor. **Clique num agente** para abrir o quadro dele e o que ele fez por último, logo abaixo da sala.
+- Ao lado da sala fica o painel **Agora no escritório**: quantos itens esperam você, quem parou, as últimas ações e quem passou trabalho para quem.
+- Um "!" vermelho no agente quer dizer que ele parou. Um "✋" amarelo quer dizer que ele tem algo para você aprovar.
+
+### Joana: Informativo toda semana
+- Toda quinta de manhã a Joana pesquisa as notícias da semana, junta as pesquisas da Sofia e escreve a edição, que abre com o artigo da semana.
+- Você aprova no Painel da Joana. A confirmação mostra quantos clientes e quantos leads recebem o e-mail.
+- Recebem: clientes ativos e leads em aberto com e-mail. Leads perdidos e quem se descadastrou ficam de fora. O WhatsApp vai só para quem tem a etiqueta Informativo Prosystem.
+
+### Mila: oferta de upgrade
+- A cada 15 dias a Mila escolhe até 30 clientes antigos (8 meses ou mais) que ainda não estão no Plus e escreve um e-mail de convite para uma apresentação, sem preço.
+- A oferta aparece no **Painel da Mila › Para aprovar**, com a lista dos clientes. Os que não têm e-mail aparecem na lista para a equipe ligar.
+- Depois da sua aprovação, os e-mails saem aos poucos nos dias úteis e ficam anotados no cadastro do cliente.
+- Para pedir uma oferta na hora: no Painel da Mila, escreva **upgrade** no campo do tema e clique em estudar.
+
+### Olívia: perdas para concorrentes
+- Uma vez por mês a Olívia conta quantos leads foram perdidos para outros sistemas, para qual sistema e em qual segmento, e escreve argumentos para a Caroline.
+- Os dois documentos ficam no painel do Rafael, aba Concorrência. Ao aprovar os argumentos, a Caroline passa a usá-los quando o lead diz que já usa outro sistema.
+- Para o relatório ser útil, ao perder um lead para um concorrente marque o motivo "Já tem fornecedor" e preencha o sistema que ele usa.
+
+### Helena e Mila
+- Quando um cliente responde a pesquisa de satisfação, a Helena passa a nota para a Mila. Nota ruim ou regular marca o cliente como "em atenção" na base, e ele deixa de receber oferta de upgrade.
+
+### Resumo diário da Marta
+- Nos dias úteis, entre 8h e 10h, a Marta manda no seu WhatsApp o que espera você: mensagens para aprovar, perguntas do Rafael, documentos, quem parou e números de WhatsApp desconectados, com o link do Escritório.

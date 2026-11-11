@@ -13,10 +13,13 @@ export async function joanaRoutes(fastify: FastifyInstance, options: { prisma: P
       where: { origem: 'joana', status: { not: 'ARQUIVADO' } }, orderBy: { created_at: 'desc' }, take: 12,
       select: { id: true, titulo: true, status: true, conteudo: true, fontes: true, created_at: true, decidido_em: true },
     });
+    // Quantos recebem o e-mail se aprovar agora (aparece na confirmação do painel).
+    const { publicoInformativo } = await import('../services/joana.service');
+    const pub = await publicoInformativo(prisma).catch(() => null);
     return reply.send({
       status: 'success',
       data: {
-        escrevendo,
+        escrevendo, publico: pub ? { clientes: pub.clientes.length, leads: pub.leads.length } : null,
         edicoes: eds.map(e => {
           const f: any = e.fontes || {};
           const env = f.envio;
