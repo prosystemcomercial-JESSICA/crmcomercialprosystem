@@ -1,6 +1,6 @@
 'use client';
 
-// Menu do escritório por setores (10/11/2026): substitui a fileira de 14 botões. No celular vira abas roláveis.
+// Abas do escritório (10/11/2026): setores e, depois do separador, gestão. Roláveis no celular.
 
 import type { AgenteTela, Painel } from './tipos';
 
@@ -25,7 +25,7 @@ export default function MenuSetores({ vista, onVista, painel, agentes }: { vista
         const trab = as.filter(a => a.status === 'trabalhando').length;
         return item(s.id as Vista, s.nome, erro ? ponto('#dc2626', 'Agente com erro neste setor') : <span className="esc-menu-num" title="trabalhando agora">{trab}/{as.length}</span>);
       })}
-      <span className="esc-menu-titulo" style={{ marginTop: 8 }}>Gestão</span>
+      <span className="esc-menu-sep" aria-hidden />
       {item('esperando', 'Esperando você', painel?.saude.esperando ? <span className="esc-menu-badge">{painel.saude.esperando}</span> : null)}
       {item('consumo', 'Consumo de IA', painel && painel.consumo.nivel !== 'ok' && painel.consumo.nivel !== 'sem_teto' ? ponto(painel.consumo.nivel === 'estourou' ? '#dc2626' : '#ca8a04', 'Perto do teto') : null)}
       {item('organograma', 'Quem trabalha com quem')}

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
-import SalaIsometrica, { type Chamado } from '@/components/escritorio/SalaIsometrica';
+import SalaViva, { type Chamado } from '@/components/escritorio/SalaViva';
+import FeedAoVivo from '@/components/escritorio/painel/FeedAoVivo';
 import ChatAgente from '@/components/escritorio/ChatAgente';
 import PesquisasSofia from '@/components/escritorio/PesquisasSofia';
 import CadernoLaya from '@/components/escritorio/CadernoLaya';
@@ -51,8 +52,6 @@ const ACOES_SIMULADAS: Record<string, string[]> = {
   marta: ['respondeu "hoje" para Jessica', 'avisou Thiago: proposta aceita', 'lançou tarefa para Ana: ligar para cliente'],
 };
 
-const botaoZoom = { width: 28, height: 28, borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: 800, fontSize: 16, cursor: 'pointer' } as const;
-
 /** Durante o treinamento, Rafael e o agente aparecem trabalhando e só quem fala mostra o balão. */
 function comTreino<T extends { id: string; status: any; ultima: any }>(agentes: T[], f: FalaNaSala): T[] {
   if (!f) return agentes;
@@ -72,44 +71,6 @@ export default function EscritorioPage() {
   const [atualizado, setAtualizado] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [chamados, setChamados] = useState<Record<string, Chamado>>({});
-  const [zoom, setZoom] = useState(1);
-  // Zoom que aproxima no ponto certo (cursor ou centro) e arrastar para andar pela sala.
-  const salaRef = useRef<HTMLDivElement>(null);
-  const alturaBase = useRef(0);
-  const foco = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
-  const zoomAtual = useRef(1);
-  const zoomEm = useCallback((novo: number, fx?: number, fy?: number) => {
-    const el = salaRef.current;
-    const atual = zoomAtual.current;
-    const z = Math.min(3, Math.max(1, +novo.toFixed(2)));
-    if (z === atual) return;
-    if (el) {
-      if (atual === 1) alturaBase.current = el.clientHeight;
-      const x = fx ?? el.clientWidth / 2, y = fy ?? el.clientHeight / 2;
-      foco.current = { x, y, cx: (el.scrollLeft + x) / atual * z, cy: (el.scrollTop + y) / atual * z };
-    }
-    zoomAtual.current = z;
-    setZoom(z);
-  }, []);
-  useLayoutEffect(() => {
-    const el = salaRef.current, f = foco.current;
-    if (!el || !f) return;
-    el.scrollLeft = f.cx - f.x; el.scrollTop = f.cy - f.y;
-    foco.current = null;
-  }, [zoom]);
-  useEffect(() => {
-    const el = salaRef.current;
-    if (!el) return;
-    const roda = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      const r = el.getBoundingClientRect();
-      zoomEm(zoomAtual.current * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top);
-    };
-    el.addEventListener('wheel', roda, { passive: false });
-    return () => el.removeEventListener('wheel', roda);
-  }, [zoomEm]);
-  const arraste = useRef<{ x: number; y: number; sl: number; st: number; moveu: boolean } | null>(null);
   const [historico, setHistorico] = useState<{ id: string; itens: { texto: string; em: string }[] | null } | null>(null);
 
   // Clique num agente (sala, organograma, quadro): seleciona e mostra o quadro dele; o painel abre pelo botão.
@@ -118,7 +79,6 @@ export default function EscritorioPage() {
     apiClient.getHistoricoAgente(id).then(r => setHistorico({ id, itens: r.data.data })).catch(() => setHistorico({ id, itens: [] }));
   };
   const abrirPainel = (id: string) => { if ((PAINEIS as readonly string[]).includes(id)) setJanela(id as any); };
-  const verTrabalho = verAgenda;
   const [vista, setVista] = useState<Vista>('todos');
   const [painel, setPainel] = useState<Painel | null>(null);
   const selecionar = (id: string | null) => {
@@ -126,7 +86,7 @@ export default function EscritorioPage() {
     const setor = painel?.quadros.find(q => q.id === id)?.setor;
     if (vista !== 'todos' && vista !== setor) setVista(setor && SETORES_VISTA.includes(setor) ? setor as Vista : 'todos');
     verAgenda(id);
-    setTimeout(() => document.getElementById(`quadro-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+    setTimeout(() => document.getElementById('esc-detalhe')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120);
   };
   const [chat, setChat] = useState<string | null>(null);
   const [conversasAgentes, setConversasAgentes] = useState<any[]>([]); // conversas entre agentes (balões redondos)
@@ -235,10 +195,11 @@ export default function EscritorioPage() {
         </div>
       )}
       <div className="ios-tela esc" style={{ padding: '0 0 24px', display: 'grid', gap: 12 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div className="esc-topo">
           <div>
-            <h1 className="ios-large-title" style={{ fontSize: 22, fontWeight: 800, color: 'var(--t-text-primary)' }}>Escritório virtual</h1>
-            <p style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>
+            <h1 className="ios-large-title">Escritório</h1>
+            <p>
+              {!erro && mostrar && <span className="esc-ao-vivo">{simulando ? 'Simulação' : 'Ao vivo'}</span>}
               {mostrar ? `${mostrar.length} agentes · ${trabalhando} trabalhando agora` : 'Abrindo o escritório…'}{atualizado && !simulando ? ` · atualizado ${haQuanto(atualizado)}` : ''}
             </p>
           </div>
@@ -274,66 +235,50 @@ export default function EscritorioPage() {
 
             {(vista === 'todos' || SETORES_VISTA.includes(vista)) && (
               <>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t-text-primary)' }}>{setorAtual ? setorAtual.nome : 'Escritório inteiro'}</h2>
-                  <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Ande com as setas ou clicando no chão. Clique num agente para ver o quadro dele.</span>
-                </div>
-                {/* Sala com zoom: botões +/−, Ctrl+roda do mouse; com zoom, arraste a barra para andar pela sala. */}
-                <div style={{ position: 'relative', background: 'linear-gradient(180deg, #dbe7f3 0%, #eef3f8 100%)', borderRadius: 12, border: '1px solid var(--t-card-border)', padding: 0, overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, display: 'flex', gap: 4, background: 'rgba(255,255,255,.9)', borderRadius: 8, padding: 4, boxShadow: '0 1px 4px rgba(0,0,0,.15)' }}>
-                    <button aria-label="Diminuir zoom" onClick={() => zoomEm(zoom - 0.25)} style={botaoZoom}>−</button>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', minWidth: 42, textAlign: 'center', alignSelf: 'center' }}>{Math.round(zoom * 100)}%</span>
-                    <button aria-label="Aumentar zoom" onClick={() => zoomEm(zoom + 0.25)} style={botaoZoom}>+</button>
-                    {zoom > 1 && <button aria-label="Voltar ao tamanho normal" onClick={() => zoomEm(1)} style={{ ...botaoZoom, width: 'auto', padding: '0 8px', fontSize: 11 }}>ajustar</button>}
+                <div className="esc-palco">
+                  <div style={{ minWidth: 0 }}>
+                    {mostrar
+                      ? <SalaViva agentes={comTreino(mostrar, falaTreino)} conversas={conversasAgentes} passagens={painel?.passagens || []} selecionado={sel}
+                          onSelecionar={id => selecionar(id || null)} chamados={chamados} destacar={setorAtual ? setorAtual.id : null}
+                          onSetor={id => { setVista(id as Vista); setSel(null); }} />
+                      : <p style={{ padding: 60, textAlign: 'center', color: 'var(--t-text-muted)' }}>Abrindo o escritório…</p>}
+                    <p className="esc-dica">Clique num agente para ver o quadro dele, ou no nome de uma sala para ver só aquele setor. Quem passa trabalho para outro vai até a mesa dele.</p>
                   </div>
-                  <div ref={salaRef}
-                    onPointerDown={e => { if (zoom > 1 && e.button === 0) arraste.current = { x: e.clientX, y: e.clientY, sl: salaRef.current!.scrollLeft, st: salaRef.current!.scrollTop, moveu: false }; }}
-                    onPointerMove={e => {
-                      const a = arraste.current, el = salaRef.current;
-                      if (!a || !el) return;
-                      const dx = e.clientX - a.x, dy = e.clientY - a.y;
-                      if (!a.moveu && Math.hypot(dx, dy) < 6) return; // clique normal (mesa, agente) continua funcionando
-                      a.moveu = true;
-                      el.scrollLeft = a.sl - dx; el.scrollTop = a.st - dy;
-                    }}
-                    onPointerUp={() => { setTimeout(() => { arraste.current = null; }, 0); }}
-                    onClickCapture={e => { if (arraste.current?.moveu) { e.stopPropagation(); e.preventDefault(); } }}
-                    style={{ overflow: zoom > 1 ? 'auto' : 'hidden', height: zoom > 1 && alturaBase.current ? alturaBase.current : undefined, cursor: zoom > 1 ? 'grab' : undefined }}>
-                    <div style={{ width: `${zoom * 100}%` }}>
-                      {mostrar ? <SalaIsometrica zoom={zoom} agentes={comTreino(mostrar, falaTreino)} conversas={conversasAgentes} selecionado={sel} onSelecionar={id => selecionar(id || null)} chamados={chamados} onVerTrabalho={verTrabalho} onChamar={chamar} onLiberar={liberar} destacar={setorAtual ? setorAtual.agentes : null} /> : <p style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Abrindo o escritório…</p>}
-                    </div>
-                  </div>
+                  {mostrar && <FeedAoVivo agentes={mostrar} conversas={conversasAgentes} passagens={painel?.passagens || []} esperando={painel?.saude.esperando || 0}
+                    onAgente={id => selecionar(id)} onEsperando={() => setVista('esperando')} />}
                 </div>
+
+                {escolhido && (
+                  <div className="esc-detalhe" id="esc-detalhe">
+                    <QuadroAgente a={escolhido} q={painel?.quadros.find(q => q.id === escolhido.id)} selecionado
+                      onAbrir={abrirPainel} onConversar={id => setChat(id)} onAgenda={id => verAgenda(id)} />
+                    <section className="esc-cartao" aria-label={`Agenda de ${escolhido.nome}`}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                        <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>O que {escolhido.nome} fez por último</b>
+                        {chamados[escolhido.id]
+                          ? <button className="esc-btn" onClick={() => liberar(escolhido.id)}>Liberar</button>
+                          : <button className="esc-btn" onClick={() => chamar(escolhido.id)}>Chamar à minha sala</button>}
+                        <button className="esc-btn" style={{ marginLeft: 'auto' }} aria-label="Fechar quadro" onClick={() => { setSel(null); setHistorico(null); }}>Fechar</button>
+                      </div>
+                      {(!historico || historico.id !== escolhido.id || historico.itens === null) && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Carregando…</span>}
+                      {historico?.id === escolhido.id && historico.itens?.length === 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Ainda sem ações registradas.</span>}
+                      <ol className="esc-linha-tempo">
+                        {historico?.id === escolhido.id && historico.itens?.map((h, k) => (
+                          <li key={k}><time>{new Date(h.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time><span>{h.texto}</span></li>
+                        ))}
+                      </ol>
+                    </section>
+                  </div>
+                )}
 
                 {vista === 'vendas' && <><PlacarComercial /><FunilOrigem /></>}
-
-                {escolhido && historico?.id === escolhido.id && (
-                  <section className="esc-cartao" aria-label={`Agenda de ${escolhido.nome}`} style={{ borderColor: escolhido.cor }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Agenda de {escolhido.nome}: com quem está falando e o que vem a seguir</b>
-                      {chamados[escolhido.id]
-                        ? <button className="esc-btn" onClick={() => liberar(escolhido.id)}>Liberar</button>
-                        : <button className="esc-btn" onClick={() => chamar(escolhido.id)}>Chamar à minha sala</button>}
-                      <button className="esc-btn" style={{ marginLeft: 'auto' }} onClick={() => { setSel(null); setHistorico(null); }}>Fechar</button>
-                    </div>
-                    {historico.itens === null && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Carregando…</span>}
-                    {historico.itens?.length === 0 && <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Ainda sem ações registradas.</span>}
-                    <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>
-                      {historico.itens?.map((h, k) => (
-                        <div key={k} style={{ fontSize: 12, color: 'var(--t-text-secondary)', display: 'flex', gap: 8 }}>
-                          <span style={{ color: 'var(--t-text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{new Date(h.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                          <span>{h.texto}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
 
                 {chat && (mostrar || []).some(a => a.id === chat) && (() => {
                   const a = (mostrar || []).find(x => x.id === chat)!;
                   return <ChatAgente key={a.id} agente={{ id: a.id, nome: a.nome, cor: a.cor, funcao: a.funcao }} onFechar={() => setChat(null)} />;
                 })()}
 
+                <h2 className="esc-sub">{setorAtual ? `Quadros de ${setorAtual.nome}` : 'Quadros da equipe'}</h2>
                 <div className="esc-quadros">
                   {[...doSetor].sort((x, y) => Number(y.status === 'erro') - Number(x.status === 'erro')).map(a => (
                     <div key={a.id} id={`quadro-${a.id}`} style={{ display: 'grid' }}>
