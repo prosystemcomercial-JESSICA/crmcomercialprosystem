@@ -1,6 +1,8 @@
 // Contrato pela ZapSign: leitura dos dados de quem assina (mandados pelo cliente no
 // WhatsApp depois do aceite) e textos das mensagens. Puro, sem banco nem rede.
 
+import { cnpjValido, type DadosReceita } from '../cnpj';
+
 export type Assinante = { nome: string | null; cpf: string | null; email: string | null };
 
 export function cpfValido(cpf: string): boolean {
@@ -43,6 +45,55 @@ export function extrairAssinante(texto: string): Assinante {
 
 export const faltando = (a: { nome?: string | null; cpf?: string | null; email?: string | null }) =>
   [!a.nome && 'nome completo', !a.cpf && 'CPF', !a.email && 'e-mail'].filter(Boolean) as string[];
+
+// ── Conferência da Marta: o contrato só vai para a revisão da gestora com tudo preenchido. ──
+
+/** Situações em que o contrato ainda não saiu para assinatura (é onde a conferência vale). */
+export const ANTES_DO_ENVIO = ['A_GERAR', 'GERADO', 'PENDENTE_CORRECAO'];
+
+export type ContratoConferencia = {
+  razao_social?: string | null; nome_fantasia?: string | null; cnpj?: string | null;
+  endereco?: string | null; numero_endereco?: string | null; bairro?: string | null;
+  cidade?: string | null; estado?: string | null; cep?: string | null;
+  representante_nome?: string | null; representante_cpf?: string | null; representante_email?: string | null;
+  plano_contratado?: string | null; mensalidade?: number | null; dia_vencimento?: number | null;
+};
+
+const vazio = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
+
+/**
+ * O que falta para o contrato sair completo: tudo o que o PDF imprime.
+ * A implantação (setup) fica de fora porque pode ser zero.
+ */
+export function pendenciasContrato(c: ContratoConferencia): string[] {
+  const dia = Number(c.dia_vencimento);
+  return [
+    vazio(c.razao_social) && 'razão social',
+    vazio(c.cnpj) ? 'CNPJ' : !cnpjValido(c.cnpj!) && 'CNPJ válido',
+    vazio(c.endereco) && 'endereço (rua)',
+    vazio(c.numero_endereco) && 'número do endereço',
+    vazio(c.bairro) && 'bairro',
+    vazio(c.cidade) && 'cidade',
+    vazio(c.estado) && 'UF',
+    vazio(c.cep) && 'CEP',
+    vazio(c.plano_contratado) && 'plano',
+    !(Number(c.mensalidade) > 0) && 'mensalidade',
+    !(dia >= 1 && dia <= 31) && 'dia de vencimento',
+    vazio(c.representante_nome) && 'nome de quem assina',
+    vazio(c.representante_cpf) ? 'CPF de quem assina' : !cpfValido(c.representante_cpf!) && 'CPF válido de quem assina',
+    vazio(c.representante_email) && 'e-mail de quem assina',
+  ].filter(Boolean) as string[];
+}
+
+/** Dados da Receita que entram no contrato: só nos campos que estão vazios (nunca troca o que alguém digitou). */
+export function preencherPelaReceita(c: ContratoConferencia, r: DadosReceita): Partial<ContratoConferencia> {
+  const cep = r.cep && r.cep.length === 8 ? `${r.cep.slice(0, 5)}-${r.cep.slice(5)}` : r.cep;
+  const fonte: Partial<ContratoConferencia> = {
+    razao_social: r.razao_social, nome_fantasia: r.nome_fantasia, endereco: r.logradouro,
+    numero_endereco: r.numero, bairro: r.bairro, cidade: r.municipio, estado: r.uf, cep,
+  };
+  return Object.fromEntries(Object.entries(fonte).filter(([k, v]) => !vazio(v) && vazio((c as any)[k])));
+}
 
 const primeiro = (n: string | null | undefined) => (n || '').trim().split(/\s+/)[0] || '';
 

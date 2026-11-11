@@ -10,7 +10,7 @@ export const AGENTES = [
   { id: 'zequinha', nome: 'Zequinha', funcao: 'Campanhas pelo WhatsApp', cor: '#16a34a' },
   { id: 'helena', nome: 'Helena', funcao: 'Pós-venda · boas-vindas e pesquisa', cor: '#0891b2' },
   { id: 'laya', nome: 'Laya', funcao: 'IA que analisa conversas e aprende', cor: '#db2777' },
-  { id: 'marta', nome: 'Marta', funcao: 'Assistente da gestão · comandos e avisos', cor: '#7c3aed' },
+  { id: 'marta', nome: 'Marta', funcao: 'Assistente da gestão · comandos, avisos e conferência dos contratos', cor: '#7c3aed' },
   { id: 'sofia', nome: 'Sofia', funcao: 'Pesquisadora · assuntos do setor e novidades', cor: '#ea580c' },
   { id: 'caroline', nome: 'Caroline', funcao: 'SDR · primeiro contato com leads das campanhas', cor: '#be123c' },
   { id: 'julio', nome: 'Julio', funcao: 'Follow-up de leads · retoma a base, do mais novo ao mais antigo', cor: '#0d9488' },

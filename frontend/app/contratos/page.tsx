@@ -67,7 +67,13 @@ interface ContratoComercial {
   recuado_at?: string;
   recuo_motivo?: string;
   created_at: string;
+  pendencias?: string[]; // o que falta para sair completo (conferência da Marta); vazio = pronto para revisar
 }
+
+// Contrato que ainda não saiu para assinatura: é onde a conferência aparece.
+const ANTES_DO_ENVIO = ['A_GERAR', 'GERADO', 'PENDENTE_CORRECAO'];
+const filaDe = (c: ContratoComercial): '' | 'prontos' | 'faltando' =>
+  !ANTES_DO_ENVIO.includes(c.status) || !c.pendencias ? '' : c.pendencias.length ? 'faltando' : 'prontos';
 
 // ── Status config ──────────────────────────────────────────────────────────────
 
@@ -108,6 +114,7 @@ export default function ContratosPage() {
   // Filtros
   const [vendedorFilter, setVendedorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [filaFilter, setFilaFilter] = useState<'' | 'prontos' | 'faltando'>('');
   // Filtro mensal — aplicado nos tabs Assinado / Cancelado
   const [mesRef, setMesRef] = useState<Date>(() => {
     const d = new Date(); d.setDate(1); return d;
@@ -170,9 +177,10 @@ export default function ContratosPage() {
       }
       if (vendedorFilter && c.vendedor_nome !== vendedorFilter) return false;
       if (statusFilter && c.status !== statusFilter) return false;
+      if (filaFilter && filaDe(c) !== filaFilter) return false;
       return true;
     });
-  }, [contratos, search, vendedorFilter, statusFilter]);
+  }, [contratos, search, vendedorFilter, statusFilter, filaFilter]);
 
   // Para ASSINADO e CANCELADO/RECUADO, aplica filtro mensal na view "lista mensal"
   const filteredNoMes = useMemo(() => {
@@ -326,7 +334,12 @@ export default function ContratosPage() {
       setZapMsg(r.data?.message || 'Contrato enviado para assinatura.');
       setSelected({ ...selected, ...(r.data?.data || {}), status: 'ENVIADO_ASSINATURA' });
       load();
-    } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Não foi possível enviar para assinatura.'); }
+    } catch (e: any) {
+      setZapMsg(e?.response?.data?.message || 'Não foi possível enviar para assinatura.');
+      // O envio pode ter sido segurado porque a Marta completou dados: mostra o contrato como ficou.
+      apiClient.getContratoComercial(selected.id).then(r => { if (r.data?.data) setSelected(r.data.data); }).catch(() => {});
+      load();
+    }
     finally { setMarcando(false); }
   };
 
@@ -468,6 +481,22 @@ export default function ContratosPage() {
               <option value="">Todos status</option>
               {KANBAN_ORDER.map(k => <option key={k} value={k}>{STATUS_CONFIG[k].label}</option>)}
             </select>
+
+            {/* Conferência da Marta: prontos para revisar x com dados faltando */}
+            {([
+              { key: 'prontos', label: 'Prontos para revisar', color: '#16a34a' },
+              { key: 'faltando', label: 'Faltam dados', color: '#dc2626' },
+            ] as const).map(f => {
+              const n = contratos.filter(c => filaDe(c) === f.key).length;
+              const ativo = filaFilter === f.key;
+              return (
+                <button key={f.key} onClick={() => setFilaFilter(ativo ? '' : f.key)} aria-pressed={ativo}
+                  className="h-8 px-3 text-xs font-semibold rounded-lg"
+                  style={{ border: `1.5px solid ${ativo || n ? f.color : 'var(--t-card-border)'}`, background: ativo ? f.color : 'var(--t-card-bg)', color: ativo ? '#fff' : n ? f.color : 'var(--t-text-muted)' }}>
+                  {f.label} ({n})
+                </button>
+              );
+            })}
 
             {/* Navegação mensal */}
             <div className="flex items-center gap-1 rounded-lg overflow-hidden" style={{ border: '1px solid var(--t-card-border)' }}>
@@ -813,9 +842,19 @@ export default function ContratosPage() {
                 <p className="text-[11px]" style={{ color: 'var(--t-text-muted)' }}>
                   Modelo: <strong>{selected.plano_contratado || '—'}</strong> · Confira os dados e clique em <strong>Enviar para assinatura</strong>: o link vai para o WhatsApp e o e-mail do cliente, e o CRM marca como assinado sozinho. O caminho manual (baixar o PDF e marcar assinado) continua disponível.
                 </p>
+                {filaDe(selected) === 'faltando' && (
+                  <p className="text-[11px] font-semibold" style={{ color: '#dc2626' }}>
+                    Faltam dados: {selected.pendencias!.join(', ')}. Preencha em Revisar dados para liberar o envio.
+                  </p>
+                )}
+                {filaDe(selected) === 'prontos' && (
+                  <p className="text-[11px] font-semibold" style={{ color: '#16a34a' }}>
+                    ✓ Todos os dados conferidos pela Marta. Pronto para a sua revisão.
+                  </p>
+                )}
                 {!['ENVIADO_ASSINATURA', 'ASSINADO', 'CANCELADO', 'RECUADO'].includes(selected.status) && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={handleEnviarAssinatura} disabled={marcando}
+                    <button onClick={handleEnviarAssinatura} disabled={marcando || filaDe(selected) === 'faltando'}
                       className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-60"
                       style={{ background: confirmarEnvio ? '#b45309' : '#7c3aed' }}>
                       <Send size={12} /> {marcando ? 'Enviando…' : confirmarEnvio ? 'Confirmar: enviar agora' : '✍️ Enviar para assinatura'}
@@ -1105,6 +1144,13 @@ function ContratoCard({ contrato: c, cfg, dragging, onDragStart, onDragEnd, onCl
       {c.valor_setup_total != null && (
         <p className="text-[10px] mb-1" style={{ color: 'var(--t-text-muted)' }}>
           Setup: {c.valor_setup_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        </p>
+      )}
+
+      {filaDe(c) && (
+        <p className="text-[9px] font-bold mb-1" title={c.pendencias?.join(', ')}
+          style={{ color: filaDe(c) === 'prontos' ? '#16a34a' : '#dc2626' }}>
+          {filaDe(c) === 'prontos' ? '✓ Pronto para revisar' : `Faltam ${c.pendencias!.length} dado(s)`}
         </p>
       )}
 

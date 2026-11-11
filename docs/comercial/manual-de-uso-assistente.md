@@ -1641,3 +1641,12 @@ $L
 - A Laya confere toda mensagem dos agentes antes de sair. Ela sempre segura link quebrado, texto cortado no meio, repetição e mais de 3 mensagens de uma vez.
 - A nota de qualidade (de 0 a 10) agora só vale quando o cliente já escreveu algo. Primeiro contato e retomada de quem está em silêncio não ficam mais presos por "não aguardar resposta".
 - O que ela segurar aparece em Escritório › Esperando você, para aprovar, editar ou descartar.
+
+## Contrato conferido pela Marta antes de você enviar (11/11/2026)
+- Quando o cliente aceita a proposta e manda nome, CPF e e-mail de quem assina, a Marta confere o contrato inteiro: dados da empresa, endereço completo, plano, mensalidade, vencimento e quem assina.
+- O que estiver vazio nos dados da empresa ela busca na Receita pelo CNPJ. Ela não troca nada que já estava preenchido.
+- Você recebe no WhatsApp "Contrato pronto para você revisar" ou "Contrato com dados faltando", com a lista do que falta.
+- Em **Contratos**, os botões **Prontos para revisar** e **Faltam dados** separam os contratos. O cartão mostra a situação.
+- Se faltar algo, abra o contrato, clique em **Revisar dados**, preencha e salve. Ele passa para os prontos.
+- O envio para a ZapSign continua sendo seu: abra o contrato pronto, revise e clique em **Enviar para assinatura**. Com dado faltando, o botão fica desligado.
+- Se a Marta completar algum dado na hora em que você clicar, o envio é segurado uma vez para você conferir. É só clicar de novo.

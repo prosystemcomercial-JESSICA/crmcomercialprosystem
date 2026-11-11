@@ -5,6 +5,24 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
 import { criarImplantacaoEComissoes, criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
+import { ANTES_DO_ENVIO, pendenciasContrato } from '@/lib/assistente/contrato';
+
+/** Contrato com a lista do que falta (conferência da Marta); vazia depois que saiu para assinatura. */
+const comPendencias = <T extends { status: string }>(c: T) =>
+  ({ ...c, pendencias: ANTES_DO_ENVIO.includes(c.status) ? pendenciasContrato(c as any) : [] as string[] });
+
+/**
+ * Trava dos envios à ZapSign: completa pela Receita e segura se faltar dado, ou se algo acabou
+ * de ser preenchido (a gestora revisa antes de mandar). null = pode enviar.
+ */
+async function travaDeEnvio(prisma: PrismaClient, id: string): Promise<string | null> {
+  const { completarContrato } = await import('@/services/contrato-assinatura.service');
+  const r = await completarContrato(prisma, id);
+  if (!r) return null;
+  if (r.pendencias.length) return `Faltam dados no contrato: ${r.pendencias.join(', ')}. Preencha em "Revisar dados" antes de enviar.`;
+  if (r.preenchidos.length) return 'A Marta completou os dados da empresa pela Receita. Confira o contrato e clique de novo para enviar.';
+  return null;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -450,12 +468,13 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     ]);
 
     const byStatus: Record<string, any[]> = {};
-    contratos.forEach(c => {
+    const lista = contratos.map(comPendencias);
+    lista.forEach(c => {
       if (!byStatus[c.status]) byStatus[c.status] = [];
       byStatus[c.status].push(c);
     });
 
-    return reply.send({ status: 'ok', data: { contratos, byStatus, total } });
+    return reply.send({ status: 'ok', data: { contratos: lista, byStatus, total } });
   });
 
   // ── GET ONE
@@ -463,7 +482,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const { id } = request.params as any;
     const c = await prisma.contratoComercial.findUnique({ where: { id } });
     if (!c) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
-    return reply.send({ status: 'ok', data: c });
+    return reply.send({ status: 'ok', data: comPendencias(c) });
   });
 
   // ── DADOS PARA REVISÃO: contrato com campos VAZIOS completados a partir do lead
@@ -954,7 +973,9 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       },
     });
 
-    return reply.status(201).send({ status: 'ok', data: contrato });
+    const { completarContrato } = await import('@/services/contrato-assinatura.service');
+    const conf = await completarContrato(prisma, contrato.id).catch(() => null);
+    return reply.status(201).send({ status: 'ok', data: comPendencias(conf?.contrato || contrato) });
   });
 
   // ── UPDATE
@@ -996,7 +1017,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     }
 
     const contrato = await prisma.contratoComercial.update({ where: { id }, data: payload });
-    return reply.send({ status: 'ok', data: contrato });
+    return reply.send({ status: 'ok', data: comPendencias(contrato) });
   });
 
   // ── GERAR CADASTRO DO CLIENTE a partir do contrato assinado ─────────────────
@@ -1143,6 +1164,8 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
   fastify.post('/contratos-comerciais/:id/enviar-zapsign', async (request, reply) => {
     const { id } = request.params as any;
     const body: any = request.body || {};
+    const trava = await travaDeEnvio(prisma, id);
+    if (trava) return reply.status(400).send({ status: 'error', message: trava });
     const c = await prisma.contratoComercial.findUnique({ where: { id } });
     if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
 
@@ -1251,6 +1274,8 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
   // Marca o contrato como GERADO (com o PDF) e dispara a assinatura.
   fastify.post('/contratos-comerciais/:id/gerar-e-enviar', async (request, reply) => {
     const { id } = request.params as any;
+    const trava = await travaDeEnvio(prisma, id);
+    if (trava) return reply.status(400).send({ status: 'error', message: trava });
     const c = await prisma.contratoComercial.findUnique({ where: { id } });
     if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
 
@@ -1446,7 +1471,10 @@ Nº ${c.numero_contrato}. Fale com o cliente e corrija antes de reenviar.`).catc
       data: { data_contrato_gerado: new Date() },
     });
 
-    return reply.status(201).send({ status: 'ok', data: contrato });
+    // Conferência da Marta: completa os dados da empresa pela Receita já na criação.
+    const { completarContrato } = await import('@/services/contrato-assinatura.service');
+    const conf = await completarContrato(prisma, contrato.id).catch(() => null);
+    return reply.status(201).send({ status: 'ok', data: comPendencias(conf?.contrato || contrato) });
   });
 
   // ── CONFIGURAÇÕES INTEGRAÇÕES (ZapSign e outros)

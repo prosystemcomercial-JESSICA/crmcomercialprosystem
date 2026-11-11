@@ -4,7 +4,10 @@ import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
 import {
   extrairAssinante, faltando, textoDadosRecebidos, textoPedeFaltante, textoLinkAssinatura, textoLembreteAssinatura, textoAssinado,
+  ANTES_DO_ENVIO, pendenciasContrato, preencherPelaReceita,
 } from '@/lib/assistente/contrato';
+import { cnpjValido, consultarCnpj } from '@/lib/cnpj';
+import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 
 // Contrato pela ZapSign, do aceite à assinatura: o cliente manda nome/CPF/e-mail no WhatsApp,
 // o CRM preenche o contrato e avisa a gestão para conferir; ao enviar para assinatura, o link
@@ -20,6 +23,26 @@ async function enviar(prisma: PrismaClient, conversaId: string, numero: string, 
   await prisma.whatsappMensagem.create({ data: { conversaId, externo_id: r.externo_id, direcao: 'SAIDA', tipo: 'TEXTO', conteudo: texto, status: 'ENVIADA', enviada_por: 'bot' } }).catch(() => {});
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ultima_mensagem: texto.slice(0, 200), ultima_em: new Date() } }).catch(() => {});
   return true;
+}
+
+/**
+ * Conferência da Marta: completa os dados da empresa pela Receita (só campos vazios, só antes do
+ * envio) e devolve o que ainda falta. Nunca envia nada: quem revisa e manda à ZapSign é a gestora.
+ */
+export async function completarContrato(prisma: PrismaClient, id: string) {
+  let c = await prisma.contratoComercial.findUnique({ where: { id } });
+  if (!c) return null;
+  if (!ANTES_DO_ENVIO.includes(c.status)) return { contrato: c, pendencias: [] as string[], preenchidos: [] as string[] };
+  let preenchidos: string[] = [];
+  if (pendenciasContrato(c).length && cnpjValido(c.cnpj || '')) {
+    const r = await consultarCnpj(c.cnpj!).catch(() => null);
+    const dados = r?.status === 'encontrado' ? preencherPelaReceita(c, r.dados) : {};
+    preenchidos = Object.keys(dados);
+    if (preenchidos.length) c = await prisma.contratoComercial.update({ where: { id }, data: dados as any });
+  }
+  const pendencias = pendenciasContrato(c);
+  registrarAcaoAgente('marta', `conferiu o contrato ${c.numero_contrato}: ${pendencias.length ? `faltam ${pendencias.length} dado(s)` : 'pronto para revisar'}`);
+  return { contrato: c, pendencias, preenchidos };
 }
 
 /** Contrato à espera dos dados de quem assina, ligado a esta conversa (pela proposta aceita). */
@@ -52,12 +75,18 @@ export async function captarDadosAssinante(prisma: PrismaClient, conversaId: str
   }
   await enviar(prisma, conversaId, numero, textoDadosRecebidos(novo.representante_nome));
   const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  const conf = await completarContrato(prisma, novo.id);
+  const pend = conf?.pendencias || [];
   await enviarAvisoGestao(prisma, 'contrato_pronto', [
-    `📄 *Contrato pronto para conferir: ${(novo.nome_fantasia || novo.razao_social || '').trim()}*`,
+    pend.length
+      ? `⚠️ *Contrato com dados faltando: ${(novo.nome_fantasia || novo.razao_social || '').trim()}*`
+      : `📄 *Contrato pronto para você revisar: ${(novo.nome_fantasia || novo.razao_social || '').trim()}*`,
     `Nº ${novo.numero_contrato} · plano ${novo.plano_contratado || '—'}`,
     `Assina: ${novo.representante_nome} · CPF ${novo.representante_cpf} · ${novo.representante_email}`,
-    'Abra *Contratos*, confira e clique em *✍️ Enviar para assinatura*.',
-  ].join('\n'));
+    pend.length
+      ? `Falta: ${pend.join(', ')}. Abra *Contratos*, preencha em *Revisar dados* e ele passa para os prontos.`
+      : 'Todos os dados conferidos. Abra *Contratos*, revise e clique em *✍️ Enviar para assinatura*.',
+  ].join('\n'), { url: '/contratos' });
   const conv = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { dono_id: true } });
   emitirEventoConversa(conv?.dono_id ?? null, 'conversa_atualizada', { conversaId });
   return true;
