@@ -12,7 +12,8 @@ A Jessica perguntou "quem é o agente responsável pela produção do contrato?"
 ## 3. Verificado
 - `npx vitest run tests/contrato-assinatura.test.ts`: 8 testes passando (rodar pelo PowerShell; pelo Git Bash dá "No test suite found" por causa da letra do disco em minúscula).
 - `npx tsc --noEmit -p . --rootDir .` no backend: nenhum erro nos arquivos mexidos (o erro da linha 786 de `contratos-comerciais.ts` é antigo). `npx tsc --noEmit` no frontend: sem erro em `app/contratos/page.tsx`.
-- **Não verificado:** a tela no navegador, uma consulta real à Receita a partir do contrato e quantos contratos em aberto têm dado faltando em produção.
+- Deploy de `c8d028d` em 11/11/2026: CI verde, backup de 458M, banco sem alterações, build ok; site 200 e API 401 sem login.
+- **Não verificado:** a tela no navegador, uma consulta real à Receita a partir do contrato e quantos contratos em aberto têm dado faltando em produção (leitura do banco bloqueada pela permissão da sessão).
 
 ## 4. Decisões e porquês
 - **Marta, e não um agente novo:** o aviso "contrato pronto" já saía por ela e a conferência é trabalho de assistente da gestão. Personagem novo exigiria mesa na sala, quadro e organograma sem ganho para a Jessica.
