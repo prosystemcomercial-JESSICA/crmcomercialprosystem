@@ -182,7 +182,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setSobre(col.key); }} onDragLeave={() => setSobre(s => (s === col.key ? null : s))}
               onDrop={e => { e.preventDefault(); setSobre(null); if (arrastando) mover(arrastando, col.key); setArrastando(null); }}
-              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
+              style={{ ...cartao, minWidth: 250, flex: '1 1 0', background: sobre === col.key ? '#28639710' : 'var(--t-content-bg)', padding: 10, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 4px', gap: 6 }}>
                 <b style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{col.label}</b>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -193,7 +193,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
               {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '14px 0' }}>Arraste um card para cá</div>}
               {doCol.map(c => (
                 <div key={c.id} draggable onDragStart={() => setArrastando(c.id)} onDragEnd={() => setArrastando(null)} onClick={() => setAberta(c.id)}
-                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, background: 'var(--t-card-bg)', ...(c.sla?.situacao === 'ESTOURADO' || c.sla?.situacao === 'EM_RISCO' ? { borderLeft: `3px solid ${c.sla.situacao === 'ESTOURADO' ? '#dc2626' : '#d97706'}` } : {}) }}>
+                  style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, gap: 6, opacity: arrastando === c.id ? 0.5 : 1, background: 'var(--t-card-bg)', ...(c.sla?.situacao === 'ESTOURADO' || c.sla?.situacao === 'EM_RISCO' ? { borderLeft: `3px solid ${c.sla.situacao === 'ESTOURADO' ? '#dc2626' : '#d97706'}` } : {}) }}>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
                     {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
@@ -211,9 +211,9 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
                     <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {c.proximo_passo.titulo}</div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px 8px', flexWrap: 'wrap' }}>
                     <SlaBadge sla={c.sla} etapa={c.sla_etapa} />
-                    <Iniciais nome={c.tecnico_nome} />
+                    <span style={{ marginLeft: 'auto' }}><Iniciais nome={c.tecnico_nome} /></span>
                   </div>
                   <div title={`${c.progresso}% concluído`} style={{ height: 3, borderRadius: 99, background: 'var(--t-content-bg)', margin: '2px -2px -4px' }}>
                     <div style={{ height: 3, borderRadius: 99, width: `${c.progresso}%`, background: c.progresso >= 100 ? '#16a34a' : '#286397' }} />
@@ -230,7 +230,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
 }
 
 function Etq({ cor, children }: { cor: string; children: React.ReactNode }) {
-  return <span style={{ fontSize: 10, fontWeight: 600, color: cor, background: `${cor}0d`, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', maxWidth: 230, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>;
+  return <span style={{ fontSize: 10, fontWeight: 600, color: cor, background: `${cor}0d`, padding: '1px 6px', borderRadius: 4, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>;
 }
 
 // Segmento do cliente em destaque no cabeçalho da ficha (cor pelo perfil, texto do cadastro).

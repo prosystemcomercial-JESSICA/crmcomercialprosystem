@@ -752,7 +752,7 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
 
 **Telas:**
 - **Portal Técnico, abas novas:**
-  - **Quadro** e **Serviços**: arrastar e soltar, etiquetas, progresso, prazo, espera e correção;
+  - **Quadro** e **Serviços**: arrastar e soltar, etiquetas, progresso, prazo, espera e correção; o card fica sempre dentro da largura da coluna (etiqueta longa vira reticências e o rodapé "prazo + técnico" quebra linha), sem invadir a coluna vizinha (12/11/2026);
   - **Avisos**, com sino no topo;
   - para a gestão: **Painel da implantação** (aproveitamento e horas por técnico, esperas e o que mais trava, prazos, viradas, prazo médio, horas por cliente, cobranças a lançar) e **Configurações**.
 - **Ficha da demanda** (gaveta lateral): Resumo (tempos, paradas, prazos, aviso ao técnico), Ficha de coleta (a tela do Suporte passou para Virada e cobrança em 29/10/2026), Checklist, Virada e cobrança, Treinamento (fases, Play por fase), Correções (Play por correção), Tempos, Cliente (link e mensagens enviadas) e Histórico.
