@@ -2360,3 +2360,9 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 3. Na hora do alerta: WhatsApp do técnico com tipo, cliente, hora, assunto, contato, link, anotação e o link da agenda; aparece também no sino do portal.
 4. Depois do horário, o compromisso vai para "Já passaram: marque como foi": **Realizado** (pergunta o que ficou combinado), **Remarcar / editar** ou **Cancelar** (pergunta o motivo). Realizados e cancelados ficam em "Ver realizados e cancelados", com **Reabrir**.
 5. Cada passo (agendado, remarcado, realizado, cancelado, reaberto) vira uma linha no histórico do card.
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- Conversa → "…" → folha de ações sobre a tela inteira → ação ou Cancelar.

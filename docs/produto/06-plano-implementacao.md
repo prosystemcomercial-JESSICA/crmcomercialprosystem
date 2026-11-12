@@ -2363,3 +2363,9 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - [x] Menu Agenda, seção "Agenda com o cliente" no card e etiqueta do próximo compromisso no quadro (`components/implantacao/Agenda.tsx`).
 - [x] Playwright com API simulada (`e2e/agenda-tecnico.spec.ts`, 4 testes).
 - [ ] Próximos possíveis (não pedidos): mandar o convite também ao Google Agenda; ver a agenda dentro do Meu dia; lembrete ao cliente (só se a Jessica pedir, por causa do número).
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- [x] Tipos conferidos (`tsc`). Verificados os outros elementos flutuantes da tela de conversa: os da barra de escrever são menus presos ao botão (`absolute`), sem o problema. [ ] Conferir no iPhone da Jessica.

@@ -2326,3 +2326,9 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - **Formulário:** janela por cima de tudo (também por cima do card), tipos em botões, dia e hora separados (bons no celular), frase de confirmação do horário do alerta, aviso de que o cliente não recebe mensagem.
 - **Card do quadro:** etiqueta verde-petróleo "🗓 dd/mm hh:mm · assunto" (com reticências se não couber).
 - Conferido com Playwright (API simulada) em 1366, 390 e 360 px, sem rolagem lateral.
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- Folhas de ação e janelas flutuantes sempre na raiz da página (portal), para não herdar o recorte de barras com efeito de vidro.

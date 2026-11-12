@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (folha de ações da conversa no celular):** print da Jessica: o "…" de uma conversa do WhatsApp abria a folha espremida no cabeçalho, com o "Cancelar" atrás da barra de cima. Causa: `backdrop-filter` do `.ios-chat-cab` prende o `fixed` no Safari. Corrigido com portal no `body` (`app/whatsapp/page.tsx`). Falta conferir no iPhone dela.
+
 - **12/11/2026 (agenda do técnico com alerta no WhatsApp):** pedido da Jessica: agendador no Portal Técnico, também nos cards do cliente, para o técnico marcar horários e reuniões com o cliente e receber o alerta no WhatsApp no dia e hora.
   - **Feito:** menu **Agenda** no portal (`components/implantacao/Agenda.tsx`), seção **Agenda com o cliente** no card (Visão geral) e etiqueta 🗓 do próximo compromisso no card do quadro. Tabela nova `AgendaTecnico`, rotas `/agenda-tecnico` (`routes/agenda-tecnico.ts`), regras em `lib/implantacao/agenda-tecnico.ts` (13 testes) e agendador de **1 minuto** (`services/agenda-tecnico.service.ts`, registrado em `iniciarSchedulerCronometro`).
   - **Decisões:** alerta na hora ou 5/15/30 min, 1 h, 2 h, 1 dia antes (padrão 15 min); sai uma vez só (reserva `alerta_em` antes de enviar); remarcar faz valer de novo; alerta atrasado (servidor parado) só sai até 1 h depois do horário. Vai ao WhatsApp **mesmo com a preferência do técnico desligada** (`forcarWhatsapp` novo em `avisarTecnico`), porque foi ele quem pediu. **O cliente não recebe nada.** Gestão técnica vê todos e marca para qualquer técnico.

@@ -4,6 +4,7 @@ import './whatsapp.css';
 import FiltrosConversas from '@/components/whatsapp/FiltrosConversas';
 import ObservacoesConversa from '@/components/whatsapp/ObservacoesConversa';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Hand, Check, RotateCcw, ArrowRightLeft, Trash2, MoreHorizontal, Info, Paperclip, Send, Mic, Plus, Loader2, MessageSquare, Bot, UserRound, Clock3, Inbox } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
@@ -1255,7 +1256,8 @@ export default function WhatsappPage() {
                       </div>
                     )}
                     {/* Folha de ações (celular, padrão iOS action sheet) */}
-                    {acoesMobile && (
+                    {/* Portal no body: o cabeçalho tem backdrop-filter, que no iOS prende o "fixed" dentro dele (12/11/2026). */}
+                    {acoesMobile && createPortal(
                       <div className="md:hidden fixed inset-0 z-[90]" role="dialog" aria-modal="true" aria-label="Ações da conversa">
                         <div className="absolute inset-0 ios-scrim" onClick={() => setAcoesMobile(false)} />
                         <div className="ios-action-sheet">
@@ -1282,7 +1284,8 @@ export default function WhatsappPage() {
                           </div>
                           <button className="ios-action cancelar" onClick={() => setAcoesMobile(false)}>Cancelar</button>
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                     {/* Menu etiqueta */}
                     {menuEtiqueta && (

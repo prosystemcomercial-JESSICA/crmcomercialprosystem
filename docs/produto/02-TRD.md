@@ -2359,3 +2359,9 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - **Agendador novo (1 minuto)** em `server.ts` (dentro de `iniciarSchedulerCronometro`): `rodarAlertasAgenda` (`services/agenda-tecnico.service.ts`). Reserva o compromisso com `updateMany` em `alerta_em: null` antes de enviar (duas cópias do servidor não mandam duas vezes) e grava `alerta_status` (ENVIADO, SEM_TELEFONE, FALHOU).
 - **`avisarTecnico`** ganhou `forcarWhatsapp` (manda no WhatsApp mesmo com a preferência desligada) e `url` (link da notificação). Sem mudança para quem já chamava.
 - **Quadro** (`GET /implantacoes/quadro`): cada card traz `proximo_compromisso` (o próximo AGENDADO a partir de 1 h atrás).
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- `app/whatsapp/page.tsx`: a folha de ações do celular é renderizada com `createPortal(..., document.body)`. Regra: nada `fixed` dentro de elemento com `backdrop-filter`/`transform`; usar portal.

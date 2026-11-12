@@ -2379,3 +2379,9 @@ Pedido da Jessica: "incluir no portal técnico um agendador de tarefas, inclusiv
 - **O cliente não recebe nada** (protege o número da empresa). Nenhum compromisso é criado sozinho: só o técnico ou a gestão marcam.
 - Situações: Agendado, Realizado (com "o que ficou combinado"), Cancelado (com motivo), Reabrir. Tudo entra no histórico do card.
 - **Quem vê:** cada técnico vê a própria agenda; a supervisão técnica e a gestão veem todos (filtro por técnico) e podem marcar para qualquer técnico. No card, quem tem acesso ao card vê todos os compromissos daquele cliente.
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- No celular, a folha de ações da conversa ("…") abre de baixo para cima, ocupando a tela, com "Cancelar" no rodapé, como no iPhone.

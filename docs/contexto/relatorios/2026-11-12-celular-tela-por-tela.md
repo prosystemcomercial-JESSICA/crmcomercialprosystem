@@ -58,3 +58,11 @@ Se vier print de problema no celular: abrir a tela no tamanho do aparelho com a 
 - **Feito:** barra de cima fixa no celular (`ps-shell` em `DashboardLayout.tsx`, regra em `frontend/app/celular.css`).
 - **Verificado:** simulação de app e de navegador (440, 375, 360pt): barra no topo, títulos abaixo dela, formulários ok. **Não verificado** no iPhone real com iOS 26.
 - **Observação:** o app da tela de início guarda o modo escuro/claro separado do Safari; a Jessica escolhe no menu da foto.
+
+## Continuação: folha de ações da conversa presa no cabeçalho
+
+- **Pedido:** print da conversa do WhatsApp no app: "Olha onde ficou o botão" (o "Cancelar" ficou atrás da barra de cima).
+- **Causa:** a folha `fixed inset-0` era filha do cabeçalho `.ios-chat-cab`, que tem `backdrop-filter`. No Safari isso faz o cabeçalho virar a referência do `fixed`.
+- **Feito:** `createPortal` para o `document.body` em `frontend/app/whatsapp/page.tsx`.
+- **Verificado:** `tsc` sem erro; os outros flutuantes da conversa ficam presos ao botão (`absolute`). **Não verificado** no iPhone real.
+- **Próxima sessão:** se aparecer outra janela "espremida" no celular, procure um `fixed` dentro de um ancestral com `backdrop-filter` ou `transform` e use portal.

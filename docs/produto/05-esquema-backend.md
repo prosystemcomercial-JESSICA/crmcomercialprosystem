@@ -2349,3 +2349,9 @@ Tabela nova **`AgendaTecnico`** (criada em produção com `CREATE TABLE`, com ba
 | concluido_em, criado_por_id, criado_por_nome, created_at, updated_at | | |
 
 Índices: (tecnico_id, inicio), (implantacao_id), (status, alerta_em, inicio).
+
+### Atualização 12/11/2026 (6): folha de ações da conversa (WhatsApp) no celular
+
+Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folha de ações aparecia espremida no cabeçalho da conversa, com o "Cancelar" atrás da barra de cima. Causa: o cabeçalho da conversa (`.ios-chat-cab`) tem `backdrop-filter`, e no Safari isso faz um elemento `position: fixed` dentro dele se posicionar pelo cabeçalho, não pela tela.
+
+- Só frontend; sem banco, rota ou serviço.
