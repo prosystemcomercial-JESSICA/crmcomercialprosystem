@@ -2350,3 +2350,9 @@ Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela d
 Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
 
 - Depois de cada publicação, o CRM aberto (computador, Safari ou app da tela de início) passa para a versão nova sozinho: ao voltar para o app ou com a janela em segundo plano. Nunca recarrega no meio do que a pessoa está digitando.
+
+### Atualização 12/11/2026 (5): barra de cima fixa no celular (iOS 26, app da tela de início)
+
+Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
+
+- No celular a barra de cima fica fixa no topo, nítida, com a área da hora na mesma cor, como num app nativo.

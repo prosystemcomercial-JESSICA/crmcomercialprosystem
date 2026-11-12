@@ -454,7 +454,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className={`h-screen overflow-hidden flex flex-col ${pathname === '/whatsapp' ? 'wpp-shell' : ''}`} style={{ background: 'var(--t-content-bg)' }}>
+    <div className={`ps-shell h-screen overflow-hidden flex flex-col ${pathname === '/whatsapp' ? 'wpp-shell' : ''}`} style={{ background: 'var(--t-content-bg)' }}>
       <VersionWatcher />
       <CelularTecladoGuarda />
 

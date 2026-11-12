@@ -2333,3 +2333,9 @@ Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela d
 Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
 - `backend/src/server.ts`: `VERSAO_DEPLOY` cai para `git rev-parse --short HEAD` (cwd do processo; o deploy faz checkout antes do restart); `dev` só se o Git falhar.
 - `frontend/components/VersionWatcher.tsx`: confere também em `visibilitychange` e `pageshow` (persisted); versão nova achada pela checagem de 3 min fica pendente e só recarrega com `document.hidden` ou ao voltar para a frente.
+
+### Atualização 12/11/2026 (5): barra de cima fixa no celular (iOS 26, app da tela de início)
+
+Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
+
+- `DashboardLayout.tsx`: moldura com a classe `ps-shell`. `app/celular.css` (≤767px): `.ps-shell > .ps-topbar { position: fixed; top/left/right: 0; z-index: 70 }` e `.ps-shell { padding-top: calc(3.5rem + env(safe-area-inset-top)) }` para o conteúdo começar abaixo dela.

@@ -2311,3 +2311,9 @@ Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela d
 Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
 
 - `GET /health`: `versao` agora é o commit curto do Git do servidor (antes, sempre "dev" na VPS). Sem banco.
+
+### Atualização 12/11/2026 (5): barra de cima fixa no celular (iOS 26, app da tela de início)
+
+Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
+
+- Só frontend; sem banco, rota ou serviço.

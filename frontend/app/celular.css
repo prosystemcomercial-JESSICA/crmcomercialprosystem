@@ -33,6 +33,12 @@
     overflow-y: auto !important; z-index: 95 !important;
   }
 
+  /* Barra de cima FIXA no topo (12/11/2026). No iOS 26 o app da tela de início (e o Safari) só pinta
+     a área da hora com a cor da barra quando há um elemento fixo encostado na borda de cima; sem isso
+     aplica um esmaecido por cima e a barra parecia "apagada". O espaço dela vira margem da moldura. */
+  .ps-shell { padding-top: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+  .ps-shell > .ps-topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 70; }
+
   /* ── 3. Janelas e fundos escuros sempre acima da barra de abas (que fica em 75) ── */
   .fixed.inset-0.z-40, .fixed.inset-0.z-50, .fixed.inset-0.z-\[60\], .fixed.inset-0.z-\[70\],
   [style*="position: fixed"][style*="inset: 0"][style*="z-index: 50"],

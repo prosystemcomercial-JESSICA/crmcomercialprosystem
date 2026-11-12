@@ -50,3 +50,11 @@ Se vier print de problema no celular: abrir a tela no tamanho do aparelho com a 
 - **Feito:** `backend/src/server.ts` (versão = `git rev-parse --short HEAD`) e `frontend/components/VersionWatcher.tsx` (confere em `visibilitychange`/`pageshow`; recarrega só ao voltar ou em segundo plano).
 - **Decisão:** não recarregar com a página na frente pela checagem de 3 min (agora que o recarregamento passa a funcionar de fato, recarregar no meio de uma digitação no computador perderia texto).
 - **Pendente:** a Jessica fechar o app por completo uma vez (deslizar para cima no seletor de apps) e abrir de novo; dali em diante ele se atualiza sozinho.
+
+## Continuação: barra de cima "apagada" no app (iOS 26)
+
+- **Pedido:** print do app com a barra de cima esmaecida: "preciso que seja como um app de iPhone de fato".
+- **Causa:** o iOS 26 só pinta a área da hora com a cor de um elemento fixo na borda de cima; a barra era um item comum da moldura e recebia o esmaecido de borda do sistema.
+- **Feito:** barra de cima fixa no celular (`ps-shell` em `DashboardLayout.tsx`, regra em `frontend/app/celular.css`).
+- **Verificado:** simulação de app e de navegador (440, 375, 360pt): barra no topo, títulos abaixo dela, formulários ok. **Não verificado** no iPhone real com iOS 26.
+- **Observação:** o app da tela de início guarda o modo escuro/claro separado do Safari; a Jessica escolhe no menu da foto.
