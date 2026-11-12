@@ -2330,3 +2330,14 @@ Pedido da Jessica: "quero um resumo: se for conversão de dados, de qual sistema
 - A mensagem do WhatsApp da nova demanda passou a ser montada por `textoNovaDemanda` (`backend/src/lib/implantacao/nova-demanda.ts`), com: **Cliente** (e número do contrato), **Conversão de dados** ("Sim, do sistema X" / "Não (banco zerado)" / "não se aplica (serviço)"), **Máquinas**, **Responsável**, **Contato do responsável** (telefone no formato (27) 99999-9999), **Técnico** e **Card no painel técnico** (link `/portal-tecnico?tab=quadro&demanda=<id>`). Plano e vendedora saíram da mensagem.
 - **De onde vêm os dados:** sistema anterior da implantação (ou `sistema_atual` da proposta); máquinas de `PropostaComercial.maquinas` ou a soma de `lojas_projeto[].maquinas` (proposta multi-loja); responsável e telefone da proposta (`responsavel_nome`, `responsavel_telefone`) e, sem eles, do representante do contrato (e por último o WhatsApp de contato da implantação). O que faltar aparece como "não informado".
 - **Teste:** `backend/tests/nova-demanda.test.ts` (5 passando). **Banco:** sem mudança.
+
+### Atualização 12/11/2026 (3): uso pelo celular revisado tela por tela (iPhone 11 em diante e qualquer smartphone)
+
+Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, coisas passavam da borda e o rodapé das janelas sumia. Só celular (abaixo de 768px); o computador não muda.
+
+- **Voltar:** toda tela que não é uma das abas de baixo mostra "‹ Voltar" no lugar do logo. Volta para a tela anterior do CRM; se a tela foi aberta direto (link, notificação), sobe um nível (ex.: ficha do cliente → Clientes) ou vai para o Painel.
+- **Barra de cima cabe na tela:** saíram dela, no celular, o modo escuro (foi para o menu da foto) e o atalho "WhatsApp em nova aba" (já existe a aba WhatsApp). Antes, a foto (menu do perfil e Sair) e o sino ficavam fora da tela em todos os iPhones.
+- **Janelas e formulários** abrem por cima da barra de abas (o botão Salvar ficava escondido, ex.: Nova Proposta); janela mais alta que a tela rola em vez de cortar o topo e o rodapé.
+- **Nada passa da borda:** fileiras de abas e botões quebram linha, tabelas rolam dentro do cartão, o calendário da semana divide a largura e as listas suspensas da barra de cima abrem na largura da tela.
+- **Teclado do iPhone:** ao fechar, a tela volta para o topo (a barra de cima não fica mais escondida).
+- **Portal Técnico:** cronômetro compacto (tempo e ícones) e sem o botão ✕ no celular (usa o "← CRM").

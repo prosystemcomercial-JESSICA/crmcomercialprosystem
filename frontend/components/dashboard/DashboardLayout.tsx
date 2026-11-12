@@ -20,7 +20,9 @@ import {
   Eye,
 } from 'lucide-react';
 import { ehSomenteLeitura } from '@/lib/visoes';
-import { BarraAbasIOS, FolhaMaisIOS } from '@/components/mobile/AppIOS';
+import { BarraAbasIOS, FolhaMaisIOS, abasDo } from '@/components/mobile/AppIOS';
+import { VoltarCelular } from '@/components/mobile/VoltarCelular';
+import { CelularTecladoGuarda } from '@/components/mobile/CelularTecladoGuarda';
 import NotificacoesApp from '@/components/mobile/NotificacoesApp';
 import { BotaoCronometro, BotaoAlertaReuniao } from '@/components/cabecalho/BotoesCabecalho';
 import CompletarPerfilModal from '@/components/perfil/CompletarPerfilModal';
@@ -454,6 +456,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className={`h-screen overflow-hidden flex flex-col ${pathname === '/whatsapp' ? 'wpp-shell' : ''}`} style={{ background: 'var(--t-content-bg)' }}>
       <VersionWatcher />
+      <CelularTecladoGuarda />
 
       {/* ── Popup campanha ativa (vendedor, 1x por sessão) ── */}
       {campanhaPopup && (
@@ -546,8 +549,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Menu size={20} />
         </button>
 
+        {/* Celular: "‹ Voltar" no lugar do logo em toda tela que não é aba de baixo. */}
+        <VoltarCelular abas={abasDo((user?.role || '').toUpperCase() === 'CEO').map(a => a.href)} />
+
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center select-none flex-shrink-0" aria-label="Prosystem">
+        <Link href="/dashboard" className="cel-logo flex items-center select-none flex-shrink-0" aria-label="Prosystem">
           {/* Logo recortado (sem margens); no escuro, versão própria em azul claro com o "play" vazado. */}
           <Image
             src={mode === 'escuro' ? '/logo-prosystem-escuro.png' : '/logo-prosystem-cropped.png'}
@@ -567,7 +573,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button
             onClick={toggleMode}
             title={mode === 'claro' ? 'Modo escuro' : 'Modo claro'}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            className="ios-so-computador w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
             style={{ color: 'var(--t-text-muted)', background: 'transparent' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-card-border)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -578,7 +584,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {hrefsPermitidos.has('/whatsapp') && (
             <a href="/whatsapp" target="_blank" rel="noopener noreferrer"
               aria-label="Abrir WhatsApp em nova aba" title="Abrir WhatsApp em nova aba"
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+              className="ios-so-computador w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
               style={{ color: 'var(--t-success)', background: 'transparent' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--t-success-bg)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -638,7 +644,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </button>
             {wppOpen && (
-              <div style={{ ...dropdownStyle, width: 280 }}>
+              <div className="cel-topo-drop" style={{ ...dropdownStyle, width: 280 }}>
                 <div style={{ padding: '10px 14px', background: 'linear-gradient(135deg,#128C7E,#075E54)', color: '#fff', fontWeight: 600, fontSize: 12 }}>
                   Conversas com novas mensagens
                 </div>
@@ -686,7 +692,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </button>
             {alertasOpen && (
-              <div style={{ ...dropdownStyle, width: 340, maxHeight: 420, overflowY: 'auto' }}>
+              <div className="cel-topo-drop" style={{ ...dropdownStyle, width: 340, maxHeight: 420, overflowY: 'auto' }}>
                 <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--t-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-primary)' }}>Alertas</span>
                   <span style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{alertas.length} pendente{alertas.length !== 1 ? 's' : ''}</span>
@@ -749,7 +755,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
 
             {userMenuOpen && (
-              <div style={{ ...dropdownStyle, width: 220, right: 0 }}>
+              <div className="cel-topo-drop" style={{ ...dropdownStyle, width: 220, right: 0 }}>
                 {/* User info header */}
                 <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--t-card-border)' }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-text-primary)' }}>{user?.nome}</p>
@@ -776,6 +782,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   >
                     <KeyRound size={13} style={{ color: 'var(--t-text-muted)' }} />
                     Alterar senha
+                  </button>
+                  {/* Celular: o botão de modo escuro saiu da barra de cima (não cabia) e fica aqui. */}
+                  <button
+                    onClick={() => { setUserMenuOpen(false); toggleMode(); }}
+                    className="md:hidden w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium"
+                    style={{ color: 'var(--t-text-primary)', background: 'transparent' }}
+                  >
+                    {mode === 'claro' ? <Moon size={13} style={{ color: 'var(--t-text-muted)' }} /> : <Sun size={13} style={{ color: 'var(--t-text-muted)' }} />}
+                    {mode === 'claro' ? 'Modo escuro' : 'Modo claro'}
                   </button>
 
                   <div style={{ height: 1, background: 'var(--t-card-border)', margin: '4px 0' }} />
@@ -848,7 +863,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
       {avisoLead && (
-        <div className="fixed bottom-5 right-5 z-[60] w-80 rounded-xl shadow-2xl border border-emerald-200 bg-white p-4">
+        <div className="cel-aviso-lead fixed bottom-5 right-5 z-[60] w-80 rounded-xl shadow-2xl border border-emerald-200 bg-white p-4">
           <div className="flex items-start justify-between gap-2">
             <p className="font-bold text-emerald-700">🔔 {avisoLead.titulo}</p>
             <button onClick={() => setAvisoLead(null)} className="text-gray-400 hover:text-gray-600" title="Fechar">✕</button>

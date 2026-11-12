@@ -152,14 +152,14 @@ export function CronometroBarra() {
       {sessao ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#16a34a14', border: '1px solid #16a34a40', borderRadius: 6, padding: '4px 6px 4px 10px' }}>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: '#16a34a', animation: 'pulse 1.6s infinite' }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rotulo || ''}>{rotulo}</span>
+          <span className="pt-sem-celular" style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-primary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rotulo || ''}>{rotulo}</span>
           <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#15803d' }}>{fmtRelogio(decorrido)}</span>
-          <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')}><Pause size={12} /> Pausar</button>
+          <button disabled={ocupado} onClick={() => setPausa(true)} style={btn('#dc2626')} aria-label="Pausar" title="Pausar"><Pause size={12} /><span className="pt-sem-celular"> Pausar</span></button>
         </div>
       ) : (
         <span className="pt-sem-celular" style={{ fontSize: 12, color: 'var(--t-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coffee size={13} /> Cronômetro parado</span>
       )}
-      <button onClick={() => setMenu(m => !m)} style={btn('#286397', false)}>Outra atividade</button>
+      <button onClick={() => setMenu(m => !m)} style={btn('#286397', false)} aria-label="Outra atividade" title="Outra atividade"><Play size={12} className="pt-so-celular" /><span className="pt-sem-celular">Outra atividade</span></button>
       {menu && (
         <div style={{ position: 'absolute', top: 36, right: 90, background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 60, minWidth: 170 }}>
           {OUTRAS.map(o => (

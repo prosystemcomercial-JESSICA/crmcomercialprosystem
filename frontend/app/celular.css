@@ -1,0 +1,113 @@
+/* ══ Celular: revisão tela por tela (12/11/2026, pedido da Jessica) ═══════════════════════════
+   Só abaixo de 768px; no computador nada muda. Vale para qualquer smartphone, com atenção aos
+   iPhones 11 em diante (375 a 440pt de largura, notch e Dynamic Island).
+   Problemas que estas regras resolvem (medidos em 6 tamanhos de tela, 70 telas):
+   1. Barra de cima passava da borda: a foto (menu do perfil / Sair) e o sino ficavam fora da tela.
+   2. Sem botão de voltar (no iPhone como aplicativo não há o voltar do navegador).
+   3. Janelas (formulários) abriam POR BAIXO da barra de abas: Salvar/Cancelar escondidos.
+   4. Janela mais alta que a tela ficava centralizada e cortava o topo e o rodapé.
+   5. Fileiras de abas e botões passavam da borda direita.
+   6. Listas suspensas da barra de cima mais largas que a tela. */
+
+@media (max-width: 767px) {
+  /* ── 1 e 2. Barra de cima: voltar, ícones que cabem, listas suspensas na largura da tela ── */
+  .ps-topbar {
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    gap: 4px !important;
+  }
+  .ps-topbar > .ml-auto { gap: 0 !important; flex-shrink: 0; }
+  .ps-topbar:has(.cel-voltar) .cel-logo { display: none !important; }
+  .cel-voltar {
+    display: inline-flex; align-items: center; gap: 0; flex-shrink: 0;
+    min-height: 44px; min-width: 44px !important; padding: 0 6px 0 0; margin-left: -4px;
+    color: var(--ios-tint); font-size: 17px; font-weight: 400; background: none; border: 0;
+  }
+  .cel-voltar:active { opacity: 0.5; }
+  /* Toda lista suspensa da barra de cima abre na largura da tela, logo abaixo da barra. */
+  .ps-topbar .relative > div[style*="position: absolute"], .ps-topbar [style*="position: relative"] > div[style*="position: absolute"], .cel-topo-drop {
+    position: fixed !important;
+    left: 8px !important; right: 8px !important; width: auto !important; max-width: none !important;
+    top: calc(3.5rem + env(safe-area-inset-top, 0px) + 4px) !important;
+    max-height: calc(100dvh - 3.5rem - env(safe-area-inset-top, 0px) - 70px - env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto !important; z-index: 95 !important;
+  }
+
+  /* ── 3. Janelas e fundos escuros sempre acima da barra de abas (que fica em 75) ── */
+  .fixed.inset-0.z-40, .fixed.inset-0.z-50, .fixed.inset-0.z-\[60\], .fixed.inset-0.z-\[70\],
+  [style*="position: fixed"][style*="inset: 0"][style*="z-index: 50"],
+  [style*="position: fixed"][style*="inset: 0"][style*="z-index: 60"],
+  [style*="position: fixed"][style*="inset: 0"][style*="z-index: 65"],
+  [style*="position: fixed"][style*="inset: 0"][style*="z-index: 70"],
+  [style*="position: fixed"][style*="inset: 0"][style*="z-index: 74"] { z-index: 90 !important; }
+
+  /* ── 4. Janela alta: em vez de cortar topo e rodapé, o fundo rola e a janela começa visível ── */
+  .fixed.inset-0.items-center, .fixed.inset-0.place-items-center,
+  [style*="position: fixed"][style*="inset: 0"][style*="align-items: center"] {
+    align-items: flex-start !important; place-items: start center !important;
+    overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    padding-top: max(12px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .fixed.inset-0.items-center > :not(.absolute):not(.fixed),
+  .fixed.inset-0.place-items-center > :not(.absolute):not(.fixed),
+  [style*="position: fixed"][style*="inset: 0"][style*="align-items: center"] > :not(.absolute):not(.fixed) {
+    margin-top: auto !important; margin-bottom: auto !important; max-width: 100%;
+  }
+  /* Alturas em "vh" contam a barra do Safari; "dvh" é a altura que de fato aparece. */
+  .max-h-\[90vh\] { max-height: 90dvh !important; }
+  .max-h-\[92vh\] { max-height: 92dvh !important; }
+  .max-h-\[85vh\] { max-height: 85dvh !important; }
+  .max-h-\[80vh\] { max-height: 80dvh !important; }
+  .max-h-\[70vh\] { max-height: 70dvh !important; }
+  [style*="max-height: 92vh"] { max-height: 92dvh !important; }
+  [style*="max-height: 90vh"] { max-height: 90dvh !important; }
+  [style*="max-height: 88vh"] { max-height: 88dvh !important; }
+  [style*="max-height: 86vh"] { max-height: 86dvh !important; }
+  [style*="max-height: 85vh"] { max-height: 85dvh !important; }
+  [style*="height: 100vh"]:not([style*="max-height: 100vh"]):not([style*="min-height: 100vh"]) { height: 100dvh !important; }
+  [style*="min-height: 100vh"] { min-height: 100dvh !important; }
+
+  /* ── 5. Conteúdo das telas nunca passa da borda ── */
+  .ios-main { overflow-wrap: break-word; }
+  /* Fileiras só de botões (abas, filtros, ações do cabeçalho): quebram linha quando não cabem. */
+  .ios-main :is(.flex, [style*="display: flex"]):not(.flex-col):not(.flex-nowrap):not(.overflow-x-auto):not(.ios-seg):not(.ios-seg-inline):not(.ios-abas):not(.ios-visao):not(.ios-kanban-nav):not(.ios-compositor):not(.ios-chat-cab):not([style*="flex-direction: column"]):not([style*="overflow-x"]):has(> button + button):not(:has(> :not(button, a, select, label, input, span, .relative, [style*="position: relative"]))) {
+    flex-wrap: wrap !important; max-width: 100%; row-gap: 6px;
+  }
+  /* Cabeçalho da tela (título + ações): as ações descem para a linha de baixo quando não cabem. */
+  .ios-main .flex.justify-between:not(.flex-nowrap):has(> h1, > div > h1, > div > h2:first-child) { flex-wrap: wrap !important; row-gap: 8px; }
+  /* Grades de colunas iguais (ex.: semana da Agenda): as colunas dividem a largura, sem estourar. */
+  [style*="grid-template-columns: repeat(7, 1fr)"] { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: repeat(6, 1fr)"] { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: repeat(5, 1fr)"] { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: repeat(4, 1fr)"] { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: repeat(2, 1fr)"], [style*="grid-template-columns: 1fr 1fr;"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* Tabelas largas rolam dentro do próprio cartão, nunca a tela inteira. */
+  .ios-main :has(> table):not(table):not(tbody):not(thead):not(tr) { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  /* Campos (inclusive de data) encolhem até caber. */
+  .ios-main :is(input, select, textarea) { max-width: 100%; }
+  .ios-main input[type="date"], .ios-main input[type="datetime-local"], .ios-main input[type="month"] { min-width: 0; }
+  .ios-main .flex-1:has(> input[type="date"], > input[type="datetime-local"], > input[type="month"]) { min-width: 0; }
+
+  /* ── 6. Avisos flutuantes acima da barra de abas, na largura da tela ── */
+  .cel-aviso-lead { left: 8px !important; right: 8px !important; width: auto !important; bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important; }
+  .wpp-numeros-lista { left: auto !important; right: 0; }
+}
+
+/* Telas até 380pt (iPhone SE, 11 Pro, 12/13 mini, Androids comuns): logo menor para caber os ícones. */
+@media (max-width: 380px) {
+  .ps-topbar .cel-logo img, .ps-topbar a[aria-label="Prosystem"] img { height: 17px !important; }
+}
+/* Portal Técnico no celular: logo some (há o menu ☰ e o botão "← CRM") e o "Pausar" vira só o ícone. */
+@media (max-width: 640px) {
+  .ps-topbar a[aria-label="Prosystem"]:not(.cel-logo) { display: none !important; }
+}
+@media (max-width: 400px) {
+  .pt-cab button { min-width: 38px !important; }
+  .pt-cab { gap: 2px !important; }
+}
+/* iPhone SE / Android estreito: "Voltar" vira só a seta para sobrar espaço aos ícones. */
+@media (max-width: 359px) {
+  .cel-voltar span { display: none; }
+}

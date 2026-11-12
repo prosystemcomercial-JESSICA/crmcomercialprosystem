@@ -2278,3 +2278,14 @@ Pedido da Jessica: "quero um resumo: se for conversão de dados, de qual sistema
 - A mensagem do WhatsApp da nova demanda passou a ser montada por `textoNovaDemanda` (`backend/src/lib/implantacao/nova-demanda.ts`), com: **Cliente** (e número do contrato), **Conversão de dados** ("Sim, do sistema X" / "Não (banco zerado)" / "não se aplica (serviço)"), **Máquinas**, **Responsável**, **Contato do responsável** (telefone no formato (27) 99999-9999), **Técnico** e **Card no painel técnico** (link `/portal-tecnico?tab=quadro&demanda=<id>`). Plano e vendedora saíram da mensagem.
 - **De onde vêm os dados:** sistema anterior da implantação (ou `sistema_atual` da proposta); máquinas de `PropostaComercial.maquinas` ou a soma de `lojas_projeto[].maquinas` (proposta multi-loja); responsável e telefone da proposta (`responsavel_nome`, `responsavel_telefone`) e, sem eles, do representante do contrato (e por último o WhatsApp de contato da implantação). O que faltar aparece como "não informado".
 - **Teste:** `backend/tests/nova-demanda.test.ts` (5 passando). **Banco:** sem mudança.
+
+### Atualização 12/11/2026 (3): uso pelo celular revisado tela por tela (iPhone 11 em diante e qualquer smartphone)
+
+Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, coisas passavam da borda e o rodapé das janelas sumia. Só celular (abaixo de 768px); o computador não muda.
+
+- Padrão iOS de navegação: "‹ Voltar" na cor de destaque (17pt, alvo de 44pt) no lugar do logo nas telas internas; em telas de até 359pt fica só a seta.
+- Barra de cima no celular com no máximo: voltar/logo, alerta de reunião, cronômetro, WhatsApp (conversas novas), sino e foto. Logo menor (17px) até 380pt.
+- Listas suspensas da barra de cima: largura da tela com 8pt de margem, logo abaixo da barra, altura limitada acima da barra de abas.
+- Janelas: sempre acima da barra de abas; se não couberem, rolam com o topo visível (nunca centralizadas cortando topo e rodapé).
+- Abas e botões em fileira quebram linha em vez de passar da borda; tabelas rolam dentro do cartão.
+- Conferido com prints em 440, 414, 402, 375 (SE e 11 Pro) e 360pt.

@@ -903,7 +903,7 @@ export default function PortalTecnicoPage() {
     <div style={{ minHeight: '100vh', background: 'var(--t-content-bg)', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Barra do topo: a mesma do CRM (logo Prosystem) com as ferramentas do portal ── */}
-      <header className="ps-topbar flex-shrink-0 flex items-center gap-3 px-4 h-14" style={{ position: 'sticky', top: 0, zIndex: 50 }}>
+      <header className="ps-topbar pt-cab flex-shrink-0 flex items-center gap-3 px-4 h-14" style={{ position: 'sticky', top: 0, zIndex: 50 }}>
         <button onClick={() => setMenuAberto(true)} className="md:hidden flex-shrink-0 p-1.5 rounded-lg" style={{ color: 'var(--t-text-muted)' }} aria-label="Abrir menu">
           <IconeMenu size={20} />
         </button>
@@ -916,11 +916,11 @@ export default function PortalTecnicoPage() {
         <CronometroBarra />
         <SinoAvisos onAbrir={() => setTab('avisos')} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />
         {/* Modo escuro: o mesmo do CRM (mesma preferência salva no navegador). */}
-        <button onClick={toggleMode} title={mode === 'claro' ? 'Modo escuro' : 'Modo claro'} aria-label={mode === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
+        <button className="pt-sem-celular" onClick={toggleMode} title={mode === 'claro' ? 'Modo escuro' : 'Modo claro'} aria-label={mode === 'claro' ? 'Ativar modo escuro' : 'Ativar modo claro'}
           style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           {mode === 'claro' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
-        <button onClick={() => window.close()} title="Fechar portal" aria-label="Fechar portal"
+        <button className="pt-sem-celular" onClick={() => window.close()} title="Fechar portal" aria-label="Fechar portal"
           style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid var(--t-card-border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-text-muted)' }}>
           <X size={14} />
         </button>
@@ -933,7 +933,8 @@ export default function PortalTecnicoPage() {
             .pt-topo-extra { display: none !important; }
             .pt-conteudo { padding: 10px !important; }
           }
-          @media (max-width: 640px) { .pt-sem-celular { display: none !important; } }
+          .pt-so-celular { display: none; }
+          @media (max-width: 640px) { .pt-sem-celular { display: none !important; } .pt-so-celular { display: inline-block; } }
         `}</style>
         {menuAberto && <div onClick={() => setMenuAberto(false)} className="md:hidden fixed inset-0 bg-black/50" style={{ zIndex: 60 }} />}
         <SidebarMenu

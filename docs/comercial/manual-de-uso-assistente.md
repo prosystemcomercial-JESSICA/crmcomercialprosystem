@@ -1671,3 +1671,14 @@ $L
 - **Se a resposta não sair em 2 minutos**, você recebe no WhatsApp o aviso **"🚨 Prioridade máxima: ... está sem resposta"**, com o que o cliente escreveu e o link da conversa. Abra o link e responda.
 - **Cliente passou outro número:** a Caroline confirma e chama o número novo na hora. A conversa nova aparece com prioridade máxima, no mesmo lead.
 - **Jeito de conversar:** os agentes primeiro ouvem (rotina, o que incomoda, o que falta no sistema atual) e só depois falam do Prosystem, uma pergunta por vez.
+
+## Usar o CRM pelo celular (revisado em 12/11/2026)
+
+Vale para qualquer smartphone, com atenção aos iPhones 11 em diante.
+
+- **Voltar:** em toda tela que não é uma das abas de baixo aparece **‹ Voltar** no canto de cima, à esquerda. Ele leva para a tela anterior; se você abriu a tela por um link ou notificação, leva para a lista daquele assunto ou para o Painel.
+- **Modo escuro no celular:** toque na sua foto (canto de cima, à direita) e escolha **Modo escuro** ou **Modo claro**.
+- **Formulários** (Nova proposta, Novo cliente etc.) abrem por cima de tudo. Se forem compridos, role dentro deles: o botão de salvar fica no fim, sempre alcançável.
+- **Teclado:** ao fechar o teclado, a tela volta sozinha para o topo.
+- **Portal Técnico no celular:** o cronômetro mostra o tempo e os botões ⏸ (pausar) e ▷ (outra atividade). Para voltar ao CRM, use **← CRM**, embaixo.
+- Se alguma tela ainda passar da borda ou esconder um botão, mande o print com o nome da tela.

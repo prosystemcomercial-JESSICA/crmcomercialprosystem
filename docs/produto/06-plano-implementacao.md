@@ -2316,3 +2316,12 @@ Pedido da Jessica: "quero um resumo: se for conversão de dados, de qual sistema
 - A mensagem do WhatsApp da nova demanda passou a ser montada por `textoNovaDemanda` (`backend/src/lib/implantacao/nova-demanda.ts`), com: **Cliente** (e número do contrato), **Conversão de dados** ("Sim, do sistema X" / "Não (banco zerado)" / "não se aplica (serviço)"), **Máquinas**, **Responsável**, **Contato do responsável** (telefone no formato (27) 99999-9999), **Técnico** e **Card no painel técnico** (link `/portal-tecnico?tab=quadro&demanda=<id>`). Plano e vendedora saíram da mensagem.
 - **De onde vêm os dados:** sistema anterior da implantação (ou `sistema_atual` da proposta); máquinas de `PropostaComercial.maquinas` ou a soma de `lojas_projeto[].maquinas` (proposta multi-loja); responsável e telefone da proposta (`responsavel_nome`, `responsavel_telefone`) e, sem eles, do representante do contrato (e por último o WhatsApp de contato da implantação). O que faltar aparece como "não informado".
 - **Teste:** `backend/tests/nova-demanda.test.ts` (5 passando). **Banco:** sem mudança.
+
+### Atualização 12/11/2026 (3): uso pelo celular revisado tela por tela (iPhone 11 em diante e qualquer smartphone)
+
+Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, coisas passavam da borda e o rodapé das janelas sumia. Só celular (abaixo de 768px); o computador não muda.
+
+- [x] Auditoria automática (Playwright, API simulada com dados fictícios) de 68 telas em 6 tamanhos (iPhone 17 Pro Max 440, 11 414, 17 402, 11 Pro 375x812, SE 375x667, Android 360). Antes: a barra de cima passava da borda em 342 de 408 medições, 67 tinham conteúdo passando da borda e nenhuma tela interna tinha voltar. Depois: 0 na barra de cima e 0 no conteúdo (Portal Técnico incluído).
+- [x] Formulários "Novo…" de 9 telas: antes, o "Salvar Proposta" ficava sob a barra de abas; depois, o botão final fica visível e clicável em todos.
+- [x] Computador conferido igual (logo, modo escuro, menu lateral, sem voltar).
+- [ ] Não conferido: Safari de verdade num iPhone (o teste usa o Chromium com tamanho e toque de iPhone); 4 telas não abrem com dados fictícios (Painel da IA, Relatório de Retenção, LTV, Configurações) e não foram medidas; janelas abertas por outros botões além de "Novo…".

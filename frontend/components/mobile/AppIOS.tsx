@@ -27,7 +27,7 @@ const ABAS_CEO = [
   { href: '/previsao', label: 'Previsão', icon: TrendingUp },
   { href: '/leads', label: 'Leads', icon: GitMerge },
 ];
-const abasDo = (ceo?: boolean) => (ceo ? ABAS_CEO : ABAS);
+export const abasDo = (ceo?: boolean) => (ceo ? ABAS_CEO : ABAS);
 
 const ativo = (pathname: string | null, href: string) => pathname === href || (!!pathname && pathname.startsWith(href + '/'));
 

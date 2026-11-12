@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { VoltarCrm } from "@/components/ui/VoltarCrm";
 import "./globals.css";
 import "./ios.css";
+import "./celular.css";
 
 const inter = Inter({
   subsets: ["latin"],
