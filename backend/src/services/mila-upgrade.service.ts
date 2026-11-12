@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { chamarGemini } from './ia-gemini.service';
 import { lerJsonIa } from '@/lib/assistente/ia-texto';
+import { TEXTO_DE_GENTE } from '@/lib/assistente/texto-de-gente';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { escolherParaUpgrade, ferramentasNovas, mesesDeCasa, emailValido, DIAS_ENTRE_OFERTAS, MESES_MINIMOS } from '@/lib/assistente/mila-upgrade';
 
@@ -16,6 +17,7 @@ const MILA_UPGRADE = [
   'Você escreve para clientes que já usam o sistema há bastante tempo, convidando para conhecer o plano Plus e as ferramentas novas.',
   'Tom de parceira que cuida da conta, não de vendedora. Português do Brasil, frases curtas, sem travessão, sem exagero de emoji.',
   'Nunca cite preço, desconto, prazo ou condição comercial. Nunca invente recurso: fale só das ferramentas listadas no pedido.',
+  TEXTO_DE_GENTE,
 ].join('\n');
 
 const LOTE = 20; // e-mails por rodada do agendador

@@ -1706,3 +1706,10 @@ No Portal Técnico há o menu **Agenda**. Ali o técnico marca reuniões, ligaç
 - O alerta vai **só para o técnico**. O cliente não recebe mensagem.
 - Se o cadastro do técnico estiver sem celular, o alerta aparece só no sino do portal. Coloque o celular em Usuários.
 - A supervisão técnica vê a agenda de todos os técnicos (filtro no topo) e pode marcar para qualquer um.
+
+## Como os agentes escrevem: texto de gente, não de folder (12/11/2026)
+
+- Os agentes não usam mais frase de propaganda ("solução completa e integrada", "aumente sua produtividade"). Eles pegam o recurso do sistema e contam a situação prática em que ele ajuda, ligada ao que o cliente acabou de dizer. Exemplo: o cliente diz "o caixa nunca bate"; o agente responde algo como "isso cansa, né? no Prosystem o fechamento tem conferência, então quando falta dinheiro você vê em qual venda foi, sem recontar a gaveta. quer ver isso funcionando na demonstração?".
+- **Gancho para abrir e retomar:** no primeiro contato e nas retomadas, o agente abre com uma pergunta retórica sobre um ponto fraco comum do ramo ("sabe aquele dia em que o caixa fecha e falta dinheiro?"), mostra o que a Prosystem resolve e termina com uma única pergunta de verdade. Se o lead já tinha contado uma dor antes, o gancho usa a dor dele.
+- Nada de inventar: nome de funcionário, horário ou recurso só aparecem se estiverem no material da Prosystem.
+- Quando você corrigir uma mensagem do agente, ele continua aprendendo com o seu ajuste, como antes.

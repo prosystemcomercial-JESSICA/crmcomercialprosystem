@@ -1,3 +1,4 @@
+import { TEXTO_DE_GENTE } from './texto-de-gente';
 // IA de texto do assistente (Fase 3): regras de quando o tira-dúvidas pode
 // responder sozinho, montagem dos pedidos à IA e leitura das respostas. Puro.
 
@@ -39,6 +40,7 @@ export const REGRAS_COMERCIAIS = [
   'NUNCA informe preço, valor, desconto, prazo de contrato ou condição de pagamento: isso é com a especialista.',
   'Quando o recurso depende de plano, diga "a partir do plano X".',
   'Sempre que fizer sentido, termine convidando para uma demonstração com a nossa especialista.',
+  TEXTO_DE_GENTE,
 ].join('\n');
 
 export function promptTiraDuvidas(guia: string, conversa: string): { sistema: string; usuario: string } {

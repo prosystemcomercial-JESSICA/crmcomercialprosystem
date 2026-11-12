@@ -4,6 +4,12 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (texto de gente, não de folder):** print da Jessica comparando "texto de folder" e "texto de gente". Pedido: pegar a funcionalidade e transformar em algo prático para o cliente, em conversa natural, sem frase solta; perguntas retóricas sobre ponto fraco do ramo como gancho para abrir e retomar leads.
+  - **Feito:** regra única `TEXTO_DE_GENTE` (`backend/src/lib/assistente/texto-de-gente.ts`) ligada a `promptCaroline` (`sdr.ts`, todos os perfis de conversa), `REGRAS_COMERCIAIS` (`ia-texto.ts`, sugestões às vendedoras) e Mila (`mila-upgrade.service.ts`). Teste `tests/texto-de-gente.test.ts`.
+  - **Decisões:** pergunta retórica não conta como pergunta de investigação e a mensagem continua com uma única pergunta real; na retomada, usar a dor que o lead já contou; cena ilustra, mas recurso e detalhe concreto só do material (exemplos conferidos na `base-conhecimento-comercial.md` e no mapa de valor de padarias). Joana fica de fora (jornalismo, não pode inventar cena).
+  - **Conferido:** `tsc` limpo nos arquivos mexidos; vitest 51/51 nos testes do SDR/IA de texto.
+  - **Cuidado:** `sdr.ts` tinha mudanças não commitadas de outra sessão (loja nova da Receita); o commit levou só as duas linhas desta regra.
+
 - **12/11/2026 (folha de ações da conversa no celular):** print da Jessica: o "…" de uma conversa do WhatsApp abria a folha espremida no cabeçalho, com o "Cancelar" atrás da barra de cima. Causa: `backdrop-filter` do `.ios-chat-cab` prende o `fixed` no Safari. Corrigido com portal no `body` (`app/whatsapp/page.tsx`, d313e4b). **Ainda não publicado:** o main tem antes a agenda do técnico (55fee79), que precisa da tabela `AgendaTecnico` aguardando autorização da Jessica. Falta também conferir no iPhone dela.
 
 - **12/11/2026 (agenda do técnico com alerta no WhatsApp):** pedido da Jessica: agendador no Portal Técnico, também nos cards do cliente, para o técnico marcar horários e reuniões com o cliente e receber o alerta no WhatsApp no dia e hora.
