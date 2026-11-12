@@ -1558,6 +1558,39 @@ model ImplantacaoAtividade {
   @@index([implantacao_id])
 }
 
+// Agenda do técnico (12/11/2026): reunião, ligação, acesso remoto ou visita marcada com o cliente, pelo menu Agenda
+// do Portal Técnico ou no card. Na hora escolhida (ou X min antes) o técnico recebe o alerta no WhatsApp dele.
+// Sem chave estrangeira para a implantação: o compromisso pode não ter card (cliente da base, contato avulso).
+model AgendaTecnico {
+  id               String    @id @default(cuid())
+  tecnico_id       String
+  tecnico_nome     String?
+  implantacao_id   String?
+  cliente_nome     String?   @db.VarChar(200)
+  tipo             String    @default("REUNIAO") // REUNIAO | LIGACAO | ACESSO_REMOTO | VISITA | TREINAMENTO | OUTRO
+  titulo           String    @db.VarChar(200)
+  descricao        String?   @db.Text
+  contato_nome     String?   @db.VarChar(120)
+  contato_fone     String?   @db.VarChar(40)
+  link             String?   @db.VarChar(500)
+  inicio           DateTime
+  duracao_min      Int       @default(60)
+  avisar_antes_min Int       @default(0)
+  status           String    @default("AGENDADO") // AGENDADO | REALIZADO | CANCELADO
+  resultado        String?   @db.Text
+  alerta_em        DateTime? // quando o alerta saiu (null = ainda não)
+  alerta_status    String? // ENVIADO | SEM_TELEFONE | FALHOU
+  concluido_em     DateTime?
+  criado_por_id    String?
+  criado_por_nome  String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  @@index([tecnico_id, inicio])
+  @@index([implantacao_id])
+  @@index([status, alerta_em, inicio])
+}
+
 // Cronômetro do técnico: cada play é uma sessão. Só uma sessão aberta (fim null) por técnico:
 // play em outra demanda fecha a anterior (origem_fim TROCA). Sem demanda = outra atividade.
 model ImplantacaoSessao {

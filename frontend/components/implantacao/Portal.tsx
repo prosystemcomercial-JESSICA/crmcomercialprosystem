@@ -10,6 +10,7 @@ import {
 import { BotoesChamado, BotoesDemanda, fmtDur, ModalPausa, NOME_ESPERA, useCronometro } from './Cronometro';
 import { ConfirmarLeitura } from './ConfirmarLeitura';
 import { AbaPrints, AbaHistoricoCard } from './PrintsHistorico';
+import { AgendaDoCard } from './Agenda';
 
 // Portal de implantação e serviços: quadro (colunas do Trello), ficha da demanda, avisos, painel e configurações.
 
@@ -204,6 +205,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                     {c.chamados_em_teste > 0 && <Etq cor="#286397">🧪 {c.chamados_em_teste} chamado(s) voltou: testar</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
                     {c.virada_agendada_para && !c.virada_inicio_em && <Etq cor="#286397">📅 Virada {new Date(c.virada_agendada_para).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')}</Etq>}
+                    {c.proximo_compromisso && <Etq cor="#0f766e">🗓 {new Date(c.proximo_compromisso.inicio).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')} · {c.proximo_compromisso.titulo}</Etq>}
                     {c.virada_inicio_em && !c.virada_fim_em && <Etq cor="#7c3aed">🚀 Virada em andamento</Etq>}
                     {c.virada_fim_em && !c.cobranca_lancada_em && <Etq cor="#7c3aed">💰 Cobrança a lançar</Etq>}
                   </div>
@@ -261,7 +263,7 @@ function EtqSegmento({ info, segmentoCadastro, perfil }: { info?: { segmento: st
 
 // ─── Ficha da demanda ────────────────────────────────────────────────────────
 
-type Aba = 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico' | 'prints';
+type Aba = 'agenda' | 'onboarding' | 'fichacliente' | 'tarefascliente' | 'testes' | 'anexos' | 'inventario' | 'observacoes' | 'assistida' | 'resumo' | 'ficha' | 'checklist' | 'virada' | 'treinamento' | 'correcoes' | 'tempos' | 'cliente' | 'historico' | 'prints';
 
 export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; gestao: boolean; onClose: () => void; abaInicial?: Aba }) {
   const [d, setD] = useState<any | null>(null);
@@ -281,7 +283,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   const servico = i.modulo === 'SERVICO';
   const abas: [Aba, string, any][] = [
     ...(!servico && d.onboarding_secoes ? [['onboarding', d.onboarding_ok ? 'Onboarding técnico ✓' : '🔒 Onboarding técnico', Users] as [Aba, string, any]] : []),
-    ['resumo', 'Resumo', ClipboardList], ['fichacliente', 'Cadastro do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
+    ['resumo', 'Resumo', ClipboardList], ['agenda', 'Agenda com o cliente', Clock], ['fichacliente', 'Cadastro do cliente', Building2], ['observacoes', 'Observações', MessageSquare], ...(!servico ? [['ficha', 'Ficha de coleta', FileText] as [Aba, string, any]] : []), ['checklist', 'Checklist', CheckCircle],
     ...(!servico ? [['virada', 'Virada e cobrança', Rocket] as [Aba, string, any], ...(d.assistida ? [['assistida', `Operação assistida ${d.assistida.feitos}/${d.assistida.total}`, CheckCircle] as [Aba, string, any]] : []), ['treinamento', 'Treinamento', GraduationCap] as [Aba, string, any]] : []),
     ['correcoes', `Correções${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length ? ` (${d.ocorrencias.filter((o: any) => o.situacao !== 'RESOLVIDA').length})` : ''}`, Bug],
     ['tempos', 'Tempos', Clock], ['cliente', 'Página do cliente', Users], ['historico', 'Histórico do card', MessageSquare], ['prints', 'Prints', FileText],
@@ -293,7 +295,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
   // Ficha confortável (26/10/2026): menu de seções à esquerda (sem abas em dois níveis), conteúdo no meio
   // e, à direita, o próximo passo e os contatos sempre à vista. Telas estreitas: o menu vira lista e o painel vira botão.
   const GRUPOS_ABA: { k: string; l: string; subs: Aba[] }[] = [
-    { k: 'visao', l: 'Visão geral', subs: ['resumo'] },
+    { k: 'visao', l: 'Visão geral', subs: ['resumo', 'agenda'] },
     { k: 'execucao', l: 'Execução', subs: ['onboarding', 'checklist', 'testes', 'virada', 'assistida', 'treinamento', 'correcoes'] },
     { k: 'cliente', l: 'Cliente', subs: ['fichacliente', 'ficha', 'tarefascliente', 'inventario', 'anexos', 'cliente'] },
     { k: 'registros', l: 'Registros', subs: ['prints', 'historico', 'observacoes', 'tempos'] },
@@ -367,6 +369,7 @@ export function FichaDemanda({ id, gestao, onClose, abaInicial }: { id: string; 
         {aba === 'inventario' && <AbaInventario d={d} />}
         {aba === 'observacoes' && <AbaObservacoes id={d.implantacao.id} />}
         {aba === 'resumo' && <AbaResumo d={d} gestao={gestao} recarregar={carregar} />}
+        {aba === 'agenda' && <AgendaDoCard implantacaoId={i.id} cliente={i.cliente_razao_social} tecnicoId={i.tecnico_id} contatos={contatosDoCliente(d)} gestao={gestao} />}
         {aba === 'ficha' && <AbaFicha d={d} recarregar={carregar} irPara={setAba} />}
         {aba === 'checklist' && <AbaChecklist d={d} recarregar={carregar} />}
         {aba === 'virada' && <AbaVirada d={d} gestao={gestao} recarregar={carregar} />}

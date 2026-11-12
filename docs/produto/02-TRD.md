@@ -2350,3 +2350,12 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - **`uso-ia.service.ts`:** `registrarChamadaIa` ganhou `erro`; na falha chama `registrarErroIa` (memória). `gravarUsoIa` grava em `ia.erros.<dia>` somando com o que já está gravado. `errosIaPorDia` lê o gravado mais a memória.
 - **`ia-gemini.service.ts`:** todos os pontos de falha (OpenAI/Grok, transcrição OpenAI, Gemini, OpenRouter, Whisper local) passam a mensagem e o modelo. A falha do Groq anota só o motivo (o Groq nunca entrou no contador de falhas). OpenAI 429 com `insufficient_quota` agora vira "Sem crédito na OpenAI" (antes, "Limite de uso"); 401 e 429 trazem o código devolvido. Gemini com erro genérico traz o `error.status`.
 - **Log do servidor:** `time: true` no `comercial-backend` do `ecosystem.config.js` da VPS (arquivo só do servidor, fora do Git), para o log ganhar data e hora.
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+- **Tabela nova** `AgendaTecnico` (sem chave estrangeira; `implantacao_id` opcional). Ver 05-esquema-backend.
+- **Regras puras** em `backend/src/lib/implantacao/agenda-tecnico.ts`: `TIPOS_COMPROMISSO`, `ANTECEDENCIAS_MIN` (0, 5, 15, 30, 60, 120, 1440), `alertaDevido` (AGENDADO, sem `alerta_em`, agora ≥ início − antecedência e agora ≤ início + `JANELA_ATRASO_MIN` = 60 min), `validarCompromisso`, `textoAlertaCompromisso` (conta o tempo que falta de verdade). Testes: `backend/tests/agenda-tecnico.test.ts` (13).
+- **Rotas** `backend/src/routes/agenda-tecnico.ts`: `GET /agenda-tecnico` (`de`, `ate`, `tecnico_id`, `implantacao_id`; padrão −7 a +90 dias), `GET /agenda-tecnico/opcoes`, `POST /agenda-tecnico`, `PUT /agenda-tecnico/:id`, `POST /agenda-tecnico/:id/status` (REALIZADO, CANCELADO, AGENDADO). Hora sem fuso (campo da tela, `AAAA-MM-DDTHH:mm`) é lida como Brasília (−03:00).
+- **Agendador novo (1 minuto)** em `server.ts` (dentro de `iniciarSchedulerCronometro`): `rodarAlertasAgenda` (`services/agenda-tecnico.service.ts`). Reserva o compromisso com `updateMany` em `alerta_em: null` antes de enviar (duas cópias do servidor não mandam duas vezes) e grava `alerta_status` (ENVIADO, SEM_TELEFONE, FALHOU).
+- **`avisarTecnico`** ganhou `forcarWhatsapp` (manda no WhatsApp mesmo com a preferência desligada) e `url` (link da notificação). Sem mudança para quem já chamava.
+- **Quadro** (`GET /implantacoes/quadro`): cada card traz `proximo_compromisso` (o próximo AGENDADO a partir de 1 h atrás).

@@ -535,6 +535,16 @@ async function iniciarSchedulerCronometro() {
   };
   setInterval(funil, 10 * 60 * 1000);
   setTimeout(funil, 60 * 1000);
+  // Agenda do técnico (12/11/2026): a cada minuto, alerta no WhatsApp do técnico os compromissos que chegaram na hora.
+  const agenda = async () => {
+    try {
+      const { rodarAlertasAgenda } = await import('./services/agenda-tecnico.service.js');
+      const n = await rodarAlertasAgenda(prismaClient!);
+      if (n) console.log(`[AGENDA] ${n} alerta(s) de compromisso enviado(s)`);
+    } catch (err: any) { console.error('[AGENDA] Erro:', err?.message); }
+  };
+  setInterval(agenda, 60 * 1000);
+  setTimeout(agenda, 45 * 1000);
   console.log('[BOOT] Scheduler do portal de implantação iniciado (10 min: cronômetro, prazos, esperas, cobrança, avisos ao cliente, Otávio)');
 }
 
@@ -653,6 +663,7 @@ async function loadRoutes() {
     ['implantacoes',          () => import('./routes/implantacoes'),          'implantacoesRoutes'],
     ['implantacao-cronometro', () => import('./routes/implantacao-cronometro'), 'implantacaoCronometroRoutes'],
     ['implantacao-portal',    () => import('./routes/implantacao-portal'),    'implantacaoPortalRoutes'],
+    ['agenda-tecnico',        () => import('./routes/agenda-tecnico'),        'agendaTecnicoRoutes'],
     ['implantacao-registros', () => import('./routes/implantacao-registros'), 'implantacaoRegistrosRoutes'],
     ['health-score',          () => import('./routes/health-score'),          'healthScoreRoutes'],
     ['dashboard-power',       () => import('./routes/dashboard-power'),       'dashboardPowerRoutes'],

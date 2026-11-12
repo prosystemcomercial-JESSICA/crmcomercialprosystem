@@ -995,6 +995,12 @@ class ApiClient {
   async getAvisosTecnico(enviados = false) { return this.client.get('/implantacoes/avisos', { params: enviados ? { enviados: '1' } : {} }); }
   async marcarAvisoLido(id: string) { return this.client.post(`/implantacoes/avisos/${id}/lido`, {}); }
   async marcarAvisosLidos() { return this.client.post('/implantacoes/avisos/lidos', {}); }
+  // Agenda do técnico (12/11/2026): compromissos com o cliente e alerta no WhatsApp do técnico.
+  async agendaTecnicoOpcoes() { return this.client.get('/agenda-tecnico/opcoes'); }
+  async agendaTecnicoListar(params: { de?: string; ate?: string; tecnico_id?: string; implantacao_id?: string } = {}) { return this.client.get('/agenda-tecnico', { params }); }
+  async agendaTecnicoCriar(dados: any) { return this.client.post('/agenda-tecnico', dados); }
+  async agendaTecnicoEditar(id: string, dados: any) { return this.client.put(`/agenda-tecnico/${id}`, dados); }
+  async agendaTecnicoStatus(id: string, status: 'REALIZADO' | 'CANCELADO' | 'AGENDADO', resultado?: string) { return this.client.post(`/agenda-tecnico/${id}/status`, { status, resultado }); }
   async getConfigPortal() { return this.client.get('/implantacoes/portal/config'); }
   async salvarConfigPortal(data: any) { return this.client.put('/implantacoes/portal/config', data); }
   async getPainelImplantacao(params: { de?: string; ate?: string } = {}) { return this.client.get('/implantacoes/painel', { params }); }

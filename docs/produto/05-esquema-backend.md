@@ -2326,3 +2326,26 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 
 - **Nova chave em `ConfiguracaoIntegracao`:** `ia.erros.<AAAA-MM-DD>` = `{ agente: { provedor: { motivo: { n, primeiro, ultimo, exemplo, modelo?, horas: { 'HH': n } } } } }` (horas no horário de Brasília; exemplo com até 200 caracteres). Sem mudança no schema do Prisma.
 - **`consumoDoMes`** (painel do Escritório) devolve `erros_por_agente: { agente: [{ provedor, motivo, texto, n, primeiro, ultimo, exemplo, modelo, dias }] }`, do motivo mais frequente para o menos.
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+Tabela nova **`AgendaTecnico`** (criada em produção com `CREATE TABLE`, com backup antes):
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| id | String (cuid) | |
+| tecnico_id / tecnico_nome | String | quem recebe o alerta |
+| implantacao_id | String? | card do cliente (sem chave estrangeira) |
+| cliente_nome | VarChar(200)? | copiado do card ou digitado |
+| tipo | String | REUNIAO, LIGACAO, ACESSO_REMOTO, VISITA, TREINAMENTO, OUTRO |
+| titulo | VarChar(200) | assunto |
+| descricao, resultado | Text? | anotação; o que ficou combinado ou motivo do cancelamento |
+| contato_nome / contato_fone / link | VarChar? | |
+| inicio | DateTime | |
+| duracao_min | Int (60) | |
+| avisar_antes_min | Int (0) | 0, 5, 15, 30, 60, 120, 1440 |
+| status | String (AGENDADO) | AGENDADO, REALIZADO, CANCELADO |
+| alerta_em / alerta_status | DateTime? / String? | quando o alerta saiu; ENVIADO, SEM_TELEFONE, FALHOU |
+| concluido_em, criado_por_id, criado_por_nome, created_at, updated_at | | |
+
+Índices: (tecnico_id, inicio), (implantacao_id), (status, alerta_em, inicio).

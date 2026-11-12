@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { PainelInicio } from '@/components/implantacao/Inicio';
+import { PainelAgendaTecnico } from '@/components/implantacao/Agenda';
 import { OnboardingTecnico } from '@/components/implantacao/Portal';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket, InventarioTicket } from '@/components/implantacao/Portal';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -353,7 +354,7 @@ function CategoriaIcon({ categoria, size = 14 }: { categoria: string; size?: num
 
 // ─── página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'inicio' | 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
+type Tab = 'agenda' | 'inicio' | 'quadro' | 'servicos' | 'avisos' | 'painel' | 'config' | 'meudia' | 'implantacoes' | 'onboarding' | 'atendimento' | 'suporte' | 'demandas' | 'kb' | 'csat';
 
 export default function PortalTecnicoPage() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -845,6 +846,7 @@ export default function PortalTecnicoPage() {
         // 'Demandas (SLA)' escondida: lia SolicitacaoServico, que nunca existiu em produção (substituída por Quadro/Serviços).
         { key: 'inicio'      as Tab, label: 'Início',       icon: Star,         badge: null },
         { key: 'quadro'      as Tab, label: 'Quadro',       icon: LayoutGrid,   badge: null },
+        { key: 'agenda'      as Tab, label: 'Agenda',       icon: CalendarCheck, badge: null },
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
         // 'Implantações' (lista antiga com Datas/Executar) saiu do menu: tudo isso está no card do Quadro.
@@ -882,7 +884,8 @@ export default function PortalTecnicoPage() {
   const TAB_TITLE: Record<Tab, string> = {
     demandas:     'Demandas Técnicas',
     inicio:       'Início',
-    quadro:       'Quadro · implantações e serviços',
+    agenda:       'Agenda com os clientes',
+    quadro:      'Quadro · implantações e serviços',
     servicos:     'Serviços técnicos',
     avisos:       'Avisos',
     painel:       'Painel da implantação',
@@ -1262,6 +1265,7 @@ export default function PortalTecnicoPage() {
 
         {/* ── TAB: IMPLANTAÇÕES ── */}
         {tab === 'meudia' && <PainelMeuDia gestao={gestaoTecnica} />}
+        {tab === 'agenda' && <PainelAgendaTecnico gestao={gestaoTecnica} onAbrirDemanda={(id: string) => { setAbrirDemanda(id); setTab('quadro'); }} />}
         {tab === 'inicio' && <PainelInicio gestao={gestaoTecnica} irPara={(t: string, id?: string) => { setAbrirDemanda(id || null); setTab(t as Tab); }} />}
         {(tab === 'quadro' || tab === 'servicos') && <QuadroDemandas gestao={gestaoTecnica} abrirId={abrirDemanda} onAberto={() => setAbrirDemanda(null)} />}
         {tab === 'avisos' && <PainelAvisos gestao={gestaoTecnica} />}

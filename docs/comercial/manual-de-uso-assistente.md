@@ -1694,3 +1694,15 @@ No Escritório, em **Consumo de IA**, a tabela "Quem mais consome no mês" mostr
 - Uma falha nem sempre deixa o lead sem resposta: o sistema tenta a próxima IA da fila.
 - O registro dos motivos começou em 12/11/2026. As falhas anteriores aparecem só no número.
 - Chave recusada ou sem crédito precisa de ação: trocar a chave ou pôr crédito na conta da IA.
+
+## Agenda do técnico com alerta no WhatsApp (12/11/2026)
+
+No Portal Técnico há o menu **Agenda**. Ali o técnico marca reuniões, ligações, acessos remotos e visitas com o cliente e recebe o alerta no WhatsApp dele na hora.
+
+- **Marcar:** Agenda › **Novo compromisso**. Escolha o tipo, o cliente (um card ou o nome digitado), o assunto, o dia, a hora e quando quer o alerta (na hora, 5, 15, 30 min, 1 h, 2 h ou 1 dia antes). Toque em **Agendar**.
+- **No card do cliente:** abra o card › Visão geral › **Agenda com o cliente** › **Agendar com o cliente**. O cliente e o contato já vêm preenchidos.
+- **No quadro:** o card mostra o próximo compromisso (🗓 dia, hora e assunto).
+- **Depois do horário:** marque **Realizado** (e escreva o que ficou combinado), **Remarcar / editar** ou **Cancelar**. Fica tudo no histórico do card.
+- O alerta vai **só para o técnico**. O cliente não recebe mensagem.
+- Se o cadastro do técnico estiver sem celular, o alerta aparece só no sino do portal. Coloque o celular em Usuários.
+- A supervisão técnica vê a agenda de todos os técnicos (filtro no topo) e pode marcar para qualquer um.

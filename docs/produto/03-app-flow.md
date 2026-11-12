@@ -2352,3 +2352,11 @@ Pedido da Jessica, a partir do quadro Consumo de IA (56% das chamadas com falha 
 Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas eram da OpenAI paga com a **chave antiga recusada** (cerca de 3.900 erros "A chave da IA é inválida"), de 02 a 05/11, até a troca da chave em 05/11. Os mais atingidos foram o Julio (03 a 05/11), o Luiz Felipe (05/11) e a Sofia (02/11). Depois vieram "Limite de uso" da OpenAI (cerca de 2.100), tempo esgotado na OpenRouter grátis e "sem crédito" (HTTP 402) no Gemini grátis.
 
 - Fluxo: IA falha → `registrarChamadaIa({ ok: false, erro, modelo })` → memória → o agendador grava `ia.erros.<dia>` → o painel do Escritório (`consumoDoMes`) devolve `erros_por_agente` → na tabela "Quem mais consome", tocar no número de falhas abre a lista de motivos (IA, modelo, de quando a quando, última mensagem).
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+1. Portal Técnico › **Agenda** › **Novo compromisso**: tipo, cliente (um card do técnico ou nome livre), assunto, dia, hora, duração, **Alerta no WhatsApp** (na hora até 1 dia antes), contato, link e anotação. A tela mostra "Você recebe o alerta no WhatsApp em dd/mm às hh:mm". **Agendar**.
+2. No card: Visão geral › **Agenda com o cliente** › **Agendar com o cliente** (cliente já preenchido; o contato vem da lista de contatos do card).
+3. Na hora do alerta: WhatsApp do técnico com tipo, cliente, hora, assunto, contato, link, anotação e o link da agenda; aparece também no sino do portal.
+4. Depois do horário, o compromisso vai para "Já passaram: marque como foi": **Realizado** (pergunta o que ficou combinado), **Remarcar / editar** ou **Cancelar** (pergunta o motivo). Realizados e cancelados ficam em "Ver realizados e cancelados", com **Reabrir**.
+5. Cada passo (agendado, remarcado, realizado, cancelado, reaberto) vira uma linha no histórico do card.

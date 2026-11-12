@@ -2355,3 +2355,11 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - [x] Motivos visíveis no Consumo de IA do Escritório.
 - [x] Log do backend com data e hora (PM2 `time: true` na VPS).
 - [ ] Usar os motivos na análise semanal (Analista de Resultados ou reunião), se a Jessica quiser.
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+- [x] Regras puras e testes (`lib/implantacao/agenda-tecnico.ts`, 13 testes).
+- [x] Tabela `AgendaTecnico`, rotas `/agenda-tecnico`, agendador de 1 minuto e `forcarWhatsapp` no `avisarTecnico`.
+- [x] Menu Agenda, seção "Agenda com o cliente" no card e etiqueta do próximo compromisso no quadro (`components/implantacao/Agenda.tsx`).
+- [x] Playwright com API simulada (`e2e/agenda-tecnico.spec.ts`, 4 testes).
+- [ ] Próximos possíveis (não pedidos): mandar o convite também ao Google Agenda; ver a agenda dentro do Meu dia; lembrete ao cliente (só se a Jessica pedir, por causa do número).

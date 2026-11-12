@@ -63,6 +63,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       },
     });
     const agora = new Date();
+    // Agenda do técnico (12/11/2026): o próximo compromisso marcado com o cliente aparece no card.
+    const proxCompromisso = new Map<string, { id: string; tipo: string; titulo: string; inicio: Date }>();
+    for (const c of await prisma.agendaTecnico.findMany({ where: { implantacao_id: { in: lista.map(l => l.id) }, status: 'AGENDADO', inicio: { gte: new Date(agora.getTime() - 60 * 60000) } }, orderBy: { inicio: 'asc' }, select: { id: true, implantacao_id: true, tipo: true, titulo: true, inicio: true } }).catch(() => [])) {
+      if (c.implantacao_id && !proxCompromisso.has(c.implantacao_id)) proxCompromisso.set(c.implantacao_id, { id: c.id, tipo: c.tipo, titulo: c.titulo, inicio: c.inicio });
+    }
     const vencidasPorCard = new Map((await prisma.implantacaoTarefaCliente.groupBy({ by: ['implantacao_id'], where: { implantacao_id: { in: lista.map(l => l.id) }, status: 'PENDENTE', prazo: { lt: agora } }, _count: { _all: true } })).map(g => [g.implantacao_id, g._count._all]));
     const cards = lista.map(i => {
       // O relógio do técnico pausa enquanto a loja não entrega o que precisa (espera "Cliente").
@@ -81,6 +86,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         cobranca_lancada_em: i.cobranca_lancada_em, token_cliente: i.token_cliente, concluida_fila_em: i.concluida_fila_em, legado: ehLegado(i),
         proximo_passo: (({ chave, titulo, quem }) => ({ chave, titulo, quem }))(proximoPasso(i, i.checklist, i.treinamento_fases, i.ocorrencias.length, { assistida: i.assistida, agora, testes: i.testes })),
         virada_agendada_para: i.virada_agendada_para,
+        proximo_compromisso: proxCompromisso.get(i.id) || null,
         treinos_marcados: i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
         saude: saudeDoCard({ coluna: colunaDe(i), sla, tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
           ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: abertas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),

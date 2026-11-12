@@ -93,7 +93,7 @@ export type WhatsAviso = 'ENVIADO' | 'SEM_TELEFONE' | 'DESLIGADO' | 'FALHOU' | '
  * `whatsapp: true` manda no WhatsApp mesmo sendo aviso normal (ex.: nova demanda), salvo se a pessoa desligou o
  * WhatsApp nas preferências. O retorno traz `whatsapp` com o que aconteceu, para a tela avisar quem designou.
  */
-export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA'; tipo?: 'AVISO' | 'TAREFA'; prazo?: Date | null; whatsapp?: boolean; titulo?: string }) {
+export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; texto: string; prioridade?: 'NORMAL' | 'URGENTE'; implantacao_id?: string | null; de?: { id?: string; nome?: string } | null; origem?: 'GESTAO' | 'SISTEMA'; tipo?: 'AVISO' | 'TAREFA'; prazo?: Date | null; whatsapp?: boolean; titulo?: string; forcarWhatsapp?: boolean; url?: string }) {
   const para = await prisma.usuarioCRM.findUnique({ where: { id: a.para_id }, select: { id: true, nome: true, telefone: true } }).catch(() => null);
   if (!para) return null;
   const aviso = await prisma.avisoTecnico.create({
@@ -103,13 +103,14 @@ export async function avisarTecnico(prisma: PrismaClient, a: { para_id: string; 
   const prazoTxt = a.prazo ? ` (prazo ${a.prazo.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` : '';
   try {
     const { enviarPush } = await import('./push.service');
-    await enviarPush(prisma, [para.id], { titulo: tarefa ? `📋 Nova tarefa${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 Aviso urgente da implantação' : '📌 Aviso da implantação', corpo: a.texto.slice(0, 180), url: '/portal-tecnico?tab=inicio', tag: 'aviso-tecnico' });
+    await enviarPush(prisma, [para.id], { titulo: tarefa ? `📋 Nova tarefa${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 Aviso urgente da implantação' : '📌 Aviso da implantação', corpo: a.texto.slice(0, 180), url: a.url || '/portal-tecnico?tab=inicio', tag: 'aviso-tecnico' });
   } catch { /* push opcional */ }
   // WhatsApp conforme a preferência da pessoa (padrão: só urgentes). O portal recebe tudo sempre.
   const prefRow = await prisma.configuracaoIntegracao.findUnique({ where: { chave: `implantacao.pref.${para.id}` } }).catch(() => null);
   let pref = 'URGENTES'; try { pref = prefRow?.valor ? JSON.parse(prefRow.valor).whatsapp || 'URGENTES' : 'URGENTES'; } catch { /* padrão */ }
   let whatsapp: WhatsAviso = 'NAO_SE_APLICA';
-  if (pref === 'TODOS' || (pref === 'URGENTES' && (a.prioridade === 'URGENTE' || a.whatsapp))) {
+  // forcarWhatsapp: o próprio técnico pediu o alerta no WhatsApp (agenda), então vale mesmo com a preferência desligada.
+  if (a.forcarWhatsapp || pref === 'TODOS' || (pref === 'URGENTES' && (a.prioridade === 'URGENTE' || a.whatsapp))) {
     const titulo = a.titulo ? `*${a.titulo}*` : tarefa ? `📋 *Tarefa${a.prioridade === 'URGENTE' ? ' urgente' : ''}*${prazoTxt}` : a.prioridade === 'URGENTE' ? '🚨 *Aviso urgente*' : '📌 *Aviso da implantação*';
     whatsapp = !numeroWhatsapp(para.telefone || '') ? 'SEM_TELEFONE'
       : await whats(prisma, para.telefone, `${titulo}${a.de?.nome ? ` de ${a.de.nome}` : ''}\n\n${a.texto}`) ? 'ENVIADO' : 'FALHOU';

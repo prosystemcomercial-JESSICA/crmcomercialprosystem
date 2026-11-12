@@ -2367,3 +2367,15 @@ Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas er
 - **Na tela:** Escritório › Consumo de IA › "Quem mais consome no mês": o número de falhas vira botão e abre os motivos do agente no mês.
 - **Motivos:** chave recusada, sem crédito, limite de uso, tempo esgotado, resposta vazia, modelo sem acesso, pedido recusado, IA fora do ar, outro.
 - Os contadores de chamadas e falhas não mudaram. Falhas anteriores a 12/11 ficam só no contador.
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+Pedido da Jessica: "incluir no portal técnico um agendador de tarefas, inclusive nos cards do cliente, para que o técnico possa colocar e marcar horários e reuniões com o cliente e que ele receba o alerta no WhatsApp quando for o dia e hora desse contato".
+
+- **Requisito:** o técnico marca reunião, ligação, acesso remoto, visita, treinamento ou outro compromisso com o cliente, com dia, hora, duração, assunto, contato (nome e telefone), link da reunião e anotação.
+- **Onde:** menu **Agenda** do Portal Técnico (lista por dia: Hoje, Amanhã, próximos dias; "Já passaram: marque como foi") e, dentro do card do cliente, a seção **Agenda com o cliente** (Visão geral). O card do quadro mostra o próximo compromisso (🗓 data, hora e assunto).
+- **Alerta:** no WhatsApp do técnico (e no sino do portal e como notificação), na hora ou com antecedência escolhida: 5, 15, 30 min, 1 h, 2 h ou 1 dia antes (padrão: 15 min antes). Sai uma vez só; remarcar ou mudar o aviso faz o alerta valer de novo.
+- O alerta vai **mesmo se o técnico desligou o WhatsApp nas preferências**, porque foi ele quem pediu. Cadastro sem celular: aviso na hora de salvar e o alerta fica só no portal.
+- **O cliente não recebe nada** (protege o número da empresa). Nenhum compromisso é criado sozinho: só o técnico ou a gestão marcam.
+- Situações: Agendado, Realizado (com "o que ficou combinado"), Cancelado (com motivo), Reabrir. Tudo entra no histórico do card.
+- **Quem vê:** cada técnico vê a própria agenda; a supervisão técnica e a gestão veem todos (filtro por técnico) e podem marcar para qualquer técnico. No card, quem tem acesso ao card vê todos os compromissos daquele cliente.

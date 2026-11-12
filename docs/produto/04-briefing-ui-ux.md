@@ -2318,3 +2318,11 @@ Pedido da Jessica, a partir do quadro Consumo de IA (56% das chamadas com falha 
 Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas eram da OpenAI paga com a **chave antiga recusada** (cerca de 3.900 erros "A chave da IA é inválida"), de 02 a 05/11, até a troca da chave em 05/11. Os mais atingidos foram o Julio (03 a 05/11), o Luiz Felipe (05/11) e a Sofia (02/11). Depois vieram "Limite de uso" da OpenAI (cerca de 2.100), tempo esgotado na OpenRouter grátis e "sem crédito" (HTTP 402) no Gemini grátis.
 
 - Tabela "Quem mais consome no mês": o número de falhas (maior que zero) é um botão sublinhado pontilhado, com `aria-expanded`. Ele abre uma linha abaixo do agente com um item por motivo: "**N×** motivo · IA (modelo)", o período ("Em X dias, de dd/mm hh:mm a dd/mm hh:mm") e "Última mensagem" com quebra de palavra (nada passa da borda no celular). Sem motivo gravado: aviso de que o registro começou em 12/11/2026. Nota abaixo da tabela: "Toque no número de falhas para ver o motivo."
+
+### Atualização 12/11/2026 (7): agenda do técnico com alerta no WhatsApp
+
+- **Menu:** item **Agenda** (ícone de calendário) no grupo Implantação, entre Quadro e Meu dia. Título da página: "Agenda com os clientes". Resumo no topo: "N hoje · N próximos · N para marcar como foi".
+- **Lista:** agrupada por dia (Hoje em azul, Amanhã, depois o dia da semana por extenso). Cada compromisso: hora grande à esquerda ("até hh:mm" embaixo), tipo com emoji (🤝 Reunião, 📞 Ligação, 💻 Acesso remoto, 🚗 Visita, 🎓 Treinamento, 📌 Outro), cliente em negrito, assunto, contato com atalho "WhatsApp", "Abrir link da reunião", situação do alerta (cinza: quando vai sair; verde: enviado; âmbar: sem celular; vermelho: não saiu). Passou do horário sem marcar: borda âmbar à esquerda. Realizado ou cancelado: esmaecido (cancelado riscado).
+- **Formulário:** janela por cima de tudo (também por cima do card), tipos em botões, dia e hora separados (bons no celular), frase de confirmação do horário do alerta, aviso de que o cliente não recebe mensagem.
+- **Card do quadro:** etiqueta verde-petróleo "🗓 dd/mm hh:mm · assunto" (com reticências se não couber).
+- Conferido com Playwright (API simulada) em 1366, 390 e 360 px, sem rolagem lateral.
