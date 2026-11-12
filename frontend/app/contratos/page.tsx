@@ -88,6 +88,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   RECUADO:              { label: 'Recuado',               color: '#b91c1c', bg: 'rgba(185,28,28,0.10)',   icon: RefreshCw,   ordem: 7 },
 };
 
+// Colunas que exigem o link do contrato enviado ao cliente (pedido da Jessica, 12/11/2026).
+const PRECISA_LINK = ['ENVIADO_ASSINATURA', 'AGUARDANDO_ASSINATURA', 'ASSINADO'];
+const linkOk = (s: string) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(s.trim());
 const KANBAN_ORDER = ['A_GERAR','GERADO','ENVIADO_ASSINATURA','AGUARDANDO_ASSINATURA','ASSINADO','PENDENTE_CORRECAO','CANCELADO','RECUADO'];
 
 const fmtBRL = (v?: number | null) =>
@@ -143,6 +146,12 @@ export default function ContratosPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRecuar, setConfirmRecuar] = useState(false);
   const [recuoMotivo, setRecuoMotivo]     = useState('');
+
+  // Link do contrato enviado ao cliente: obrigatório para sair de Gerado e mantido no contrato (12/11/2026).
+  const [linkEnvio, setLinkEnvio]         = useState('');
+  const [pedirLink, setPedirLink]         = useState<{ contrato: ContratoComercial; status: string } | null>(null);
+  const [linkModal, setLinkModal]         = useState('');
+  const [linkModalErro, setLinkModalErro] = useState('');
 
   useEffect(() => { if (!isAuthenticated && !loading) router.push('/'); }, [isAuthenticated, loading, router]);
 
@@ -217,11 +226,41 @@ export default function ContratosPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const moveStatus = async (contrato: ContratoComercial, novoStatus: string) => {
-    if (contrato.status === novoStatus) return;
-    setContratos(prev => prev.map(c => c.id === contrato.id ? { ...c, status: novoStatus } : c));
-    try { await apiClient.updateContratoComercial(contrato.id, { status: novoStatus }); }
-    catch { load(); }
+  // Enviado p/ assinatura, Aguardando e Assinado pedem o link enviado ao cliente (se o contrato ainda não tem).
+  const moveStatus = async (contrato: ContratoComercial, novoStatus: string, link?: string): Promise<boolean> => {
+    if (contrato.status === novoStatus) return true;
+    if (PRECISA_LINK.includes(novoStatus) && !link && !contrato.zapsign_signing_url) {
+      setPedirLink({ contrato, status: novoStatus }); setLinkModal(''); setLinkModalErro('');
+      return false;
+    }
+    const dados: any = { status: novoStatus };
+    if (link) dados.zapsign_signing_url = link;
+    if (novoStatus === 'ASSINADO' && selected?.id === contrato.id && signedUrl.trim()) dados.zapsign_signed_file_url = signedUrl.trim();
+    setContratos(prev => prev.map(c => c.id === contrato.id ? { ...c, status: novoStatus, ...(link ? { zapsign_signing_url: link } : {}) } : c));
+    try {
+      await apiClient.updateContratoComercial(contrato.id, dados);
+      if (novoStatus === 'ASSINADO') load();
+      return true;
+    } catch (e: any) {
+      setZapMsg(e?.response?.data?.message || 'Não foi possível mudar o status.');
+      load();
+      return false;
+    }
+  };
+
+  const confirmarLinkModal = async () => {
+    if (!pedirLink) return;
+    const link = linkModal.trim();
+    if (!linkOk(link)) { setLinkModalErro('Cole o link completo, começando com https://'); return; }
+    const { contrato, status } = pedirLink;
+    const ok = await moveStatus(contrato, status, link);
+    if (!ok) { setLinkModalErro('Não foi possível salvar. Confira o link e tente de novo.'); return; }
+    setPedirLink(null);
+    if (selected?.id === contrato.id) {
+      setSelected({ ...selected, status, zapsign_signing_url: link });
+      setLinkEnvio(link);
+      setZapMsg(status === 'ASSINADO' ? 'Contrato marcado como assinado! A implantação foi aberta no portal técnico.' : 'Link salvo e contrato marcado como enviado para assinatura.');
+    }
   };
 
   const openPreview = async (c: ContratoComercial) => {
@@ -231,6 +270,7 @@ export default function ContratosPage() {
     setZapMsg('');
     setEditando(false);
     setSignedUrl(c.zapsign_signed_file_url || '');
+    setLinkEnvio(c.zapsign_signing_url || '');
     setConfirmDelete(false);
     setConfirmRecuar(false);
     setRecuoMotivo('');
@@ -295,6 +335,8 @@ export default function ContratosPage() {
 
   const handleMarcarAssinado = async () => {
     if (!selected) return;
+    // Sem o link enviado ao cliente, pede antes (fica guardado no contrato).
+    if (!selected.zapsign_signing_url) { setPedirLink({ contrato: selected, status: 'ASSINADO' }); setLinkModal(linkEnvio); setLinkModalErro(''); return; }
     setMarcando(true); setZapMsg('');
     try {
       await apiClient.updateContratoComercial(selected.id, {
@@ -302,7 +344,7 @@ export default function ContratosPage() {
         zapsign_signed_file_url: signedUrl || undefined,
         signed_at: new Date().toISOString(),
       });
-      setZapMsg('Contrato marcado como assinado!');
+      setZapMsg('Contrato marcado como assinado! A implantação foi aberta no portal técnico.');
       setSelected({ ...selected, status: 'ASSINADO', zapsign_signed_file_url: signedUrl, signed_at: new Date().toISOString() });
       load();
     } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Erro ao marcar como assinado'); }
@@ -361,11 +403,13 @@ export default function ContratosPage() {
 
   const handleMarcarEnviado = async () => {
     if (!selected) return;
+    const link = linkEnvio.trim();
+    if (!linkOk(link)) { setZapMsg('Cole o link do contrato enviado ao cliente (começa com https://).'); return; }
     setMarcando(true); setZapMsg('');
     try {
-      await apiClient.updateContratoComercial(selected.id, { status: 'ENVIADO_ASSINATURA' });
-      setZapMsg('Marcado como enviado para assinatura.');
-      setSelected({ ...selected, status: 'ENVIADO_ASSINATURA' });
+      await apiClient.updateContratoComercial(selected.id, { status: 'ENVIADO_ASSINATURA', zapsign_signing_url: link });
+      setZapMsg('Link salvo e contrato marcado como enviado para assinatura.');
+      setSelected({ ...selected, status: 'ENVIADO_ASSINATURA', zapsign_signing_url: link });
       load();
     } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Erro'); }
     finally { setMarcando(false); }
@@ -838,7 +882,7 @@ export default function ContratosPage() {
                     const ativo = selected.status === k;
                     return (
                       <button key={k}
-                        onClick={() => { moveStatus(selected, k); setSelected({ ...selected, status: k }); }}
+                        onClick={async () => { if (await moveStatus(selected, k)) setSelected(s => s && s.id === selected.id ? { ...s, status: k } : s); }}
                         className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all"
                         style={{
                           border: `1.5px solid ${ativo ? cfg.color : 'var(--t-card-border)'}`,
@@ -892,9 +936,16 @@ export default function ContratosPage() {
                     )}
                   </div>
                 )}
-                {selected.status === 'ENVIADO_ASSINATURA' && selected.zapsign_signing_url && (
+                {selected.zapsign_signing_url && !ANTES_DO_ENVIO.includes(selected.status) && (
                   <p className="text-[11px]" style={{ color: '#15803d' }}>
-                    Enviado para assinatura. Link do cliente: <a href={selected.zapsign_signing_url} target="_blank" rel="noopener noreferrer" className="underline">abrir</a>. Lembrete automático em 24 h.
+                    Link enviado ao cliente: <a href={selected.zapsign_signing_url} target="_blank" rel="noopener noreferrer" className="underline break-all">{selected.zapsign_signing_url}</a>
+                    {' '}· <button onClick={() => { navigator.clipboard?.writeText(selected.zapsign_signing_url || '').then(() => setZapMsg('Link copiado.')).catch(() => {}); }} className="underline">copiar</button>
+                    {selected.status === 'ENVIADO_ASSINATURA' && selected.zapsign_doc_token ? '. Lembrete automático em 24 h.' : ''}
+                  </p>
+                )}
+                {selected.status === 'ENVIADO_ASSINATURA' && (
+                  <p className="text-[11px]" style={{ color: 'var(--t-text-muted)' }}>
+                    Quando o cliente assinar, é só clicar em <strong>Marcar assinado</strong>: a implantação abre no portal técnico com o Lucas Diniz, o cliente recebe as boas-vindas e a equipe é avisada no WhatsApp.
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
@@ -913,14 +964,31 @@ export default function ContratosPage() {
                     style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-link)', background: 'var(--t-primary-light)' }}>
                     Resumo p/ e-mail
                   </button>
-                  {selected.status !== 'ENVIADO_ASSINATURA' && selected.status !== 'ASSINADO' && selected.status !== 'CANCELADO' && (
-                    <button onClick={handleMarcarEnviado} disabled={marcando}
-                      className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold disabled:opacity-50"
-                      style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent' }}>
-                      <Send size={11} /> Marcar enviado
-                    </button>
-                  )}
                 </div>
+
+                {/* Link enviado ao cliente: obrigatório para ir a Enviado p/ assinatura (12/11/2026) */}
+                {ANTES_DO_ENVIO.includes(selected.status) && (
+                  <div className="pt-2" style={{ borderTop: '1px solid var(--t-card-border)' }}>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--t-text-muted)' }}>
+                      Link do contrato enviado ao cliente <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <p className="text-[10px] mb-1.5" style={{ color: 'var(--t-text-muted)' }}>
+                      Obrigatório para passar para Enviado p/ assinatura. Fica guardado no contrato.
+                    </p>
+                    <div className="flex gap-2">
+                      <input value={linkEnvio} onChange={e => setLinkEnvio(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && linkOk(linkEnvio)) handleMarcarEnviado(); }}
+                        placeholder="https://app.zapsign.com.br/verificar/..."
+                        className="flex-1 px-3 py-2 text-xs rounded-lg outline-none"
+                        style={{ border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
+                      <button onClick={handleMarcarEnviado} disabled={marcando || !linkOk(linkEnvio)}
+                        className="h-8 px-3 rounded-lg text-xs font-bold text-white disabled:opacity-50 flex items-center gap-1.5"
+                        style={{ background: '#7c3aed' }}>
+                        <Send size={11} /> Marcar enviado
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Link assinado */}
                 {selected.status !== 'CANCELADO' && (
@@ -1098,6 +1166,37 @@ export default function ContratosPage() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Link obrigatório ao mover para Enviado p/ assinatura / Assinado (pedido da Jessica, 12/11/2026) */}
+      {pedirLink && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.45)' }}
+          onClick={() => setPedirLink(null)}>
+          <div className="w-full max-w-md rounded-xl p-5 space-y-3" style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)' }}
+            onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-bold" style={{ color: 'var(--t-text-primary)' }}>
+              Link do contrato enviado ao cliente
+            </p>
+            <p className="text-xs" style={{ color: 'var(--t-text-muted)' }}>
+              {pedirLink.contrato.numero_contrato} · {pedirLink.contrato.razao_social}. Para passar para <strong>{STATUS_CONFIG[pedirLink.status]?.label}</strong>, cole o link que foi enviado ao cliente para assinar. Ele fica guardado no contrato.
+            </p>
+            <input autoFocus value={linkModal} onChange={e => { setLinkModal(e.target.value); setLinkModalErro(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') confirmarLinkModal(); }}
+              placeholder="https://app.zapsign.com.br/verificar/..."
+              className="w-full px-3 py-2 text-xs rounded-lg outline-none"
+              style={{ border: `1px solid ${linkModalErro ? '#dc2626' : 'var(--t-card-border)'}`, background: 'var(--t-content-bg)', color: 'var(--t-text-primary)' }} />
+            {linkModalErro && <p className="text-[11px] font-semibold" style={{ color: '#dc2626' }}>{linkModalErro}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setPedirLink(null)} className="h-8 px-3 rounded-lg text-xs"
+                style={{ border: '1px solid var(--t-card-border)', color: 'var(--t-text-muted)', background: 'transparent' }}>Cancelar</button>
+              <button onClick={confirmarLinkModal} disabled={!linkOk(linkModal)}
+                className="h-8 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                style={{ background: STATUS_CONFIG[pedirLink.status]?.color || 'var(--t-primary)' }}>
+                Salvar link e mover
+              </button>
+            </div>
           </div>
         </div>
       )}

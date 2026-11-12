@@ -5,7 +5,7 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
 import { criarImplantacaoEComissoes, criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
-import { ANTES_DO_ENVIO, pendenciasContrato, nomeArquivoContrato } from '@/lib/assistente/contrato';
+import { ANTES_DO_ENVIO, pendenciasContrato, nomeArquivoContrato, linkValido } from '@/lib/assistente/contrato';
 
 /** Contrato com a lista do que falta (conferência da Marta); vazia depois que saiu para assinatura. */
 const comPendencias = <T extends { status: string }>(c: T) =>
@@ -986,6 +986,23 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
 
     const payload: any = { ...parse.data, updated_at: new Date() };
     if (payload.data_contrato) payload.data_contrato = new Date(payload.data_contrato);
+
+    // Link enviado ao cliente (pedido da Jessica, 12/11/2026): obrigatório para ir a "Enviado p/ assinatura"
+    // e a "Assinado", e mantido no contrato (não se apaga mais; só pode ser trocado por outro link válido).
+    if (payload.zapsign_signing_url !== undefined) {
+      const link = String(payload.zapsign_signing_url || '').trim();
+      if (!link) delete payload.zapsign_signing_url;
+      else if (!linkValido(link)) return reply.status(400).send({ status: 'error', message: 'O link enviado ao cliente precisa começar com https://' });
+      else payload.zapsign_signing_url = link;
+    }
+    if (payload.status === 'ENVIADO_ASSINATURA' || payload.status === 'AGUARDANDO_ASSINATURA' || payload.status === 'ASSINADO') {
+      const atual = await prisma.contratoComercial.findUnique({ where: { id }, select: { status: true, zapsign_signing_url: true } });
+      if (!atual) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+      if (atual.status !== payload.status && !payload.zapsign_signing_url && !atual.zapsign_signing_url) {
+        return reply.status(400).send({ status: 'error', codigo: 'LINK_OBRIGATORIO', message: 'Coloque o link do contrato enviado ao cliente antes de mudar o status.' });
+      }
+      if (payload.zapsign_signing_url && payload.status !== 'ASSINADO' && !atual.zapsign_signing_url) payload.sent_to_sign_at = new Date();
+    }
     if (payload.signed_at) payload.signed_at = new Date(payload.signed_at);
 
     // Troca de vendedor: resolve o nome (UsuarioCRM + contas de sistema) e reaponta
@@ -1008,6 +1025,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
           where: { id },
           data: {
             zapsign_signed_file_url: payload.zapsign_signed_file_url ?? atual.zapsign_signed_file_url ?? null,
+            zapsign_signing_url: payload.zapsign_signing_url || atual.zapsign_signing_url || null,
             signed_at: payload.signed_at || atual.signed_at || new Date(),
           },
         });

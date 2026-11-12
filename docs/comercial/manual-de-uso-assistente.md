@@ -1653,6 +1653,7 @@ $L
 - Botão **Conferir com a Marta** (12/11/2026): no contrato ainda não enviado, peça a conferência quando quiser. Ela completa pela Receita o que estiver vazio e mostra o que ainda falta. O botão não envia nada para o cliente.
 - **Baixar PDF** (12/11/2026): o contrato vai direto para a pasta **Downloads** com o nome `Contrato_56_2026 RAZÃO SOCIAL.pdf` (número do contrato e razão social da empresa). O documento enviado à ZapSign usa o mesmo nome.
 - **Contrato gerado** (12/11/2026): quando a Marta termina de conferir e não falta nada, o contrato passa sozinho de **A gerar** para **Gerado**. Na hora aparece um aviso grande no CRM e na TV do Escritório, com som, por 7 segundos. Depois é só revisar e clicar em **Enviar para assinatura**.
+- **Link do contrato e assinatura** (12/11/2026): para passar um contrato para **Enviado p/ assinatura**, cole o link que foi enviado ao cliente no campo **"Link do contrato enviado ao cliente"** e clique em **Marcar enviado**. Sem o link, o CRM não deixa mudar (nem arrastando o card). O link fica guardado no contrato. Quando o cliente assinar, é só clicar em **Marcar assinado**: a implantação abre no portal técnico já com o **Lucas Diniz**, o cliente recebe as boas-vindas como antes e o WhatsApp 27 99658-1370 recebe o aviso de nova demanda com o link do card.
 
 ## Escritório: tela cheia, visitas, conversas e temas de feriado (11/11/2026)
 

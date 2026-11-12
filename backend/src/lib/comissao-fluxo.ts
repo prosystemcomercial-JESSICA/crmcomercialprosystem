@@ -193,7 +193,14 @@ export async function criarImplantacaoEComissoes(prisma: PrismaClient, contratoI
       },
     }).catch(() => null);
     // Novidade no sino da equipe técnica e da gestão.
-    if (novaImp) await avisarEquipe(prisma, `🚀 Nova implantação: ${c.razao_social} (${tipoBase === 'CONVERSAO' ? `conversão${sistemaAnterior ? ` de ${sistemaAnterior}` : ''}` : 'banco zerado'}). Designe o técnico no Quadro.`, novaImp.id).catch(() => {});
+    if (novaImp) {
+      // Contrato assinado → card do Lucas Diniz no portal técnico + aviso de nova demanda no WhatsApp
+      // 27 99658-1370 com o link do card (pedido da Jessica, 12/11/2026). Import tardio: evita ciclo de módulos.
+      const r = await import('@/services/implantacao-designar.service')
+        .then(m => m.encaminharNovaDemandaDoContrato(prisma, novaImp.id, c))
+        .catch(e => { console.error('[IMPLANTACAO] nova demanda:', e?.message); return null; });
+      await avisarEquipe(prisma, `🚀 Nova implantação: ${c.razao_social} (${tipoBase === 'CONVERSAO' ? `conversão${sistemaAnterior ? ` de ${sistemaAnterior}` : ''}` : 'banco zerado'}). ${r?.designado ? 'Designada ao técnico padrão.' : 'Designe o técnico no Quadro.'}`, novaImp.id).catch(() => {});
+    }
   }
 
   // Comissões A_RECEBER (uma do vendedor, uma da supervisão) — idempotente por contrato+papel.

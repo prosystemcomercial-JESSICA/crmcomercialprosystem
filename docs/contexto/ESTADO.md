@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (link do contrato obrigatório e onboarding com o Lucas Diniz):** a pedido da Jessica, só passa para Enviado p/ assinatura (e Aguardando/Assinado) com o link enviado ao cliente, que fica guardado. Ao marcar Assinado, a implantação nasce já designada ao usuário "Lucas Diniz" (provisório, `TECNICO_PADRAO_NOME`) e o WhatsApp da nova demanda (`WHATSAPP_NOVA_DEMANDA`) recebe o aviso com o link do card (`/portal-tecnico?tab=quadro&demanda=<id>`). Boas-vindas sem mudança. Pendente: conferir em produção que o cadastro do Lucas Diniz existe e está ativo (a leitura foi bloqueada nesta sessão). Relatório: `docs/contexto/relatorios/2026-11-12-link-contrato-onboarding-lucas.md`.
+
 - **12/11/2026 (cards do quadro de implantações e serviços):** a pedido da Jessica (print), os cards da coluna A fazer ficavam mais largos que a coluna e invadiam Em andamento ("sem técnico" e o selo de Onboarding cortados). Causa: a coluna é uma grade sem limite de largura, e o rodapé do card (prazo + "sem técnico") esticava o card. Ajuste só visual em `frontend/components/implantacao/Portal.tsx`: coluna e card presos à largura da coluna, etiqueta com reticências e rodapé quebrando linha.
 
 - **12/11/2026 (publicado):** deploy de `0c09740` na produção, com backup, banco sem alterações, site e API respondendo. Estão no ar o botão "Conferir com a Marta" (`b6335a0`), o nome padrão do contrato com download direto para a pasta Downloads (`9bbd8e7`) e o contrato gerado indo para Gerado com aviso grande na TV e no CRM (`0c09740`). Falta a Jessica testar com o contrato 56/2026.

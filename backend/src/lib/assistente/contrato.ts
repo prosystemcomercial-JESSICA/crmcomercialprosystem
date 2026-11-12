@@ -117,3 +117,13 @@ export const textoLembreteAssinatura = (nome: string | null, link: string) =>
 
 export const textoAssinado = (nome: string | null) =>
   `Contrato assinado! 🎉 Muito obrigado${primeiro(nome) ? `, ${primeiro(nome)}` : ''}, seja bem-vindo(a) à Prosystem. A nossa equipe de implantação vai falar com você para agendar a instalação.`;
+
+/**
+ * Link do contrato enviado ao cliente (ZapSign ou outro serviço), obrigatório para o contrato sair de Gerado
+ * para "Enviado p/ assinatura" (pedido da Jessica, 12/11/2026). Aceita só endereço https completo.
+ */
+export function linkValido(link: string | null | undefined): boolean {
+  const s = String(link || '').trim();
+  if (!/^https:\/\/\S+$/i.test(s)) return false;
+  try { return !!new URL(s).hostname.includes('.'); } catch { return false; }
+}

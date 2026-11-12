@@ -367,8 +367,10 @@ export default function PortalTecnicoPage() {
   const gestaoTecnica = ['CEO', 'DIRETOR', 'ADMIN', 'SUPERVISAO_COMERCIAL', 'SUPERVISAO', 'SUPERVISAO_TECNICA'].includes(String((user as any)?.role || '').toUpperCase());
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
-  const [tab, setTab] = useState<Tab>(tabParam || 'inicio');
-  const [abrirDemanda, setAbrirDemanda] = useState<string | null>(null);
+  // ?demanda=<id> abre o card direto no Quadro (link do aviso de nova demanda no WhatsApp, 12/11/2026).
+  const demandaParam = searchParams.get('demanda');
+  const [tab, setTab] = useState<Tab>(demandaParam ? 'quadro' : (tabParam || 'inicio'));
+  const [abrirDemanda, setAbrirDemanda] = useState<string | null>(demandaParam);
 
   // Bootstrap auth from URL token (when opened as external window)
   useEffect(() => {

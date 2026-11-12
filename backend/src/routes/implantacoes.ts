@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, colunaDaEtapa, onboardingItensDoPerfil, perfilDe, onboardingOk, ehLegado, ITEM_PERGUNTAS, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
+import { designarTecnico, registrarAtividade } from '@/services/implantacao-designar.service';
 import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, sincronizarOnboardingPelaFicha, TESTES_PADRAO } from '@/services/implantacao-portal.service';
 
 /**
@@ -175,47 +176,7 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
     const tecnico = tec[0];
     const ator = (request as any).user;
 
-    const imp = await prisma.implantacao.update({
-      where: { id },
-      data: {
-        tecnico_id: tecnico.id, tecnico_nome: tecnico.nome, designado_em: new Date(),
-        etapa_execucao: 'DESIGNADO',
-      },
-    });
-
-    // Semeia testes e checklist (uma vez), no perfil da implantação: segmento do cliente + banco zerado/conversão.
-    const segmento = imp.modulo === 'IMPLANTACAO' ? await segmentoDaImplantacao(prisma, imp) : null;
-    const perfil = perfilDe(segmento, imp.tipo_base);
-    const temTeste = await prisma.implantacaoTeste.count({ where: { implantacao_id: id } });
-    if (temTeste === 0 && imp.modulo === 'IMPLANTACAO' && !perfil.zerado) {
-      await prisma.implantacaoTeste.createMany({ data: TESTES_PADRAO.map(item => ({ implantacao_id: id, item })) }).catch(() => {});
-    }
-    const temChk = await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id } });
-    if (temChk === 0) {
-      // Semeia a trilha (Instalação, Conversão só na conversão, Treinamento) pelo modelo do segmento do cliente
-      // (Configurações do portal), sem os itens de farmácia fora da farmácia e com os extras do sistema de origem.
-      const itens: any[] = [];
-      if (imp.modulo === 'IMPLANTACAO') onboardingItensDoPerfil(perfil).forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i }));
-      const cfg = await obterConfigPortal(prisma);
-      const grupos = imp.modulo === 'IMPLANTACAO' ? checklistDoPerfil(cfg.modelos, cfg.extras_sistema, segmento, imp.sistema_anterior, perfil) : CHECKLIST_PADRAO;
-      grupos.forEach(g => g.itens.forEach((titulo, i) => itens.push({ implantacao_id: id, grupo: g.grupo, titulo, ordem: i, fase: g.grupo === 'TREINAMENTO' ? faseDoItemTreinamento(titulo) : null })));
-      await prisma.implantacaoChecklistItem.createMany({ data: itens }).catch(() => {});
-    }
-    // Implantação designada antes do onboarding técnico existir: acrescenta os itens dele (uma vez).
-    if (imp.modulo === 'IMPLANTACAO' && temChk > 0 && !(await prisma.implantacaoChecklistItem.count({ where: { implantacao_id: id, grupo: 'ONBOARDING' } })) && !ehLegado(imp)) {
-      await prisma.implantacaoChecklistItem.createMany({ data: onboardingItensDoPerfil(perfil).map((titulo, i) => ({ implantacao_id: id, grupo: 'ONBOARDING', titulo, ordem: i })) }).catch(() => {});
-    }
-    // Ficha já preenchida antes da designação: o roteiro nasce com esses itens marcados.
-    if (imp.modulo === 'IMPLANTACAO') await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0);
-    await registrarAtividade(prisma, id, 'DESIGNACAO', `Designado ao técnico ${tecnico.nome}`, ator, null, 'DESIGNADO');
-    if (imp.modulo === 'IMPLANTACAO') await garantirFasesTreinamento(prisma, id).catch(() => {});
-    // Tarefas padrão do cliente (certificado, XMLs, usuários): o robô avisa o cliente com o link da página.
-    if (imp.modulo === 'IMPLANTACAO') await criarTarefasClientePadrao(prisma, imp, ator?.nome || 'Supervisão').catch(() => 0);
-    // Nova demanda sempre chega no WhatsApp do técnico (pedido da Jessica, 05/10/2026), salvo se ele desligou nas preferências.
-    const aviso = await avisarTecnico(prisma, {
-      para_id: tecnico.id, implantacao_id: id, de: { id: ator?.id, nome: ator?.nome }, whatsapp: true, titulo: '🆕 Nova demanda',
-      texto: `Nova demanda para você: ${imp.cliente_razao_social}${imp.modulo === 'SERVICO' ? ' (serviço)' : imp.tipo_base === 'CONVERSAO' ? ` (conversão${imp.sistema_anterior ? ` de ${imp.sistema_anterior}` : ''})` : ' (banco zerado)'}. Preencha a ficha de coleta e dê play quando começar.\n\nAbra no portal: https://comercial.prosystemnet.com/portal-tecnico`,
-    }).catch(() => null);
+    const { imp, aviso } = await designarTecnico(prisma, id, tecnico, ator);
     return reply.send({ status: 'success', data: imp, aviso_whatsapp: aviso?.whatsapp || 'FALHOU' });
   });
 
@@ -396,15 +357,3 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
   });
 }
 
-async function registrarAtividade(
-  prisma: PrismaClient, implantacaoId: string, tipo: string, descricao: string,
-  ator?: { id?: string; nome?: string }, etapaDe?: string | null, etapaPara?: string | null,
-) {
-  return prisma.implantacaoAtividade.create({
-    data: {
-      implantacao_id: implantacaoId, tipo, descricao,
-      etapa_de: etapaDe || undefined, etapa_para: etapaPara || undefined,
-      autor_id: ator?.id, autor_nome: ator?.nome || 'Sistema',
-    },
-  }).catch(() => null);
-}

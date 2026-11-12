@@ -76,7 +76,7 @@ async function linha(prisma: PrismaClient, implantacaoId: string, tipo: string, 
   await prisma.implantacaoAtividade.create({ data: { implantacao_id: implantacaoId, tipo, descricao, autor_nome: autor } }).catch(() => null);
 }
 
-async function whats(prisma: PrismaClient, numero: string | null | undefined, texto: string): Promise<boolean> {
+export async function whats(prisma: PrismaClient, numero: string | null | undefined, texto: string): Promise<boolean> {
   const n = numeroWhatsapp(numero || '');
   if (!n) return false;
   const inst = await obterInstanciaEmpresa(prisma);

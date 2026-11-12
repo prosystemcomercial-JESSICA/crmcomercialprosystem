@@ -55,3 +55,16 @@ describe('contrato: nome do arquivo', () => {
     expect(nomeArquivoContrato({ numero_contrato: '7/2026', razao_social: 'A/B: "LOJA"  ÁGUA' })).toBe('Contrato_7_2026 AB LOJA ÁGUA');
   });
 });
+
+describe('contrato: link enviado ao cliente', () => {
+  it('aceita só https completo', async () => {
+    const { linkValido } = await import('../src/lib/assistente/contrato');
+    expect(linkValido('https://app.zapsign.com.br/verificar/abc123')).toBe(true);
+    expect(linkValido('  https://zapsign.com.br/x  ')).toBe(true);
+    expect(linkValido('http://app.zapsign.com.br/x')).toBe(false);
+    expect(linkValido('app.zapsign.com.br/x')).toBe(false);
+    expect(linkValido('https://localhost')).toBe(false);
+    expect(linkValido('')).toBe(false);
+    expect(linkValido(null)).toBe(false);
+  });
+});
