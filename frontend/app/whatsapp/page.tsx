@@ -181,7 +181,8 @@ const ESTAGIOS_FUNIL = [
 const PRIORIDADES = [
   { valor: 'BAIXA', nome: 'Baixa', cor: '#64748b' },
   { valor: 'NORMAL', nome: 'Normal', cor: '#2563eb' },
-  { valor: 'CRITICA', nome: 'Crítica', cor: '#dc2626' },
+  { valor: 'ALTA', nome: 'Alta', cor: '#d97706' },
+  { valor: 'CRITICA', nome: 'Máxima', cor: '#dc2626' },
 ];
 
 type StatusConexao = 'CONECTADO' | 'CONECTANDO' | 'DESCONECTADO';

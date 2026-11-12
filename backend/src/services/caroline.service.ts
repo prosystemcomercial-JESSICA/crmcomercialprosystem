@@ -28,6 +28,8 @@ import {
 } from '@/lib/assistente/sdr';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
 import { ordenarParaRetomada, MAX_RETOMADAS_RODADA } from '@/lib/assistente/fila-retomadas';
+import { prioridadePelaFala, sobePrioridade, type PrioridadeConversa } from '@/lib/assistente/prioridade-conversa';
+import { calcularSlaPrazo } from './whatsapp-sla.service';
 
 // Caroline, a SDR: recebe os leads das campanhas (colados pela Jessica), faz o
 // primeiro contato pelo WhatsApp da empresa com ritmo seguro, conversa pela IA
@@ -193,6 +195,7 @@ export async function receberDoFormulario(prisma: PrismaClient, f: {
   } else {
     await prisma.whatsappConversa.update({ where: { id: conv.id }, data: { lead_id: f.leadId, tipo_contato: 'LEAD', contato_nome: f.nome || undefined, bot_ativo: false } });
   }
+  await marcarPrioridade(prisma, conv.id, 'ALTA', 'chegou por campanha/página de captação');
   await prisma.sdrLead.create({
     data: {
       agente: 'caroline', lead_id: f.leadId, conversaId: conv.id, numero: f.numero, nome: f.nome, empresa: f.empresa || null, email: f.email || null,
@@ -396,7 +399,9 @@ async function tirarDaListaJaCliente(prisma: PrismaClient, sdr: any, motivo: str
  */
 async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonNullable<RespostaCaroline['novo_contato']>) {
   const numero = nc.numero;
-  const quem = [nc.nome, nc.cargo].filter(Boolean).join(', ') || 'o responsável';
+  // Mesma pessoa pedindo para ser chamada em outro número dela (12/11/2026): prioridade máxima, chamada na hora.
+  const mesma = !!nc.mesma_pessoa;
+  const quem = mesma ? (sdr.nome || 'a mesma pessoa') : [nc.nome, nc.cargo].filter(Boolean).join(', ') || 'o responsável';
   const anotar = (descricao: string) => sdr.lead_id
     ? prisma.leadObservacao.create({ data: { lead_id: sdr.lead_id, tipo: 'SISTEMA', descricao, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {})
     : Promise.resolve();
@@ -414,8 +419,12 @@ async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonN
   const d: any = sdr.dados || {};
   const origem = sdr.lead_id ? await prisma.lead.findUnique({ where: { id: sdr.lead_id }, select: { empresa: true, nome_fantasia: true, razao_social: true, cnpj: true, segmento: true, cidade: true, estado: true } }).catch(() => null) : null;
   const empresa = sdr.empresa || origem?.nome_fantasia || origem?.empresa || null;
-  const obs = `Decisor indicado pela própria loja na conversa com ${nomeDe(sdr)} (número da loja: ${sdr.numero}). ${quem}${empresa ? `, da ${empresa}` : ''}. Captação do zero.`;
+  const obs = mesma
+    ? `O cliente pediu, na conversa com ${nomeDe(sdr)} (número ${sdr.numero}), para ser chamado neste número. Já demonstrou interesse: a conversa continua aqui.`
+    : `Decisor indicado pela própria loja na conversa com ${nomeDe(sdr)} (número da loja: ${sdr.numero}). ${quem}${empresa ? `, da ${empresa}` : ''}. Captação do zero.`;
   let lead = await acharLead(prisma, numero);
+  // Mesma pessoa, mesma empresa: o outro número entra no lead que já existe, sem duplicar.
+  if (!lead && mesma && sdr.lead_id) lead = { id: sdr.lead_id } as any;
   if (!lead) {
     const novo = await prisma.lead.create({
       data: {
@@ -429,14 +438,37 @@ async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonN
     lead = { id: novo.id } as any;
   }
   await prisma.leadObservacao.create({ data: { lead_id: lead!.id, tipo: 'SISTEMA', descricao: obs, created_by: 'bot', created_by_name: nomeDe(sdr) } }).catch(() => {});
-  const conv = await garantirConversaLead(prisma, inst.id, numero, nc.nome, lead!.id);
-  await prisma.sdrLead.create({
+  const conv = await garantirConversaLead(prisma, inst.id, numero, mesma ? sdr.nome : nc.nome, lead!.id);
+  const novoSdr = await prisma.sdrLead.create({
     data: {
-      agente: 'caroline', lead_id: lead!.id, conversaId: conv.id, numero, nome: nc.nome, empresa, segmento: sdr.segmento, campanha: 'Decisor indicado pela loja',
+      agente: 'caroline', lead_id: lead!.id, conversaId: conv.id, numero, nome: mesma ? sdr.nome : nc.nome, empresa, segmento: sdr.segmento, campanha: mesma ? 'Outro número passado pelo cliente' : 'Decisor indicado pela loja',
       cadastro_em: new Date(), status: 'FILA', criado_por: agenteDe(sdr),
       dados: { indicacao: { por: sdr.nome || null, cargo: nc.cargo, sdr_origem: sdr.id, numero_loja: sdr.numero }, ...(d.cidade ? { cidade: d.cidade } : {}), ...(d.sistema_atual ? { sistema_atual: d.sistema_atual } : {}) },
     },
   });
+  if (mesma) {
+    await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...d, outro_numero_passado: numero } } }).catch(() => {});
+    await marcarPrioridade(prisma, conv.id, 'CRITICA', 'o cliente pediu para ser chamado neste número');
+    // Chamada na hora, com texto fixo (sem IA: nada pode atrasar nem sair do contexto). Conta no limite do dia como
+    // primeiro contato. Se o envio falhar, o lead fica na fila da Caroline e a gestão é avisada.
+    const tipoLoja = /padar|confeit/i.test(sdr.segmento || '') ? 'da padaria' : /farm|drog|manipula/i.test(sdr.segmento || '') ? 'da farmácia' : 'da loja';
+    const texto = `Oi! Aqui é a Caroline, da Prosystem Sistemas. Você pediu agora há pouco, no outro número, para eu te chamar por aqui. 😊 Para eu te falar só do que interessa: o que mais toma o seu tempo hoje na rotina ${tipoLoja}?`;
+    try {
+      await enviarMensagens(prisma, inst.instance_token!, novoSdr, [texto]);
+      const agora = new Date();
+      const { indicacao: _i, ...dadosNovo } = (novoSdr.dados as any) || {};
+      await prisma.sdrLead.update({ where: { id: novoSdr.id }, data: { status: 'AGUARDANDO', tentativas: 1, primeiro_envio_em: agora, ultima_caroline_em: agora, dados: { ...dadosNovo, outro_numero: { sdr_origem: sdr.id, numero_anterior: sdr.numero } } } });
+      await prisma.sdrMensagem.create({ data: { sdrId: novoSdr.id, conversaId: conv.id, texto, status: 'ENVIADA_AUTO', acao: 'continuar', decidido_em: agora } });
+      await anotar(`📞 O cliente pediu para ser chamado no número ${numero}. A Caroline chamou na hora; a conversa continua lá.`);
+      registrarAcaoAgente(agenteDe(sdr), `chamou ${sdr.nome || sdr.empresa || 'um lead'} no outro número que ele passou (prioridade máxima)`);
+    } catch (e: any) {
+      console.warn('[CAROLINE] outro número:', e?.message);
+      await anotar(`📞 O cliente pediu para ser chamado no número ${numero}. O envio na hora falhou (${String(e?.message || e).slice(0, 120)}); ficou na fila da Caroline.`);
+      const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+      await enviarAvisoGestao(prisma, 'lead_qualificado', `🚨 *Prioridade máxima: ${sdr.nome || sdr.empresa || sdr.numero} pediu para ser chamado no número ${numero}* e a Caroline não conseguiu chamar na hora. Chame você: https://comercial.prosystemnet.com/whatsapp?conversa=${conv.id}`).catch(() => {});
+    }
+    return;
+  }
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...d, decisor: quem, decisor_numero: numero } } }).catch(() => {});
   await anotar(`📇 A loja passou o contato de ${quem}: ${numero}. Cadastrado como lead novo; a Caroline começa a captação com ele.`);
   registrarAcaoAgente(agenteDe(sdr), `conseguiu o contato do decisor de ${empresa || 'uma loja'} (${quem}): virou lead novo`);
@@ -607,6 +639,33 @@ async function enviarMensagens(prisma: PrismaClient, token: string, sdr: any, me
   const { avancarEtapaLead } = await import('@/lib/etapa-lead');
   await avancarEtapaLead(prisma, sdr.lead_id, sdr.proposta_id ? 'PROPOSTA_ENVIADA' : 'PRIMEIRO_CONTATO',
     sdr.proposta_id ? `${nomeDe(sdr)} está acompanhando a proposta enviada` : `${nomeDe(sdr)} fez o primeiro contato pelo WhatsApp`, nomeDe(sdr));
+}
+
+/**
+ * Prioridade de atendimento definida pela Laya (pedido da Jessica, 12/11/2026). Só sobe: quem baixa é uma pessoa,
+ * pelo menu da conversa. Máxima = respondeu com interesse ou passou outro contato; alta = veio de campanha/página.
+ */
+export async function marcarPrioridade(prisma: PrismaClient, conversaId: string | null | undefined, nivel: PrioridadeConversa, motivo: string) {
+  if (!conversaId) return;
+  const c = await prisma.whatsappConversa.findUnique({ where: { id: conversaId }, select: { prioridade: true, sla_prazo_em: true, contato_nome: true, dono_id: true } }).catch(() => null);
+  if (!c || !sobePrioridade(c.prioridade, nivel)) return;
+  await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { prioridade: nivel, ...(c.sla_prazo_em ? { sla_prazo_em: calcularSlaPrazo(nivel) } : {}) } }).catch(() => {});
+  registrarAcaoAgente('laya', `marcou prioridade ${nivel === 'CRITICA' ? 'máxima' : 'alta'} na conversa de ${c.contato_nome || 'um lead'}: ${motivo}`);
+  emitirEventoConversa(c.dono_id, 'conversa_atualizada', { conversaId });
+}
+
+/**
+ * Cliente escreveu e ninguém respondeu em 2 minutos (resposta presa, IA falhando, mensagem segurada): prioridade
+ * máxima e aviso à gestão com o link, uma vez por fala do cliente. Nenhum interessado espera calado (12/11/2026).
+ */
+async function avisarSemResposta(prisma: PrismaClient, s: any, porque: string) {
+  if (!s.conversaId || !s.ultima_lead_em) return;
+  const { podeEnviarUmaVez } = await import('./envio-unico.service');
+  if (!await podeEnviarUmaVez(prisma, `sem_resposta.${s.id}.${new Date(s.ultima_lead_em).getTime()}`, 24 * 30)) return;
+  await marcarPrioridade(prisma, s.conversaId, 'CRITICA', 'cliente esperando resposta há mais de 2 minutos');
+  const ult = await prisma.whatsappMensagem.findFirst({ where: { conversaId: s.conversaId, direcao: 'ENTRADA' }, orderBy: { created_at: 'desc' }, select: { conteudo: true, transcricao: true } });
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', `🚨 *Prioridade máxima: ${s.nome || s.empresa || s.numero} está sem resposta*\nO cliente escreveu: "${((ult?.transcricao || ult?.conteudo) || '').replace(/\s+/g, ' ').slice(0, 200)}"\n${nomeDe(s)} não respondeu em 2 minutos (${porque}). Responda você: https://comercial.prosystemnet.com/whatsapp?conversa=${s.conversaId}`).catch(() => {});
 }
 
 /** Vídeos, treinamento e suporte técnico são do setor de suporte: avisa que o agente é do comercial e manda o botão. */
@@ -1036,7 +1095,14 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     registrarAcaoAgente(agenteDe(sdr), `saiu da conversa de ${sdr.nome || 'um lead'}: uma pessoa assumiu`);
     return 'nada';
   }
-  if (await prisma.sdrMensagem.findFirst({ where: { sdrId, status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { id: true } })) return 'aprovacao';
+  {
+    const pend = await prisma.sdrMensagem.findFirst({ where: { sdrId, status: { in: ['PENDENTE', 'ENVIANDO'] } }, select: { id: true, status: true, created_at: true } });
+    // O cliente escreveu de novo depois da mensagem que esperava aprovação: ela ficou velha. Sai da fila e o agente
+    // responde ao que ele disse agora (12/11/2026: resposta a cliente nunca fica presa atrás de aprovação antiga).
+    const velha = !!pend && fase === 'resposta' && pend.status === 'PENDENTE' && !!sdr.ultima_lead_em && pend.created_at < sdr.ultima_lead_em;
+    if (velha) await prisma.sdrMensagem.update({ where: { id: pend!.id }, data: { status: 'DESCARTADA', texto_final: 'o cliente escreveu de novo antes da aprovação', decidido_em: new Date() } });
+    else if (pend) return 'aprovacao';
+  }
   // Últimas mensagens do agente: base da trava contra repetição e do "só confirmou".
   const ultimasDoAgente = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', enviada_por: agenteDe(sdr) }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true, created_at: true } });
   // Cliente só confirmou/agradeceu ("👍", "ok", "obrigado") depois da fala do agente: não responde.
@@ -1183,6 +1249,10 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       const nova = await gerarResposta(prisma, sdr, fase, `REVISÃO DA LAYA (siga à risca): ${c.motivo}. Reescreva curta e completa, sem repetir o que você já disse, com o link inteiro ou sem link, respondendo ao que a pessoa disse por último.`);
       const c2 = nova ? await layaConfereSaida(prisma, { ...base, mensagens: nova.mensagens }) : c;
       if (nova && c2.ok) { r = nova; registrarAcaoAgente('laya', `corrigiu uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`); }
+      // Resposta a quem escreveu não espera aprovação por causa de nota (12/11/2026, caso Amor e Açúcar: o cliente
+      // interessado ficou um dia sem retorno). A reescrita já levou a correção da Laya e sai. Defeito objetivo
+      // (link quebrado, texto cortado, repetição) continua segurando, e a gestão é avisada em 2 minutos.
+      else if (fase === 'resposta' && nova && !c2.ok && /^nota /.test(c2.motivo)) { r = nova; registrarAcaoAgente('laya', `liberou a resposta reescrita do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'} (cliente esperando): ${c2.motivo.slice(0, 90)}`); }
       else {
         registrarAcaoAgente('laya', `segurou uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`);
         const final = nova || r;
@@ -1196,6 +1266,9 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     }
   }
   await atualizarTermometro(prisma, sdr, r);
+  // Prioridade pela conversa (Laya): nota de interesse, outro contato ou o cliente contando o sistema que usa.
+  if (fase === 'resposta' && r.acao !== 'sem_interesse' && (r.nota >= 35 || r.novo_contato || (r.dados.sistema_atual && !(sdr.dados as any)?.sistema_atual)))
+    await marcarPrioridade(prisma, sdr.conversaId, 'CRITICA', r.novo_contato ? 'o cliente passou outro contato' : r.nota >= 35 ? `interesse na conversa (nota ${r.nota})` : 'o cliente contou o sistema que usa');
   if (r.dados.perfil === 'concorrente' || r.dados.perfil === 'consultor') {
     const { podeEnviarUmaVez } = await import('./envio-unico.service');
     if (await podeEnviarUmaVez(prisma, `perfil.nao_loja.${sdr.id}`, 24 * 365)) {
@@ -1382,6 +1455,8 @@ export async function aoReceberDoLead(prisma: PrismaClient, token: string, conve
   await prisma.sdrLead.update({ where: { id: sdr.id }, data: { ultima_lead_em: new Date(), ...(sdr.status !== 'FILA' ? { status: 'CONVERSANDO' } : {}), ...(adiou ? { dados: { ...((sdr.dados as any) || {}), adiou_em: new Date().toISOString() } } : {}) } });
   // O lead respondeu: está em atendimento (só avança; quem já está em proposta/negociação fica onde está).
   { const { avancarEtapaLead } = await import('@/lib/etapa-lead'); await avancarEtapaLead(prisma, sdr.lead_id, 'EM_ATENDIMENTO', `respondeu ao ${nomeDe(sdr)} no WhatsApp`, nomeDe(sdr)); }
+  // A Laya define a prioridade pela fala: interesse declarado ou outro contato = máxima, na hora.
+  if (tipo === 'TEXTO') { const p = prioridadePelaFala([texto]); if (p) await marcarPrioridade(prisma, conversaId, p.nivel, p.motivo); }
 
   // Tocar em "Me chama depois"/"Quero saber mais" já é sinal de interesse: registra no termômetro.
   if (botaoId === 'sdr_depois' || botaoId === 'sdr_quero') {
@@ -1865,7 +1940,8 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
   //    está esperando. É conversa que o cliente puxou, então vale das 7h às 21h, todos os dias.
   const horaSP = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
   if (horaSP >= 7 && horaSP < 21) {
-    const esperando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_lead_em: { not: null } }, take: 20 });
+    // Os mais recentes primeiro (12/11/2026): 14 conversas antigas travadas ocupavam quase todas as 20 vagas.
+    const esperando = await prisma.sdrLead.findMany({ where: { agente: { in: ativos }, status: 'CONVERSANDO', ultima_lead_em: { not: null } }, orderBy: { ultima_lead_em: 'desc' }, take: 20 });
     for (const s of esperando) {
       if (s.ultima_caroline_em && s.ultima_lead_em! <= s.ultima_caroline_em) continue;
       if (Date.now() - s.ultima_lead_em!.getTime() < 2 * 60_000) continue; // o webhook está cuidando
@@ -1873,6 +1949,9 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       if (tentativasDeSocorro((s.dados as any)?.socorro, s.ultima_lead_em) >= SOCORRO_MAX) continue; // já pediu socorro: a equipe foi avisada
       const r = await falar(prisma, token, s.id, 'resposta').catch(() => 'falha' as const);
       if (r === 'falha') falhouEm.set(s.id, Date.now()); else falhouEm.delete(s.id);
+      // Passou de 2 minutos e a resposta não saiu: prioridade máxima e aviso à gestão (só falas das últimas 24 h).
+      if ((r === 'falha' || r === 'aprovacao') && Date.now() - s.ultima_lead_em!.getTime() < 864e5)
+        await avisarSemResposta(prisma, s, r === 'aprovacao' ? 'a mensagem está esperando aprovação' : 'não conseguiu montar a resposta').catch((e: any) => console.warn('[AGENTES] aviso sem resposta:', e?.message));
     }
   }
 

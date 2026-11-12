@@ -1659,3 +1659,11 @@ $L
 - **Decoração:** as mesas têm papelaria (papéis, cadernos, canetas) e as salas têm arquivo, estante, impressora e quadro com post-its.
 - **Perfil do agente:** clique num agente e veja, no topo do painel, o retrato dele, a personalidade e o que ele faz com maestria.
 - **Temas de feriado:** o escritório se enfeita sozinho no Natal (dezembro), no Ano Novo, no Carnaval, na Páscoa e na Festa Junina, com enfeites, chapéus nos bonecos e conversas sobre a data. Para ver um tema fora de época, escolha em **Tema**, ao lado do botão de tela cheia. Para voltar ao normal, escolha **Tema automático**.
+
+## Prioridade de atendimento: quem define é a Laya (12/11/2026)
+
+- **Máxima:** o cliente respondeu com interesse (pediu informações, preço, proposta, demonstração), contou o sistema que usa ou passou outro contato. **Alta:** chegou por campanha ou página de captação. A etiqueta aparece no topo da conversa. A prioridade só sobe sozinha; para baixar, use **⋯ > Prioridade**.
+- **Resposta em 1 a 2 minutos:** quando o cliente escreve, a resposta do agente sai na hora. Ela não fica mais parada em "Para você aprovar" por causa de nota da Laya.
+- **Se a resposta não sair em 2 minutos**, você recebe no WhatsApp o aviso **"🚨 Prioridade máxima: ... está sem resposta"**, com o que o cliente escreveu e o link da conversa. Abra o link e responda.
+- **Cliente passou outro número:** a Caroline confirma e chama o número novo na hora. A conversa nova aparece com prioridade máxima, no mesmo lead.
+- **Jeito de conversar:** os agentes primeiro ouvem (rotina, o que incomoda, o que falta no sistema atual) e só depois falam do Prosystem, uma pergunta por vez.

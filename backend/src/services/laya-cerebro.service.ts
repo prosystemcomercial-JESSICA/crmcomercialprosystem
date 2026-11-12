@@ -115,6 +115,9 @@ const cacheRobo = new Map<string, boolean>();
 export async function layaEhRobo(prisma: PrismaClient, textos: string[]): Promise<boolean> {
   const t = textos.map(x => x.trim()).filter(Boolean).join('\n').slice(0, 1200);
   if (t.length < 15) return false;
+  // Falas curtas são de gente ("Bom dia / Sim / Data sistema" foi lido como robô em 12/11/2026 e a Caroline calou).
+  const { curtaDemaisParaRobo } = await import('../lib/assistente/prioridade-conversa');
+  if (curtaDemaisParaRobo(textos)) return false;
   const guardado = cacheRobo.get(t);
   if (guardado !== undefined) return guardado;
   try {

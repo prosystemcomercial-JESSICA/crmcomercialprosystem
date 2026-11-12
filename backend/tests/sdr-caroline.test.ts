@@ -121,7 +121,11 @@ describe('decisor indicado pela loja', () => {
   const base = { mensagens: ['Obrigada! Vou falar direto com ele.'], acao: 'continuar', nota: 10 };
   it('lê o WhatsApp do decisor passado na conversa', () => {
     const r = lerRespostaCaroline({ ...base, novo_contato: { nome: 'Leonardo', numero: '27997714897', cargo: 'dono' } });
-    expect(r?.novo_contato).toEqual({ nome: 'Leonardo', numero: '5527997714897', cargo: 'dono' });
+    expect(r?.novo_contato).toEqual({ nome: 'Leonardo', numero: '5527997714897', cargo: 'dono', mesma_pessoa: false });
+  });
+  it('lê o outro número que o próprio cliente passou (caso Amor e Açúcar, 12/11/2026)', () => {
+    const r = lerRespostaCaroline({ ...base, novo_contato: { nome: null, numero: '27 99837-2351', cargo: null, mesma_pessoa: true } });
+    expect(r?.novo_contato).toEqual({ nome: null, numero: '5527998372351', cargo: null, mesma_pessoa: true });
   });
   it('ignora número inválido ou ausente', () => {
     expect(lerRespostaCaroline({ ...base, novo_contato: { nome: 'Leo', numero: '1234' } })?.novo_contato).toBeNull();

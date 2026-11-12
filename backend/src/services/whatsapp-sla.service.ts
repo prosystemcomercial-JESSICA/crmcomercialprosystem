@@ -2,6 +2,7 @@
 // Regra de negócio ainda não fechada; ajuste aqui sem tocar nas rotas.
 export const SLA_HORAS: Record<string, number> = {
   CRITICA: 4,
+  ALTA: 8,
   NORMAL: 24,
   BAIXA: 48,
 };

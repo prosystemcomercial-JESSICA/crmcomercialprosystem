@@ -27,7 +27,7 @@ import { MOTIVOS_PERDA } from '@/lib/assistente/sdr';
 
 // Etapas do funil comercial de WhatsApp (Kanban) — ordem de exibição.
 export const ESTAGIOS_FUNIL = ['NOVO_CONTATO', 'INTERESSADO', 'EM_NEGOCIACAO', 'PROPOSTA_ENVIADA', 'AGUARDANDO_RETORNO', 'FECHADO'] as const;
-export const PRIORIDADES = ['BAIXA', 'NORMAL', 'CRITICA'] as const;
+export const PRIORIDADES = ['BAIXA', 'NORMAL', 'ALTA', 'CRITICA'] as const;
 
 // WhatsApp Inbox multi-instância (via UazAPI).
 //   - Cada usuário conecta a SUA instância (instancia_nome = `crm-<userId>`,
