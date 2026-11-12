@@ -46,6 +46,12 @@ export function extrairAssinante(texto: string): Assinante {
 export const faltando = (a: { nome?: string | null; cpf?: string | null; email?: string | null }) =>
   [!a.nome && 'nome completo', !a.cpf && 'CPF', !a.email && 'e-mail'].filter(Boolean) as string[];
 
+/** Nome do arquivo do contrato (padrão da Jessica, 12/11/2026): "Contrato_56_2026 GARCIA E PERON LTDA". */
+export function nomeArquivoContrato(c: { numero_contrato?: string | null; razao_social?: string | null }): string {
+  return `Contrato_${(c.numero_contrato || '').replace(/\//g, '_')} ${c.razao_social || ''}`
+    .replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+}
+
 // ── Conferência da Marta: o contrato só vai para a revisão da gestora com tudo preenchido. ──
 
 /** Situações em que o contrato ainda não saiu para assinatura (é onde a conferência vale). */

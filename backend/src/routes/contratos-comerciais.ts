@@ -5,7 +5,7 @@ import { scopeUserId, requireGestor } from '@/lib/scope';
 import { gerarContratoPdf } from '@/lib/contrato-pdf';
 import { criarImplantacaoEComissoes, criarComissaoValidada, ComissaoValidationError } from '@/lib/comissao-fluxo';
 import { resolverNomesUsuarios } from '@/lib/usuarios';
-import { ANTES_DO_ENVIO, pendenciasContrato } from '@/lib/assistente/contrato';
+import { ANTES_DO_ENVIO, pendenciasContrato, nomeArquivoContrato } from '@/lib/assistente/contrato';
 
 /** Contrato com a lista do que falta (conferência da Marta); vazia depois que saiu para assinatura. */
 const comPendencias = <T extends { status: string }>(c: T) =>
@@ -1192,7 +1192,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       });
     }
 
-    const docName = `Contrato ${c.numero_contrato} – ${c.razao_social}`;
+    const docName = nomeArquivoContrato(c);
     let zapEndpoint: string;
     let zapBody: any;
 
@@ -1279,10 +1279,13 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     if (!c) return reply.status(404).send({ status: 'error', message: 'Não encontrado' });
 
     const pdf = await gerarContratoPdf(c as any);
-    const filename = `Contrato_${(c.numero_contrato || id).replace(/[^\w.-]/g, '_')}.pdf`;
+    const nome = `${c.numero_contrato ? nomeArquivoContrato(c) : `Contrato_${id}`}.pdf`;
+    // attachment: o navegador salva direto na pasta Downloads (pedido da Jessica, 12/11/2026).
+    // filename* leva os acentos (RFC 5987); filename fica como reserva só com ASCII.
+    const ascii = nome.normalize('NFD').replace(/[^\x20-\x7e]/g, '');
     return reply
       .header('Content-Type', 'application/pdf')
-      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .header('Content-Disposition', `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(nome)}`)
       .send(pdf);
   });
 
@@ -1335,7 +1338,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
       send_automatic_email: !!c.representante_email,
       send_automatic_whatsapp: false, // o link vai pelo WhatsApp da empresa (CRM), sem custo na ZapSign
     }];
-    const docName = `Contrato ${c.numero_contrato} – ${c.razao_social}`;
+    const docName = nomeArquivoContrato(c);
 
     let zapRes: any;
     try {

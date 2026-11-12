@@ -2296,3 +2296,10 @@ Pedido da Jessica: "quem define a prioridade é a Laya"; cliente que responde co
 - **O que faz:** chama `POST /contratos-comerciais/:id/conferir`, que usa `completarContrato` (`backend/src/services/contrato-assinatura.service.ts`): completa pela Receita só os dados vazios da empresa e devolve o contrato com a lista do que ainda falta. A tela mostra "A Marta preencheu pela Receita: N campo(s)" ou "não achou nada novo" e "Ainda falta: ..." ou "Contrato completo, pronto para a sua revisão".
 - **Não envia nada:** não gera PDF nem manda para a ZapSign. Contrato já enviado responde 400. Com alterações não salvas na tela, pede para salvar antes.
 - **Banco:** sem mudança. **Teste:** `backend/tests/contrato-assinatura.test.ts` (8 passando).
+
+### Atualização 12/11/2026: nome padrão do contrato e download direto
+
+- **Nome do arquivo:** `Contrato_<número com _ no lugar da barra> <razão social>`, por exemplo `Contrato_56_2026 GARCIA E PERON LTDA.pdf`. A regra única é `nomeArquivoContrato` (`backend/src/lib/assistente/contrato.ts`), usada no PDF baixado (`GET /contratos-comerciais/:id/pdf`), no título interno do PDF (`backend/src/lib/contrato-pdf.ts`) e no nome do documento enviado à ZapSign (envio manual e "Gerar e enviar"). Caracteres que o Windows não aceita em nome de arquivo são retirados.
+- **Download direto:** a rota do PDF responde `Content-Disposition: attachment` (antes `inline`). O botão "Baixar PDF" salva o arquivo na pasta Downloads do computador em vez de abrir uma aba. Acentos vão em `filename*` (RFC 5987).
+- **Provisório:** pedido da Jessica, "por enquanto" vai para Downloads; depois será estruturado um lugar para guardar os arquivos e as informações do cliente.
+- **Teste:** `backend/tests/contrato-assinatura.test.ts` (9 passando). **Banco:** sem mudança.

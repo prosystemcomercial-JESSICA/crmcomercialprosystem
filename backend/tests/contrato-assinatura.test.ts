@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cpfValido, extrairAssinante, faltando, textoPedeFaltante, textoLinkAssinatura } from '../src/lib/assistente/contrato';
+import { nomeArquivoContrato, cpfValido, extrairAssinante, faltando, textoPedeFaltante, textoLinkAssinatura } from '../src/lib/assistente/contrato';
 
 describe('contrato: dados de quem assina', () => {
   it('valida CPF', () => {
@@ -46,5 +46,12 @@ describe('contrato: conferência da Marta', () => {
     const r: any = { razao_social: 'OUTRA', nome_fantasia: null, logradouro: 'Rua B', numero: 'S/N', bairro: 'Praia', municipio: 'Serra', uf: 'ES', cep: '29160000' };
     expect(preencherPelaReceita({ ...completo, endereco: null, cep: '', cidade: 'Vitória' }, r))
       .toEqual({ endereco: 'Rua B', cep: '29160-000' });
+  });
+});
+
+describe('contrato: nome do arquivo', () => {
+  it('segue o padrão Contrato_56_2026 RAZAO SOCIAL', () => {
+    expect(nomeArquivoContrato({ numero_contrato: '56/2026', razao_social: 'GARCIA E PERON LTDA' })).toBe('Contrato_56_2026 GARCIA E PERON LTDA');
+    expect(nomeArquivoContrato({ numero_contrato: '7/2026', razao_social: 'A/B: "LOJA"  ÁGUA' })).toBe('Contrato_7_2026 AB LOJA ÁGUA');
   });
 });

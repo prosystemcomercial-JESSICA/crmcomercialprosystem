@@ -14,6 +14,7 @@
  */
 import { createRequire } from 'module';
 import { fmtBRL, numPorExtenso } from '@/routes/contratos-comerciais';
+import { nomeArquivoContrato } from '@/lib/assistente/contrato';
 
 // O projeto roda como ESM (tsx, "type":"module"); pdfmake 0.2.x é CommonJS.
 // Usamos createRequire para carregar o PdfPrinter (server-side) e o vfs de fontes.
@@ -449,7 +450,7 @@ export function gerarContratoPdf(c: ContratoPdfData): Promise<Buffer> {
     // topo: barras+logo (~50pt) + folga; base: contatos+barra (~62pt) + folga
     pageMargins: [MARGEM_X, 64, MARGEM_X, 74] as [number, number, number, number],
     info: {
-      title: `Contrato ${numero} - ${c.razao_social}`,
+      title: nomeArquivoContrato(c),
       author: 'Prosystem',
     },
     header: () => buildHeader(),
