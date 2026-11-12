@@ -92,7 +92,7 @@ const PAPO_CAFE = ['☕ Café novo saindo!', '😄 Que dia bom de vendas', '🥐
 const PAPO_REUNIAO = ['📊 Vamos ver os números', '🎯 Qual a meta da semana?', '💡 Tive uma ideia', '✅ Combinado!'];
 
 // Aparência: cor do cabelo, cabelo comprido e tom de pele.
-const VISUAL: Record<string, [string, boolean, string?]> = {
+export const VISUAL: Record<string, [string, boolean, string?]> = {
   bia: ['#5b3a1a', true], lurdinha: ['#9ca3af', true], clarice: ['#1f1a17', true], luiz_felipe: ['#2b2b2b', false],
   zequinha: ['#ef4444', false], helena: ['#1c1410', true, '#7a4a2a'], laya: ['#6b21a8', true], marta: ['#7c2d12', true],
   sofia: ['#e0b100', true], caroline: ['#b45309', true], julio: ['#1c1917', false], rafael: ['#3f2a1d', false],

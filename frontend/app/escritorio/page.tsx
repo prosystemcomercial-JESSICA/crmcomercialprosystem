@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import SalaViva, { type Chamado } from '@/components/escritorio/SalaViva';
 import FeedAoVivo from '@/components/escritorio/painel/FeedAoVivo';
 import ChatAgente from '@/components/escritorio/ChatAgente';
+import PerfilAgente from '@/components/escritorio/PerfilAgente';
 import PesquisasSofia from '@/components/escritorio/PesquisasSofia';
 import CadernoLaya from '@/components/escritorio/CadernoLaya';
 import PainelCaroline from '@/components/escritorio/PainelCaroline';
@@ -250,6 +251,7 @@ export default function EscritorioPage() {
 
                 {escolhido && (
                   <div className="esc-detalhe" id="esc-detalhe">
+                    <PerfilAgente a={escolhido} />
                     <QuadroAgente a={escolhido} q={painel?.quadros.find(q => q.id === escolhido.id)} selecionado
                       onAbrir={abrirPainel} onConversar={id => setChat(id)} onAgenda={id => verAgenda(id)} />
                     <section className="esc-cartao" aria-label={`Agenda de ${escolhido.nome}`}>
