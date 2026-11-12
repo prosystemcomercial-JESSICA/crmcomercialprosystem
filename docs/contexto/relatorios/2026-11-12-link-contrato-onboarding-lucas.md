@@ -19,4 +19,6 @@
 
 **Continuação (mesmo dia):** a pedido da Jessica, o aviso de nova demanda virou um resumo (conversão e sistema, máquinas, responsável, contato, link do card) em `backend/src/lib/implantacao/nova-demanda.ts`, com `backend/tests/nova-demanda.test.ts` (5 passando). Dados da proposta; sem ela, do representante do contrato.
 
+**Aplicado ao contrato de hoje:** 56/2026 (GARCIA E PERON LTDA) designado ao Lucas Diniz e resumo enviado no WhatsApp da nova demanda (verificado pelo retorno do script: designado e WhatsApp enviado). Cadastro do Lucas confirmado ativo em produção, o que resolve a pendência acima.
+
 **Próxima sessão:** se a Jessica relatar que o card ficou sem técnico, ler `UsuarioCRM` na produção pelo nome e ajustar `TECNICO_PADRAO_NOME`. Skill sugerida: `diagnosing-bugs`.
