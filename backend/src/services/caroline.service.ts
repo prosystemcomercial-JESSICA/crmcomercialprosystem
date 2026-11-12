@@ -397,7 +397,7 @@ async function tirarDaListaJaCliente(prisma: PrismaClient, sdr: any, motivo: str
  * e entra na fila da Caroline para a captação do zero (a fila respeita limite, intervalo e horário do número).
  * Não duplica: número já em conversa com agente, cliente ativo ou marcado sem agente fica de fora.
  */
-async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonNullable<RespostaCaroline['novo_contato']>) {
+export async function registrarDecisorIndicado(prisma: PrismaClient, sdr: any, nc: NonNullable<RespostaCaroline['novo_contato']>) {
   const numero = nc.numero;
   // Mesma pessoa pedindo para ser chamada em outro número dela (12/11/2026): prioridade máxima, chamada na hora.
   const mesma = !!nc.mesma_pessoa;
@@ -1256,7 +1256,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       else {
         registrarAcaoAgente('laya', `segurou uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`);
         const final = nova || r;
-        const segurada = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: final.mensagens.join('\n\n'), acao: JSON.stringify({ acao: final.acao, nota: final.nota, nota_motivo: final.nota_motivo, duvida: final.duvida, motivo_perda: final.motivo_perda, laya_motivo: c.motivo.slice(0, 300), fase }) } });
+        const segurada = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: final.mensagens.join('\n\n'), acao: JSON.stringify({ acao: final.acao, nota: final.nota, nota_motivo: final.nota_motivo, duvida: final.duvida, motivo_perda: final.motivo_perda, laya_motivo: c.motivo.slice(0, 300), fase, novo_contato: final.novo_contato || null }) } });
         chamarRafael(prisma, segurada.id);
         if (fase === 'abertura' && !sdr.primeiro_envio_em) await prisma.sdrLead.update({ where: { id: sdrId }, data: { primeiro_envio_em: new Date() } });
         const { anotar } = await import('./equipe.service');
@@ -1300,7 +1300,7 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   const pedeAutorizacao = !!r.revisar_proposta && janelaCampanhaAtiva(agora);
   if (r.revisar_proposta && !pedeAutorizacao) { motivoFalha.set(sdrId, 'a mensagem oferecia revisar a proposta fora da janela da campanha'); return 'falha'; } // fora da janela (dias 20 ao fim do mês) nunca sai
   if ((cfg.aprovar && !semAprovacao) || pedeAutorizacao) {
-    const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, negociacao: pedeAutorizacao, fase, chamariz, ultima }) } });
+    const pendente = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: r.mensagens.join('\n\n'), acao: JSON.stringify({ acao: r.acao, nota: r.nota, nota_motivo: r.nota_motivo, duvida: r.duvida, motivo_perda: r.motivo_perda, negociacao: pedeAutorizacao, fase, chamariz, ultima, novo_contato: r.novo_contato || null }) } });
     await prisma.sdrLead.update({ where: { id: sdrId }, data: fase === 'abertura' && !sdr.primeiro_envio_em ? { primeiro_envio_em: agora } : {} });
     // Campanha/revisão: a gestão recebe no WhatsApp a prévia da proposta + a mensagem, e responde nos botões.
     if (pedeAutorizacao) {
@@ -1429,6 +1429,9 @@ export async function decidirMensagem(prisma: PrismaClient, id: string, decisao:
     data: { ultima_caroline_em: agora, ...(meta.fase === 'resposta' ? { status: 'CONVERSANDO' } : { status: 'AGUARDANDO', tentativas: { increment: 1 } }), ...(sdr.primeiro_envio_em ? {} : { primeiro_envio_em: agora }) },
   });
   if (meta.acao && meta.acao !== 'continuar') await aplicarAcao(prisma, inst.instance_token, sdr, meta.acao, meta);
+  // Outro contato passado pelo cliente: a mensagem aprovada promete chamar, então chama (12/11/2026, caso Amor e
+  // Açúcar: a aprovação mandava só o texto e o novo número nunca era chamado).
+  if (meta.novo_contato?.numero) await registrarDecisorIndicado(prisma, sdr, meta.novo_contato).catch(e => console.error('[agente] decisor indicado (aprovação):', e?.message || e));
   if ((meta.nota ?? 0) >= 35 || ['oferecer_demo', 'passar_vendedora'].includes(meta.acao)) await passarParaCaroline(prisma, sdr, `interesse na conversa (nota ${meta.nota ?? '—'})`);
   return { status: editada ? 'EDITADA' : 'APROVADA' };
 }
