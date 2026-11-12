@@ -1713,3 +1713,7 @@ No Portal Técnico há o menu **Agenda**. Ali o técnico marca reuniões, ligaç
 - **Gancho para abrir e retomar:** no primeiro contato e nas retomadas, o agente abre com uma pergunta retórica sobre um ponto fraco comum do ramo ("sabe aquele dia em que o caixa fecha e falta dinheiro?"), mostra o que a Prosystem resolve e termina com uma única pergunta de verdade. Se o lead já tinha contado uma dor antes, o gancho usa a dor dele.
 - Nada de inventar: nome de funcionário, horário ou recurso só aparecem se estiverem no material da Prosystem.
 - Quando você corrigir uma mensagem do agente, ele continua aprendendo com o seu ajuste, como antes.
+
+### Atualização 12/11/2026: o card anda sozinho quando o onboarding começa
+
+Assim que o técnico começa o onboarding técnico, o card passa sozinho de **A fazer** para **Em andamento**. Conta como começar: apertar o Play na etapa "Onboarding técnico", marcar qualquer item do roteiro ou preencher a ficha/perguntas do primeiro contato. Fica anotado no histórico do card. O card também pode ser arrastado para Em andamento antes de o onboarding terminar; para Acompanhamento em diante, o onboarding precisa estar concluído.

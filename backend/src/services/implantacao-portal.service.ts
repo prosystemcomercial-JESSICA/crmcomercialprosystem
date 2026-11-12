@@ -15,7 +15,7 @@ import {
   TAREFAS_CLIENTE_PADRAO, TAREFAS_CLIENTE_ANTIGAS, formularioDaTarefa, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, MAX_LEMBRETES_TAREFA, MOTIVO_ESPERA_TAREFA,
   prazoAjustado, slaDaDemanda, TIPOS_ESPERA_CLIENTE, esperaPreRequisito, PRE_REQUISITO_PADRAO, type MetasIndicadores, INICIO_ASSISTIDA,
   perfilDe, checklistDoPerfil, onboardingItensDoPerfil, realinhamento, ITEM_PERGUNTAS, type PerfilImplantacao,
-  dadosDaFicha, itemPelaFicha, MARCADO_PELA_FICHA,
+  dadosDaFicha, itemPelaFicha, MARCADO_PELA_FICHA, colunaAoIniciarOnboarding, etapaDaColuna,
 } from '@/lib/implantacao/portal';
 
 /**
@@ -315,6 +315,26 @@ export async function sincronizarOnboardingPelaFicha(prisma: PrismaClient, impla
     await prisma.implantacaoAtividade.create({ data: { implantacao_id: implantacaoId, tipo: 'NOTA', descricao: '✅ Onboarding técnico concluído: implantação liberada para começar', autor_nome: 'Sistema' } }).catch(() => null);
   }
   return mudou;
+}
+
+/**
+ * O onboarding começou: o card sai de BackLog/A fazer e vai sozinho para "Em andamento"
+ * (pedido da Jessica, 12/11/2026). Devolve true quando moveu. Nunca lança erro.
+ */
+export async function moverAoIniciarOnboarding(prisma: PrismaClient, implantacaoId: string, ator?: { id?: string; nome?: string } | null, como = 'onboarding começou'): Promise<boolean> {
+  try {
+    const imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId } });
+    if (!imp) return false;
+    const para = colunaAoIniciarOnboarding(imp);
+    if (!para) return false;
+    const de = colunaDe(imp);
+    // Só move se ninguém mexeu no meio do caminho (coluna ainda a mesma).
+    const r = await prisma.implantacao.updateMany({ where: { id: implantacaoId, coluna: imp.coluna }, data: { coluna: para, etapa_execucao: etapaDaColuna(para, imp) } });
+    if (!r.count) return false;
+    const nome = (k: string) => COLUNAS.find(c => c.key === k)?.label || k;
+    await prisma.implantacaoAtividade.create({ data: { implantacao_id: implantacaoId, tipo: 'MUDANCA_ETAPA', descricao: `Moveu de "${nome(de)}" para "${nome(para)}" automaticamente (${como})`, autor_id: ator?.id, autor_nome: ator?.nome || 'Sistema' } }).catch(() => null);
+    return true;
+  } catch { return false; }
 }
 
 // ─── Página e mensagens do cliente ───────────────────────────────────────────

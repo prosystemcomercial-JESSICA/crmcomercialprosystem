@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getUser, podeVerTudo } from '@/lib/scope';
 import { onboardingOk, ehCargoTecnico, horasUteisEntre } from '@/lib/implantacao/portal';
 import { ETAPAS, TIPOS_SESSAO, TIPOS_ESPERA, NOME_ESPERA, ESPERAS_INTERNAS, ticketsDaDemanda, JORNADA_PADRAO, diaSP, emSP, fimAutomatico, resumoDoDia, temposDaDemanda, type Jornada } from '@/lib/implantacao/cronometro';
+import { moverAoIniciarOnboarding } from '@/services/implantacao-portal.service';
 
 /**
  * Cronômetro do técnico de implantação (play/pausa) e esperas da demanda.
@@ -103,6 +104,8 @@ export async function implantacaoCronometroRoutes(fastify: FastifyInstance, opti
       include: { implantacao: { select: { id: true, cliente_razao_social: true } } },
     });
     if (d.tipo === 'DEMANDA' && anterior?.implantacao_id !== d.implantacao_id) await linhaDoTempo(prisma, d.implantacao_id, `▶ ${u.nome || 'Técnico'} começou a trabalhar (${NOME_ETAPA[d.etapa!]})`, u);
+    // Play no onboarding: o card vai sozinho para Em andamento (pedido da Jessica, 12/11/2026).
+    if (d.tipo === 'DEMANDA' && d.etapa === 'ONBOARDING') await moverAoIniciarOnboarding(prisma, d.implantacao_id!, { id: u.id, nome: u.nome || undefined }, 'Play no onboarding técnico');
     return reply.status(201).send({ status: 'success', data: sessao });
   });
 

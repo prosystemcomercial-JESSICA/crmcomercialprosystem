@@ -5,7 +5,7 @@ import { requireGestor, podeVerTudo } from '@/lib/scope';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, colunaDaEtapa, onboardingItensDoPerfil, perfilDe, onboardingOk, ehLegado, ITEM_PERGUNTAS, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, ehCargoTecnico, desdeQuadro } from '@/lib/implantacao/portal';
 import { designarTecnico, registrarAtividade } from '@/services/implantacao-designar.service';
-import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, sincronizarOnboardingPelaFicha, TESTES_PADRAO } from '@/services/implantacao-portal.service';
+import { avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao, perfilDaImplantacao, sincronizarOnboardingPelaFicha, moverAoIniciarOnboarding, TESTES_PADRAO } from '@/services/implantacao-portal.service';
 
 /**
  * Acompanhamento e EXECUÇÃO da implantação. Cada implantação nasce de um contrato
@@ -318,6 +318,8 @@ export async function implantacoesRoutes(fastify: FastifyInstance, options: { pr
       data: { feito: body.data.feito, feito_por: body.data.feito ? (ator?.nome || ator?.id) : null, feito_em: body.data.feito ? new Date() : null },
     });
     if (atual.grupo === 'ONBOARDING') {
+      // Item do roteiro marcado: o onboarding começou e o card vai sozinho para Em andamento (12/11/2026).
+      if (body.data.feito) await moverAoIniciarOnboarding(prisma, atual.implantacao_id, ator, 'item do onboarding marcado');
       const ob = await prisma.implantacaoChecklistItem.findMany({ where: { implantacao_id: atual.implantacao_id, grupo: 'ONBOARDING' }, select: { feito: true } });
       const completo = ob.length > 0 && ob.every(x => x.feito);
       if (completo && !atual.implantacao.onboarding_concluido_em) {

@@ -904,7 +904,7 @@ function AbaOnboarding({ d, recarregar, irPara, irParaCampo }: { d: any; recarre
       <div style={{ ...cartao, padding: '16px 18px', display: 'grid', gap: 10, background: d.onboarding_ok ? '#16a34a0d' : '#0369a10d', borderColor: d.onboarding_ok ? '#16a34a55' : '#0369a155' }}>
         <b style={{ fontSize: 15, color: 'var(--t-text-primary)' }}>{d.onboarding_ok ? '✅ Onboarding técnico concluído' : '🔒 Primeiro contato com o cliente, antes de qualquer ação'}</b>
         <div style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--t-text-secondary)', maxWidth: '75ch' }}>
-          {d.onboarding_ok ? 'A implantação está liberada: instalação, conversão, quadro e virada.' : 'Responsabilidade do técnico, em até 2 dias úteis após a designação. Enquanto não terminar, a instalação, a conversão, o quadro e a virada ficam travados. Use o Play na etapa "Onboarding técnico" para contar o tempo.'}
+          {d.onboarding_ok ? 'A implantação está liberada: instalação, conversão, quadro e virada.' : 'Responsabilidade do técnico, em até 2 dias úteis após a designação. Assim que o onboarding começa (Play na etapa "Onboarding técnico", um item marcado ou a ficha preenchida), o card vai sozinho para "Em andamento". Enquanto não terminar, a instalação, a conversão e a virada ficam travadas.'}
         </div>
         <Barra pct={itens.length ? (feitos / itens.length) * 100 : 0} cor={d.onboarding_ok ? '#16a34a' : '#0369a1'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

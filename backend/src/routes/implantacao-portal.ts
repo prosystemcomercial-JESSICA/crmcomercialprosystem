@@ -5,12 +5,12 @@ import { getUser, podeVerTudo } from '@/lib/scope';
 import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda, relatorioDeTempo, resumoTarefasCliente, ticketsDaDemanda, NOME_ESPERA } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
   garantirFasesTreinamento, concluirServicoNaVenda, URL_FRONT, avisarEquipe, avisarClienteAgenda, textoAgendaVirada, textoAgendaTreino,
-  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, sincronizarPreRequisito, SINVAL_RECEBE_CHAMADOS, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, segmentoComOrigem, corrigirSegmentoDaProposta,
+  salvarArquivoCliente, criarTarefasClientePadrao, dadosTarefaCliente, fecharEsperaDeTarefa, sincronizarPreRequisito, SINVAL_RECEBE_CHAMADOS, realinharAoPerfil, perfilDaImplantacao, sincronizarOnboardingPelaFicha, moverAoIniciarOnboarding, segmentoComOrigem, corrigirSegmentoDaProposta,
 } from '@/services/implantacao-portal.service';
 
 /**
@@ -118,7 +118,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       const falta = pendenciasValidacao(imp, chk, fases, abertas, assistida);
       if (falta.length) return reply.status(400).send({ status: 'error', message: `Antes de concluir: ${falta.join('; ')}.`, data: { pendencias: falta } });
     }
-    if (!['BACKLOG', 'A_FAZER', 'CANCELADOS'].includes(para) && !onboardingOk(imp, chk)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de avançar a demanda.' });
+    // "Em andamento" é onde o onboarding acontece (12/11/2026); dali para a frente, só com ele concluído.
+    if (!COLUNAS_ANTES_DO_ONBOARDING.includes(para) && !onboardingOk(imp, chk)) return reply.status(400).send({ status: 'error', message: 'Conclua o onboarding técnico (primeiro contato com o cliente) antes de avançar a demanda.' });
     // Uma só verdade: a etapa de execução acompanha a coluna.
     const data: any = { coluna: para, etapa_execucao: etapaDaColuna(para, imp) };
     if (para === 'FINALIZADO') {
@@ -203,6 +204,8 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     }
     // Roteiro do onboarding: os itens que só confirmam dados da ficha se marcam (ou desmarcam) sozinhos.
     await sincronizarOnboardingPelaFicha(prisma, id).catch(() => 0);
+    // O técnico da demanda preencheu a ficha (perguntas do primeiro contato): o onboarding começou, card vai para Em andamento.
+    if (imp.tecnico_id && imp.tecnico_id === u.id) await moverAoIniciarOnboarding(prisma, id, u, 'ficha do primeiro contato preenchida pelo técnico');
     return reply.send({ status: 'success', data: { coleta, ...extra } });
   });
 

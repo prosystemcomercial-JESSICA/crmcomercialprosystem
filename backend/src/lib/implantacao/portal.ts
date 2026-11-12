@@ -600,6 +600,18 @@ export function colunaIncoerente(i: { modulo: string; virada_inicio_em?: Date | 
   return null;
 }
 
+/**
+ * Onboarding começou (Play na etapa Onboarding, item do roteiro marcado ou ficha salva pelo técnico):
+ * o card passa sozinho para "Em andamento" (pedido da Jessica, 12/11/2026).
+ * Só implantação nova, com técnico, ainda em BackLog/A fazer. Nunca puxa card de volta nem mexe em cancelado.
+ */
+export function colunaAoIniciarOnboarding(i: { modulo?: string | null; coluna?: string | null; status?: string | null; etapa_execucao?: string | null; tecnico_id?: string | null; data_assinatura?: Date | null }): 'EM_ANDAMENTO' | null {
+  if (i.modulo !== 'IMPLANTACAO' || ehLegado(i) || !i.tecnico_id || i.status === 'CANCELADA') return null;
+  return ['BACKLOG', 'A_FAZER'].includes(colunaDe(i)) ? 'EM_ANDAMENTO' : null;
+}
+/** Colunas liberadas antes de o onboarding terminar: "Em andamento" é onde o onboarding acontece. */
+export const COLUNAS_ANTES_DO_ONBOARDING = ['BACKLOG', 'A_FAZER', 'EM_ANDAMENTO', 'CANCELADOS'];
+
 // ─── Operação assistida: 5 dias úteis depois da loja virada (Fase 2) ─────
 export const DIAS_ASSISTIDA = 5;
 export const INICIO_ASSISTIDA = new Date('2026-10-03T03:00:00.000Z'); // viradas a partir de 03/10/2026
