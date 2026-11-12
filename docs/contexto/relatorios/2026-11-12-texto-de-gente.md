@@ -22,6 +22,12 @@ A Jessica mandou um print que compara "texto de folder" com "texto de gente". O 
 - Os recursos dos exemplos foram conferidos no material:
   - conferência de caixa, estoque mínimo com sugestão de compra e acesso remoto, em `docs/comercial/base-conhecimento-comercial.md`;
   - "não sei quanto realmente sobra", em `docs/comercial/sequencia-padarias/mapa-de-valor-prosystem-padarias.md`.
+- Publicação, feita com a autorização da Jessica ("faça isso"):
+  - backup `/root/backups-deploy/pre-agenda-20261112-194718.sql.gz`;
+  - criada só a tabela `AgendaTecnico`, que estava travando o deploy;
+  - `deploy-vps.sh 7b79657` completo.
+- Conferido no servidor: a regra está nos três arquivos, a rota da agenda está carregada (401) e nenhum erro novo apareceu no log.
+- O mesmo deploy publicou também `55fee79` (agenda do técnico), `d313e4b` (folha de ações no celular) e `b55489f` (chamar no outro número), todos de outras sessões. Ficaram fora `71a5275` e `c968b68`, commitados durante a publicação.
 - Mensagens reais geradas em produção depois do deploy: **não verificado**.
 
 ## Decisões e porquês
