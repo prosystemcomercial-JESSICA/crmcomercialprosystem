@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (resumo da nova demanda):** a pedido da Jessica, a mensagem no WhatsApp da nova demanda traz conversão de dados (de qual sistema), quantas máquinas, responsável, contato do responsável e o link do card (`textoNovaDemanda`, `backend/src/lib/implantacao/nova-demanda.ts`). Dados da proposta; sem ela, do representante do contrato.
+
 - **12/11/2026 (publicado):** deploy de `ba03896` na produção, com backup, banco sem alterações, site e API respondendo. No ar: link do contrato obrigatório para ir a Enviado p/ assinatura e onboarding automático com o Lucas Diniz e aviso de nova demanda. Falta conferir na produção o cadastro ativo "Lucas Diniz" e testar com um contrato real.
 
 - **12/11/2026 (link do contrato obrigatório e onboarding com o Lucas Diniz):** a pedido da Jessica, só passa para Enviado p/ assinatura (e Aguardando/Assinado) com o link enviado ao cliente, que fica guardado. Ao marcar Assinado, a implantação nasce já designada ao usuário "Lucas Diniz" (provisório, `TECNICO_PADRAO_NOME`) e o WhatsApp da nova demanda (`WHATSAPP_NOVA_DEMANDA`) recebe o aviso com o link do card (`/portal-tecnico?tab=quadro&demanda=<id>`). Boas-vindas sem mudança. Pendente: conferir em produção que o cadastro do Lucas Diniz existe e está ativo (a leitura foi bloqueada nesta sessão). Relatório: `docs/contexto/relatorios/2026-11-12-link-contrato-onboarding-lucas.md`.

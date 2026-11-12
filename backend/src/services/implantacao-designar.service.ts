@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { faseDoItemTreinamento, CHECKLIST_PADRAO, checklistDoPerfil, onboardingItensDoPerfil, perfilDe, ehLegado } from '@/lib/implantacao/portal';
 import { numeroWhatsapp } from '@/lib/assistente/campanhas';
+import { textoNovaDemanda, maquinasDaProposta } from '@/lib/implantacao/nova-demanda';
 import {
   avisarTecnico, garantirFasesTreinamento, obterConfigPortal, criarTarefasClientePadrao, segmentoDaImplantacao,
   sincronizarOnboardingPelaFicha, TESTES_PADRAO, URL_FRONT, whats,
@@ -101,7 +102,8 @@ export async function tecnicoPadrao(prisma: PrismaClient): Promise<{ id: string;
  * (27 99658-1370) recebe o aviso com o link do card. Chamado uma vez, quando a implantação nasce.
  */
 export async function encaminharNovaDemandaDoContrato(prisma: PrismaClient, implantacaoId: string, contrato: {
-  numero_contrato?: string | null; razao_social?: string | null; nome_fantasia?: string | null; plano_contratado?: string | null; vendedor_nome?: string | null;
+  numero_contrato?: string | null; razao_social?: string | null; nome_fantasia?: string | null;
+  proposta_comercial_id?: string | null; representante_nome?: string | null; representante_telefone?: string | null;
 }) {
   const tec = await tecnicoPadrao(prisma);
   const destino = numeroWhatsapp(WHATSAPP_NOVA_DEMANDA);
@@ -112,17 +114,24 @@ export async function encaminharNovaDemandaDoContrato(prisma: PrismaClient, impl
   if (!imp) imp = await prisma.implantacao.findUnique({ where: { id: implantacaoId } }).catch(() => null);
   if (!imp) return { designado: false, whatsapp: false };
 
-  const cliente = (contrato.nome_fantasia || contrato.razao_social || imp.cliente_razao_social || 'Cliente').trim();
-  const texto = [
-    `🆕 *Nova demanda: contrato assinado*`,
-    ``,
-    `Cliente: *${cliente}*${contrato.numero_contrato ? ` (contrato ${contrato.numero_contrato})` : ''}`,
-    `Tipo: ${descricaoTipo(imp)}${contrato.plano_contratado ? ` · plano ${contrato.plano_contratado}` : ''}`,
-    contrato.vendedor_nome ? `Vendedora: ${contrato.vendedor_nome}` : null,
-    `Técnico: ${tec ? tec.nome : `não designado (cadastro "${TECNICO_PADRAO_NOME}" não encontrado)`}`,
-    ``,
-    `Card no portal técnico: ${linkCardPortal(implantacaoId)}`,
-  ].filter(l => l !== null).join('\n');
+  // Máquinas, sistema anterior e responsável vêm da proposta; sem ela, do representante do contrato.
+  const propostaId = imp.proposta_id || contrato.proposta_comercial_id || null;
+  const p = propostaId ? await prisma.propostaComercial.findUnique({
+    where: { id: propostaId },
+    select: { maquinas: true, lojas_projeto: true, sistema_atual: true, responsavel_nome: true, responsavel_telefone: true },
+  }).catch(() => null) : null;
+  const texto = textoNovaDemanda({
+    cliente: (contrato.nome_fantasia || contrato.razao_social || imp.cliente_razao_social || 'Cliente').trim(),
+    numeroContrato: contrato.numero_contrato,
+    servico: imp.modulo === 'SERVICO',
+    conversao: imp.tipo_base === 'CONVERSAO',
+    sistemaAnterior: imp.sistema_anterior || p?.sistema_atual || null,
+    maquinas: maquinasDaProposta(p),
+    responsavel: p?.responsavel_nome || contrato.representante_nome || null,
+    contato: p?.responsavel_telefone || contrato.representante_telefone || imp.contato_whatsapp || null,
+    tecnico: tec ? tec.nome : `não designado (cadastro "${TECNICO_PADRAO_NOME}" não encontrado)`,
+    link: linkCardPortal(implantacaoId),
+  });
   const enviado = await whats(prisma, WHATSAPP_NOVA_DEMANDA, texto);
   await registrarAtividade(prisma, implantacaoId, 'COMUNICACAO', `📨 Aviso de nova demanda no WhatsApp ${WHATSAPP_NOVA_DEMANDA}${enviado ? '' : ' (falhou)'}.`);
   return { designado: !!tec, whatsapp: enviado };

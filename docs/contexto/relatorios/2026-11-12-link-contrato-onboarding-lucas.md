@@ -17,4 +17,6 @@
 
 **Pendente:** conferir em produção que existe usuário ativo "Lucas Diniz" (Jessica/Claude). Técnico e número fixos no código "por enquanto": quando mudar, trocar `TECNICO_PADRAO_NOME` e `WHATSAPP_NOVA_DEMANDA` ou levar para Configurações.
 
+**Continuação (mesmo dia):** a pedido da Jessica, o aviso de nova demanda virou um resumo (conversão e sistema, máquinas, responsável, contato, link do card) em `backend/src/lib/implantacao/nova-demanda.ts`, com `backend/tests/nova-demanda.test.ts` (5 passando). Dados da proposta; sem ela, do representante do contrato.
+
 **Próxima sessão:** se a Jessica relatar que o card ficou sem técnico, ler `UsuarioCRM` na produção pelo nome e ajustar `TECNICO_PADRAO_NOME`. Skill sugerida: `diagnosing-bugs`.

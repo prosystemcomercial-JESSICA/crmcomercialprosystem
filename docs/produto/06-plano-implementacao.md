@@ -2308,3 +2308,11 @@ Pedido da Jessica: "para mudar para enviado p/ assinatura tem que ser obrigatór
 - **Aviso de nova demanda:** a mesma função manda no WhatsApp **27 99658-1370** (`WHATSAPP_NOVA_DEMANDA`, pela instância da empresa) a mensagem "🆕 Nova demanda: contrato assinado" com cliente, número do contrato, tipo, plano, vendedora, técnico e o **link do card**. Se esse número for o do próprio Lucas, ele recebe só essa mensagem (sem duplicar). Fica registrado na linha do tempo da implantação. Uma vez por implantação (só quando ela é criada).
 - **Link direto do card:** `/portal-tecnico?tab=quadro&demanda=<id da implantação>` abre o Quadro já com o card aberto (`frontend/app/portal-tecnico/page.tsx`). O aviso do técnico na designação também passou a levar esse link.
 - **Banco:** sem mudança (usa `zapsign_signing_url` e `sent_to_sign_at`, que já existiam). **Teste:** `backend/tests/contrato-assinatura.test.ts` (10 passando).
+
+### Atualização 12/11/2026 (2): resumo da nova demanda no WhatsApp
+
+Pedido da Jessica: "quero um resumo: se for conversão de dados, de qual sistema; quantas máquinas; responsável; contato do responsável; e link para o card do painel técnico".
+
+- A mensagem do WhatsApp da nova demanda passou a ser montada por `textoNovaDemanda` (`backend/src/lib/implantacao/nova-demanda.ts`), com: **Cliente** (e número do contrato), **Conversão de dados** ("Sim, do sistema X" / "Não (banco zerado)" / "não se aplica (serviço)"), **Máquinas**, **Responsável**, **Contato do responsável** (telefone no formato (27) 99999-9999), **Técnico** e **Card no painel técnico** (link `/portal-tecnico?tab=quadro&demanda=<id>`). Plano e vendedora saíram da mensagem.
+- **De onde vêm os dados:** sistema anterior da implantação (ou `sistema_atual` da proposta); máquinas de `PropostaComercial.maquinas` ou a soma de `lojas_projeto[].maquinas` (proposta multi-loja); responsável e telefone da proposta (`responsavel_nome`, `responsavel_telefone`) e, sem eles, do representante do contrato (e por último o WhatsApp de contato da implantação). O que faltar aparece como "não informado".
+- **Teste:** `backend/tests/nova-demanda.test.ts` (5 passando). **Banco:** sem mudança.
