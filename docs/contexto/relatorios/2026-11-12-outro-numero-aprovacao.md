@@ -11,14 +11,14 @@ Jessica, com print da conversa Amor e Açúcar: "O que está acontecendo? [...] 
 - `tsc` sem erro novo; CI verde de `b55489f`.
 - Produção (só leitura): nenhum lead para o número novo; pendente `EDITADA` pelo Rafael às 16:40 UTC.
 - **Não no ar:** deploy de `ed32f86` parou na trava de banco (tabela da agenda do técnico, de outra sessão).
-- **Não feito:** a mensagem para a cliente no número novo (bloqueada pela permissão).
+- Resgate autorizado pela Jessica e feito em 12/11 15h50: mensagem ENVIADA no número novo, lead novo AGUARDANDO.
 
 ## Decisões e porquês
 - Resgate com a mesma função do código (texto fixo, sem IA, prioridade máxima), para não inventar outro caminho.
 - Não liberei a tabela da outra sessão no `PERMITIDO`: decisão dela/da Jessica.
 
 ## Pendente
-- Jessica: liberar o envio do resgate (ou chamar ela mesma) e a criação da tabela da agenda do técnico, para o deploy seguir.
+- Jessica: liberar a criação da tabela da agenda do técnico, para o deploy seguir.
 
 ## Próxima sessão
 Depois do deploy, aprovar uma pendente de teste com `novo_contato` e conferir o lead novo criado com status AGUARDANDO.
