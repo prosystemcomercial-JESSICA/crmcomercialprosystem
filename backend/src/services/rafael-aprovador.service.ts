@@ -8,6 +8,7 @@ import { registrarAcaoAgente } from '../lib/assistente/escritorio';
 import { PRAZO_RAFAEL_MS, REESCRITAS_MAX, decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, type DecisaoRafael } from '../lib/assistente/rafael-aprovador';
 
 const emRevisao = new Set<string>();
+const adiadas = new Map<string, number>();
 let ultimoEnvioNaoUrgente = 0;
 const NOMES: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
 
@@ -30,6 +31,8 @@ export async function rafaelRevisarPendentes(prisma: PrismaClient, soId?: string
     .sort((a, b) => Number(urgente(b.meta)) - Number(urgente(a.meta)));
   for (const it of itens) {
     if (emRevisao.has(it.m.id)) continue;
+    // O envio falhou há pouco (ex.: número do contato desconectado): espera 10 min, sem gastar IA a cada 30 s.
+    if ((adiadas.get(it.m.id) || 0) > Date.now()) continue;
     // Primeiro contato e retomada: no máximo 1 envio por minuto (protege o número do WhatsApp).
     if (!urgente(it.meta) && Date.now() - ultimoEnvioNaoUrgente < 60_000) continue;
     emRevisao.add(it.m.id);
@@ -37,7 +40,8 @@ export async function rafaelRevisarPendentes(prisma: PrismaClient, soId?: string
       const enviou = await revisarUma(prisma, it.m, it.meta, it.sdr);
       if (enviou && !urgente(it.meta)) ultimoEnvioNaoUrgente = Date.now();
     } catch (e: any) {
-      console.warn('[RAFAEL] aprovação:', e?.message);
+      adiadas.set(it.m.id, Date.now() + 10 * 60_000);
+      console.warn('[RAFAEL] aprovação (tenta de novo em 10 min):', e?.message);
     } finally { emRevisao.delete(it.m.id); }
   }
 }
