@@ -2289,3 +2289,9 @@ Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, 
 - Janelas: sempre acima da barra de abas; se não couberem, rolam com o topo visível (nunca centralizadas cortando topo e rodapé).
 - Abas e botões em fileira quebram linha em vez de passar da borda; tabelas rolam dentro do cartão.
 - Conferido com prints em 440, 414, 402, 375 (SE e 11 Pro) e 360pt.
+
+### Atualização 12/11/2026 (4): card do quadro de implantações nunca passa da borda
+
+- Selo de prazo do card (`SlaBadge`) quebra linha em vez de esticar o card; no máximo 100% da largura.
+- Card com trava final (`overflow: hidden`, `overflow-wrap: anywhere`); nome do cliente quebra linha; etiquetas cortadas com reticências mostram o texto completo na dica.
+- Contrato visual testado em `frontend/e2e/implantacao-quadro.spec.ts` (360 a 2560 px).
