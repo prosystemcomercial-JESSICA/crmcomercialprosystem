@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { registrarUsoIa, registrarChamadaIa, registrarReservaGroq, carregarCotaGroq, atualizarCotaGroq } from './uso-ia.service';
+import { registrarUsoIa, registrarChamadaIa, registrarErroIa, registrarReservaGroq, carregarCotaGroq, atualizarCotaGroq } from './uso-ia.service';
 import { cabeNoGroq, lerCotaGroq } from '@/lib/ia-groq';
 import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
@@ -91,12 +91,13 @@ const urlTranscritor = () => (process.env.TRANSCRITOR_URL || 'http://127.0.0.1:8
 const transcritorLocalLigado = () => urlTranscritor() !== 'desligado';
 
 async function transcreverLocal(mime: string, base64: string, timeoutMs: number, agente: string): Promise<string> {
+  let erroRede = '';
   const res = await fetch(`${urlTranscritor()}/transcrever`, {
     method: 'POST', headers: { 'Content-Type': mime }, body: Buffer.from(base64, 'base64'), signal: AbortSignal.timeout(timeoutMs),
-  }).catch(() => null);
-  registrarChamadaIa(agente, 'whisper', { ok: !!res?.ok });
-  if (!res) throw new Error('O transcritor local não respondeu.');
-  if (!res.ok) throw new Error(`Transcritor local indisponível (HTTP ${res.status}).`);
+  }).catch(e => { erroRede = (e as Error)?.message || ''; return null; });
+  const erro = !res ? `O transcritor local não respondeu${erroRede ? ` (${erroRede})` : ''}.` : !res.ok ? `Transcritor local indisponível (HTTP ${res.status}).` : undefined;
+  registrarChamadaIa(agente, 'whisper', { ok: !erro, erro });
+  if (erro || !res) throw new Error(erro);
   registrarUsoIa('whisper');
   const texto = String(((await res.json()) as any)?.texto || '').trim();
   if (!texto) throw new Error('A transcrição veio vazia.');
@@ -145,6 +146,7 @@ async function tentarGroq(prisma: PrismaClient, p: { sistema: string; texto: str
     return texto;
   } catch (e) {
     registrarFalhaProvedor('groq', (e as Error)?.message || '');
+    registrarErroIa(p.agente, 'groq', (e as Error)?.message || '', p.modelo || MODELO_GROQ);
     console.warn('[GROQ] não respondeu, usando a IA paga:', (e as Error)?.message);
     registrarReservaGroq(p.agente);
     return null;
@@ -191,7 +193,7 @@ async function tentarOpenRouter(p: { sistema: string; texto: string; json?: bool
   } catch (e) {
     registrarFalhaProvedor('openrouter', (e as Error)?.message || '');
     console.warn('[OPENROUTER] não respondeu:', (e as Error)?.message);
-    registrarChamadaIa(p.agente, 'openrouter', { ok: false });
+    registrarChamadaIa(p.agente, 'openrouter', { ok: false, erro: (e as Error)?.message || '', modelo: p.modelo });
     return null;
   }
 }
@@ -231,15 +233,16 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
       ...(p.json ? { text: { format: { type: 'json_object' } } } : {}),
     }),
     signal: AbortSignal.timeout(p.timeoutMs),
-  }).catch(e => { registrarChamadaIa(p.agente, fonte, { ok: false }); registrarFalhaProvedor(fonte, e?.message || 'sem resposta'); throw e; });
+  }).catch(e => { registrarChamadaIa(p.agente, fonte, { ok: false, erro: e?.message || 'sem resposta', modelo }); registrarFalhaProvedor(fonte, e?.message || 'sem resposta'); throw e; });
   if (!res.ok) {
-    registrarChamadaIa(p.agente, fonte, { ok: false });
-    const falha = (msg: string) => { registrarFalhaProvedor(fonte, msg); return new Error(msg); };
-    if (res.status === 401) throw falha('A chave da IA é inválida. Confira no servidor.');
-    if (res.status === 429) throw falha('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    const falha = (msg: string) => { registrarChamadaIa(p.agente, fonte, { ok: false, erro: msg, modelo }); registrarFalhaProvedor(fonte, msg); return new Error(msg); };
     // O motivo que a IA devolveu vai junto: "indisponível" sozinho escondia o pedido recusado (14/10/2026).
-    const motivo = await res.json().then((j: any) => j?.error?.code || j?.error?.message || '').catch(() => '');
-    throw falha(`IA indisponível (HTTP ${res.status}${motivo ? `: ${String(motivo).slice(0, 120)}` : ''}).`);
+    const motivo = String(await res.json().then((j: any) => j?.error?.code || j?.error?.type || j?.error?.message || '').catch(() => ''));
+    if (res.status === 401) throw falha(`A chave da IA é inválida. Confira no servidor.${motivo ? ` (${motivo.slice(0, 80)})` : ''}`);
+    // 429 com insufficient_quota é falta de crédito, não limite por minuto (separados em 12/11/2026).
+    if (res.status === 429 && /insufficient_quota/.test(motivo)) throw falha(`Sem crédito na ${fonte === 'grok' ? 'xAI' : 'OpenAI'} (insufficient_quota, HTTP 429).`);
+    if (res.status === 429) throw falha(`Limite de uso da IA atingido. Tente de novo em alguns minutos.${motivo ? ` (${motivo.slice(0, 80)})` : ''}`);
+    throw falha(`IA indisponível (HTTP ${res.status}${motivo ? `: ${motivo.slice(0, 120)}` : ''}).`);
   }
   const data = await res.json();
   const t = tokensDaResposta(data);
@@ -258,11 +261,11 @@ async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number
   form.append('language', 'pt');
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST', headers: { Authorization: `Bearer ${chaveOpenAI()}` }, body: form, signal: AbortSignal.timeout(timeoutMs),
-  }).catch(e => { registrarChamadaIa(agente, 'openai', { ok: false }); throw e; });
+  }).catch(e => { registrarChamadaIa(agente, 'openai', { ok: false, erro: e?.message || 'sem resposta', modelo }); throw e; });
   if (!res.ok) {
-    registrarChamadaIa(agente, 'openai', { ok: false });
-    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
-    throw new Error(`Transcrição indisponível (HTTP ${res.status}).`);
+    const msg = res.status === 429 ? 'Limite de uso da IA atingido. Tente de novo em alguns minutos.' : res.status === 401 ? 'A chave da IA é inválida. Confira no servidor.' : `Transcrição indisponível (HTTP ${res.status}).`;
+    registrarChamadaIa(agente, 'openai', { ok: false, erro: msg, modelo });
+    throw new Error(msg);
   }
   const data: any = await res.json();
   const t = tokensDaResposta(data);
@@ -313,15 +316,17 @@ async function chamarApiGeminiBruto(chave: string, p: { modelo: string; sistema:
       generationConfig: { temperature: p.temperatura ?? 0.3, ...(p.json && !p.busca ? { responseMimeType: 'application/json' } : {}) },
     }),
     signal: AbortSignal.timeout(p.timeoutMs),
-  }).catch(e => { registrarChamadaIa(p.agente, 'gemini', { ok: false }); throw e; });
+  }).catch(e => { registrarChamadaIa(p.agente, 'gemini', { ok: false, erro: e?.message || 'sem resposta', modelo: p.modelo }); throw e; });
   if (!res.ok) {
-    registrarChamadaIa(p.agente, 'gemini', { ok: false });
     const corpo = await res.text().catch(() => '');
-    if (res.status === 400 && /API key/i.test(corpo)) throw new Error('A chave da IA é inválida. Confira em Configurações.');
-    if (res.status === 429) throw new Error('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
+    const falha = (msg: string) => { registrarChamadaIa(p.agente, 'gemini', { ok: false, erro: msg, modelo: p.modelo }); return new Error(msg); };
+    if (res.status === 400 && /API key/i.test(corpo)) throw falha('A chave da IA é inválida. Confira em Configurações.');
+    if (res.status === 429) throw falha('Limite de uso da IA atingido. Tente de novo em alguns minutos.');
     // 402 = projeto do Google com cobrança pré-paga e sem crédito (a cota grátis só vale em projeto sem cobrança).
-    if (res.status === 402) throw new Error('Gemini sem crédito: a chave é de um projeto com cobrança pré-paga (HTTP 402).');
-    throw new Error(`IA indisponível (HTTP ${res.status}).`);
+    if (res.status === 402) throw falha('Gemini sem crédito: a chave é de um projeto com cobrança pré-paga (HTTP 402).');
+    let motivo = '';
+    try { const j = JSON.parse(corpo); motivo = String(j?.error?.status || j?.error?.message || ''); } catch { /* corpo sem JSON */ }
+    throw falha(`IA indisponível (HTTP ${res.status}${motivo ? `: ${motivo.slice(0, 120)}` : ''}).`);
   }
   const data: any = await res.json();
   const cand = data?.candidates?.[0];

@@ -51,7 +51,12 @@ export async function consumoDoMes(prisma: PrismaClient, agora = new Date()) {
   const previsao = Math.round((decorridos ? (brl / decorridos) * diasNoMes : 0) * 100) / 100;
   const teto = Number(tetoRow?.valor) || 0;
   for (const a of Object.values(porAgente)) a.brl = Math.round(a.brl * 100) / 100;
-  return { mes, brl, previsao, teto, ...situacaoTeto(brl, previsao, teto), por_dia: porDia, por_agente: porAgente, falhas_provedor: falhasProvedor, cotacao: cot.valor };
+  // Motivo de cada falha (gravado desde 12/11/2026), somado no mês, por agente.
+  const { errosIaPorDia } = await import('./uso-ia.service');
+  const { resumoErrosPorAgente } = await import('@/lib/ia-erros');
+  const diasDoMes = Array.from({ length: decorridos }, (_, i) => `${mes}-${String(i + 1).padStart(2, '0')}`);
+  const errosPorAgente = resumoErrosPorAgente((await errosIaPorDia(prisma, diasDoMes)).map(d => d.erros));
+  return { mes, brl, previsao, teto, ...situacaoTeto(brl, previsao, teto), por_dia: porDia, por_agente: porAgente, falhas_provedor: falhasProvedor, erros_por_agente: errosPorAgente, cotacao: cot.valor };
 }
 
 /** Aviso único por mês quando o gasto passa de 80% do teto (e outro quando estoura). */

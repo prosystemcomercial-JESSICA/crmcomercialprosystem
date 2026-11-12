@@ -4,7 +4,7 @@
 // WhatsApp a partir de 80%), chamadas e falhas por dia, estado de cada IA agora e quem consome mais.
 // O detalhe em reais por dia continua em Desempenho › IA.
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import type { AgenteTela, Consumo, Provedor } from './tipos';
 import { NOME_PROVEDOR, reais } from './tipos';
@@ -16,6 +16,8 @@ export default function ConsumoEscritorio({ c, provedores, agentes, onSalvo }: {
   const [teto, setTeto] = useState(c.teto ? String(c.teto) : '');
   const [msg, setMsg] = useState<string | null>(null);
   const [dica, setDica] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const salvar = async () => {
     const v = Number(teto.replace(/\./g, '').replace(',', '.')) || 0;
     try { const r = await apiClient.salvarTetoIa(v); setMsg(r.data?.message || 'Salvo.'); onSalvo(); }
@@ -98,10 +100,43 @@ export default function ConsumoEscritorio({ c, provedores, agentes, onSalvo }: {
           <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Quem mais consome no mês</b>
           <table className="esc-tabela">
             <thead><tr><th>Agente</th><th>Chamadas</th><th>Falhas</th><th>R$</th></tr></thead>
-            <tbody>{ranking.map(([id, v]) => (
-              <tr key={id}><td>{nome(id)}</td><td>{v.chamadas.toLocaleString('pt-BR')}</td><td style={{ color: v.falhas > v.chamadas / 4 ? '#dc2626' : undefined }}>{v.falhas.toLocaleString('pt-BR')}</td><td>{reais(v.brl)}</td></tr>
-            ))}</tbody>
+            <tbody>{ranking.map(([id, v]) => {
+              const motivos = c.erros_por_agente?.[id] || [];
+              const cor = v.falhas > v.chamadas / 4 ? '#dc2626' : undefined;
+              return (
+                <Fragment key={id}>
+                  <tr>
+                    <td>{nome(id)}</td><td>{v.chamadas.toLocaleString('pt-BR')}</td>
+                    <td>{v.falhas > 0 ? (
+                      <button type="button" aria-expanded={aberto === id} onClick={() => setAberto(aberto === id ? null : id)}
+                        title="Ver o motivo das falhas" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: cor || 'inherit', textDecoration: 'underline dotted', font: 'inherit' }}>
+                        {v.falhas.toLocaleString('pt-BR')}
+                      </button>
+                    ) : 0}</td>
+                    <td>{reais(v.brl)}</td>
+                  </tr>
+                  {aberto === id && (
+                    <tr><td colSpan={4} style={{ background: 'var(--t-content-bg)' }}>
+                      {motivos.length === 0 ? (
+                        <span style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>O motivo de cada falha passou a ser gravado em 12/11/2026. As falhas anteriores ficaram só no contador.</span>
+                      ) : (
+                        <ul style={{ display: 'grid', gap: 6, margin: 0, padding: 0, listStyle: 'none' }}>
+                          {motivos.map(m => (
+                            <li key={`${m.provedor}-${m.motivo}`} style={{ fontSize: 12, display: 'grid', gap: 1, minWidth: 0 }}>
+                              <span style={{ color: 'var(--t-text-primary)' }}><b>{m.n.toLocaleString('pt-BR')}×</b> {m.texto} · {NOME_PROVEDOR[m.provedor] || m.provedor}{m.modelo ? ` (${m.modelo})` : ''}</span>
+                              <span style={{ color: 'var(--t-text-muted)' }}>{m.dias > 1 ? `Em ${m.dias} dias, de ${dataHora(m.primeiro)} a ${dataHora(m.ultimo)}` : `De ${dataHora(m.primeiro)} a ${dataHora(m.ultimo)}`}</span>
+                              <span style={{ color: 'var(--t-text-muted)', overflowWrap: 'anywhere' }} title={m.exemplo}>Última mensagem: {m.exemplo}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td></tr>
+                  )}
+                </Fragment>
+              );
+            })}</tbody>
           </table>
+          <p style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 6 }}>Toque no número de falhas para ver o motivo.</p>
         </section>
         <section className="esc-cartao" aria-label="Falhas por IA">
           <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Falhas por IA (últimos dias)</b>

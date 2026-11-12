@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { somarPorAgente, usoAgenteVazio, type FonteAgente, type UsoAgente } from '@/lib/uso-ia-agentes';
 import { cotaGroqVazia, type CotaGroq } from '@/lib/ia-groq';
 import { custoUsd, tabelaDePrecos } from '@/lib/custo-ia';
+import { anotarErro, somarErros, type ErrosDoDia } from '@/lib/ia-erros';
 
 // Contador de uso das IAs por dia (OpenAI paga, Grok, Laya local grátis, Whisper local grátis). Conta em
 // memória e grava a cada rodada do agendador em ConfiguracaoIntegracao 'ia.uso.AAAA-MM-DD'.
@@ -21,11 +22,12 @@ export function registrarUsoIa(fonte: FonteIa) {
 }
 
 /** Uma requisição de um assistente: conta a fonte, a falha, os tokens gastos e, nas pagas, o custo em dólar. */
-export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: boolean; tokensEntrada?: number; tokensSaida?: number; modelo?: string }) {
+// `erro` (12/11/2026): na falha, o motivo vai para 'ia.erros.<dia>' (ver lib/ia-erros.ts).
+export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: boolean; tokensEntrada?: number; tokensSaida?: number; modelo?: string; erro?: string }) {
   const dia = hojeSP();
   const u = ((pendenteAgentes[dia] ||= {})[agente] ||= usoAgenteVazio());
   u[fonte]++;
-  if (!r.ok) u.falhas++;
+  if (!r.ok) { u.falhas++; registrarErroIa(agente, fonte, r.erro || 'sem detalhe', r.modelo); }
   u.tokens_entrada += r.tokensEntrada || 0;
   u.tokens_saida += r.tokensSaida || 0;
   if (fonte === 'groq') u.groq_tokens += (r.tokensEntrada || 0) + (r.tokensSaida || 0);
@@ -34,6 +36,19 @@ export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: 
     const usd = custoUsd(tabelaDePrecos(process.env), r.modelo, r.tokensEntrada || 0, r.tokensSaida || 0) || 0;
     if (fonte === 'openai') u.custo_openai_usd += usd; else u.custo_grok_usd += usd;
   }
+}
+
+// Motivos das falhas, por dia (12/11/2026). Só o motivo: não mexe nos contadores de chamadas e falhas,
+// por isso a falha do Groq (que nunca entrou no contador) também pode ser anotada aqui.
+const pendenteErros: Record<string, ErrosDoDia> = {};
+export function registrarErroIa(agente: string, provedor: string, erro: string, modelo?: string) {
+  const agora = new Date();
+  anotarErro((pendenteErros[hojeSP(agora)] ||= {}), agente, provedor, erro, agora, modelo);
+}
+/** Motivos de falha em cada dia pedido (AAAA-MM-DD), já com o que ainda está em memória. */
+export async function errosIaPorDia(prisma: PrismaClient, dias: string[]): Promise<{ dia: string; erros: ErrosDoDia }[]> {
+  const regs = new Map((await prisma.configuracaoIntegracao.findMany({ where: { chave: { in: dias.map(d => `ia.erros.${d}`) } } }).catch(() => [])).map(x => [x.chave.slice('ia.erros.'.length), x.valor]));
+  return dias.map(dia => ({ dia, erros: somarErros(lerJson(regs.get(dia)), pendenteErros[dia] || {}) }));
 }
 
 /** O Groq não deu conta (falhou, limite, pedido grande demais) e o pedido foi para a IA paga. */
@@ -76,6 +91,14 @@ export async function gravarUsoIa(prisma: PrismaClient) {
     const chave = `ia.agentes.${dia}`;
     const atual = await prisma.configuracaoIntegracao.findUnique({ where: { chave } }).catch(() => null);
     const valor = JSON.stringify(somarPorAgente(lerJson(atual?.valor), soma));
+    await prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: 'sistema' }, update: { valor } }).catch(() => {});
+  }
+  for (const dia of Object.keys(pendenteErros)) {
+    const soma = pendenteErros[dia];
+    delete pendenteErros[dia];
+    const chave = `ia.erros.${dia}`;
+    const atual = await prisma.configuracaoIntegracao.findUnique({ where: { chave } }).catch(() => null);
+    const valor = JSON.stringify(somarErros(lerJson(atual?.valor), soma));
     await prisma.configuracaoIntegracao.upsert({ where: { chave }, create: { chave, valor, updated_by: 'sistema' }, update: { valor } }).catch(() => {});
   }
   if (cotaGroqMudou) {

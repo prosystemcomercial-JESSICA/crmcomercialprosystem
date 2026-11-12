@@ -17,6 +17,8 @@ export type Consumo = {
   por_dia: { dia: string; chamadas: number; falhas: number; brl: number }[];
   por_agente: Record<string, { chamadas: number; falhas: number; brl: number }>;
   falhas_provedor: ({ dia: string } & Record<string, number | string>)[];
+  /** Motivos das falhas no mês, por agente (gravados desde 12/11/2026). */
+  erros_por_agente?: Record<string, { provedor: string; motivo: string; texto: string; n: number; primeiro: string; ultimo: string; exemplo: string; modelo?: string; dias: number }[]>;
   cotacao: number;
 };
 export type Painel = {

@@ -1684,3 +1684,13 @@ Vale para qualquer smartphone, com atenção aos iPhones 11 em diante.
 - **Teclado:** ao fechar o teclado, a tela volta sozinha para o topo.
 - **Portal Técnico no celular:** o cronômetro mostra o tempo e os botões ⏸ (pausar) e ▷ (outra atividade). Para voltar ao CRM, use **← CRM**, embaixo.
 - Se alguma tela ainda passar da borda ou esconder um botão, mande o print com o nome da tela.
+
+## Por que as IAs falharam (12/11/2026)
+
+No Escritório, em **Consumo de IA**, a tabela "Quem mais consome no mês" mostra quantas chamadas cada agente fez e quantas falharam. Agora o número de falhas é um botão: toque nele para ver o motivo.
+
+- Cada linha diz quantas vezes aconteceu, o motivo, qual IA e de quando a quando. Também traz a última mensagem de erro.
+- Motivos possíveis: chave recusada, sem crédito, limite de uso, IA demorou demais, IA respondeu vazio, modelo sem acesso, pedido recusado, IA fora do ar.
+- Uma falha nem sempre deixa o lead sem resposta: o sistema tenta a próxima IA da fila.
+- O registro dos motivos começou em 12/11/2026. As falhas anteriores aparecem só no número.
+- Chave recusada ou sem crédito precisa de ação: trocar a chave ou pôr crédito na conta da IA.

@@ -2310,3 +2310,11 @@ Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`
 Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
 
 - Barra de cima e barra de abas fixas nas bordas (padrão iOS): o sistema usa a cor delas na área da hora e na barrinha de início.
+
+### Atualização 12/11/2026 (6): motivo de cada falha das IAs registrado
+
+Pedido da Jessica, a partir do quadro Consumo de IA (56% das chamadas com falha no mês): "precisamos desses erros registrados para análises futuras". Até aqui só existia o contador de falhas por agente (`ia.agentes.<dia>.falhas`) e um log do servidor sem data.
+
+Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas eram da OpenAI paga com a **chave antiga recusada** (cerca de 3.900 erros "A chave da IA é inválida"), de 02 a 05/11, até a troca da chave em 05/11. Os mais atingidos foram o Julio (03 a 05/11), o Luiz Felipe (05/11) e a Sofia (02/11). Depois vieram "Limite de uso" da OpenAI (cerca de 2.100), tempo esgotado na OpenRouter grátis e "sem crédito" (HTTP 402) no Gemini grátis.
+
+- Tabela "Quem mais consome no mês": o número de falhas (maior que zero) é um botão sublinhado pontilhado, com `aria-expanded`. Ele abre uma linha abaixo do agente com um item por motivo: "**N×** motivo · IA (modelo)", o período ("Em X dias, de dd/mm hh:mm a dd/mm hh:mm") e "Última mensagem" com quebra de palavra (nada passa da borda no celular). Sem motivo gravado: aviso de que o registro começou em 12/11/2026. Nota abaixo da tabela: "Toque no número de falhas para ver o motivo."

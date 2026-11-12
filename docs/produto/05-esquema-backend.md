@@ -2317,3 +2317,12 @@ Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`
 Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
 
 - Só frontend; sem banco, rota ou serviço.
+
+### Atualização 12/11/2026 (6): motivo de cada falha das IAs registrado
+
+Pedido da Jessica, a partir do quadro Consumo de IA (56% das chamadas com falha no mês): "precisamos desses erros registrados para análises futuras". Até aqui só existia o contador de falhas por agente (`ia.agentes.<dia>.falhas`) e um log do servidor sem data.
+
+Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas eram da OpenAI paga com a **chave antiga recusada** (cerca de 3.900 erros "A chave da IA é inválida"), de 02 a 05/11, até a troca da chave em 05/11. Os mais atingidos foram o Julio (03 a 05/11), o Luiz Felipe (05/11) e a Sofia (02/11). Depois vieram "Limite de uso" da OpenAI (cerca de 2.100), tempo esgotado na OpenRouter grátis e "sem crédito" (HTTP 402) no Gemini grátis.
+
+- **Nova chave em `ConfiguracaoIntegracao`:** `ia.erros.<AAAA-MM-DD>` = `{ agente: { provedor: { motivo: { n, primeiro, ultimo, exemplo, modelo?, horas: { 'HH': n } } } } }` (horas no horário de Brasília; exemplo com até 200 caracteres). Sem mudança no schema do Prisma.
+- **`consumoDoMes`** (painel do Escritório) devolve `erros_por_agente: { agente: [{ provedor, motivo, texto, n, primeiro, ultimo, exemplo, modelo, dias }] }`, do motivo mais frequente para o menos.

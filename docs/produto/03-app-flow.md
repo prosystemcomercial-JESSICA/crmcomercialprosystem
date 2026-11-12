@@ -2344,3 +2344,11 @@ Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`
 Pedido da Jessica, com print: no app da tela de início a barra de cima aparecia "apagada", com um véu branco por cima ("preciso que seja como um app de iPhone de fato"). Causa: o iOS 26 (Safari 26) só pinta a área da hora com a cor de um elemento **fixo** encostado na borda de cima; a barra do CRM era um item comum da moldura, então o sistema aplicava o esmaecido de borda sobre ela.
 
 - Sem mudança de fluxo; a barra de cima continua no lugar ao rolar.
+
+### Atualização 12/11/2026 (6): motivo de cada falha das IAs registrado
+
+Pedido da Jessica, a partir do quadro Consumo de IA (56% das chamadas com falha no mês): "precisamos desses erros registrados para análises futuras". Até aqui só existia o contador de falhas por agente (`ia.agentes.<dia>.falhas`) e um log do servidor sem data.
+
+Diagnóstico de novembro (lido na produção em 12/11): quase todas as falhas eram da OpenAI paga com a **chave antiga recusada** (cerca de 3.900 erros "A chave da IA é inválida"), de 02 a 05/11, até a troca da chave em 05/11. Os mais atingidos foram o Julio (03 a 05/11), o Luiz Felipe (05/11) e a Sofia (02/11). Depois vieram "Limite de uso" da OpenAI (cerca de 2.100), tempo esgotado na OpenRouter grátis e "sem crédito" (HTTP 402) no Gemini grátis.
+
+- Fluxo: IA falha → `registrarChamadaIa({ ok: false, erro, modelo })` → memória → o agendador grava `ia.erros.<dia>` → o painel do Escritório (`consumoDoMes`) devolve `erros_por_agente` → na tabela "Quem mais consome", tocar no número de falhas abre a lista de motivos (IA, modelo, de quando a quando, última mensagem).
