@@ -24,6 +24,7 @@ type Item = { id: string; contato: string; desde: string; responsavel: string; n
 type Qualificado = { id: string; contato: string; por: string; em: string };
 type Movimento = { id: string; direcao: 'ENTRADA' | 'SAIDA'; quem: string | null; agente: boolean; contato: string; texto: string; em: string; proposta?: { status: string; abriu_agora: boolean } | null };
 type EventoProposta = { id: string; tipo: string; status: string; em: string; cliente: string; plano: string | null; por: string | null; mensalidade?: number | null; implantacao?: number | null; teste?: boolean };
+type ContratoGerado = { id: string; numero: string; cliente: string; plano: string | null; em: string | null };
 type Conversa = { id: string; agente: string; contato: string; temperatura: string | null; nota: number | null; em: string };
 type Tom = 'bad' | 'warn' | 'ok';
 type Destaque = { tom: Tom; titulo: string; contato: string; detalhe: string };
@@ -84,6 +85,13 @@ function Fogos() {
     </div>))}</div>;
 }
 
+// Contrato gerado pela Marta: arpejo subindo duas vezes e um acorde final.
+const somContratoGerado = (ctx: AudioContext) => tocar(ctx, [
+  { f: 523, t: 0, d: 0.25 }, { f: 659, t: 0.12, d: 0.25 }, { f: 784, t: 0.24, d: 0.3 },
+  { f: 659, t: 0.6, d: 0.25 }, { f: 784, t: 0.72, d: 0.25 }, { f: 1047, t: 0.84, d: 0.4 },
+  { f: 523, t: 1.3, d: 1.2 }, { f: 784, t: 1.3, d: 1.2 }, { f: 1047, t: 1.3, d: 1.2 }, { f: 1319, t: 1.3, d: 1.2 },
+], 'triangle', 0.22);
+
 const somQualificado = (ctx: AudioContext) => tocar(ctx, [{ f: 523, t: 0, d: 0.35 }, { f: 659, t: 0.15, d: 0.35 }, { f: 784, t: 0.3, d: 0.35 }, { f: 1047, t: 0.45, d: 0.7 }], 'sine', 0.3);
 
 export default function TvEscritorioPage() {
@@ -96,6 +104,7 @@ export default function TvEscritorioPage() {
   const [som, setSom] = useState(false);
   const [aviso, setAviso] = useState<{ tom: Tom; titulo: string; texto: string } | null>(null);
   const [festa, setFesta] = useState<EventoProposta | null>(null);
+  const [gerado, setGerado] = useState<ContratoGerado | null>(null);
   const [novos, setNovos] = useState<Set<string>>(new Set());
   // Tema: escuro (padrão) ou claro. ?tema=claro|escuro ou o botão no topo (fica salvo nesta TV).
   const [tema, setTema] = useState<'escuro' | 'claro'>('escuro');
@@ -182,8 +191,9 @@ export default function TvEscritorioPage() {
         const alertas: Item[] = [...d.esperando.lista, ...d.sumiram.lista];
         const quals: Qualificado[] = d.qualificados;
         const evProp: EventoProposta[] = d.propostas?.eventos || [];
+        const gerados: ContratoGerado[] = d.contratos_gerados || [];
         const ids = [
-          ...alertas.map(a => `a:${a.id}`), ...quals.map(q => `q:${q.id}`), ...evProp.map(e => `p:${e.id}`),
+          ...alertas.map(a => `a:${a.id}`), ...quals.map(q => `q:${q.id}`), ...evProp.map(e => `p:${e.id}`), ...gerados.map(g => `g:${g.id}`),
           ...(d.movimentos as Movimento[]).map(m => `m:${m.id}`),
         ];
         const vistos = vistosRef.current;
@@ -193,6 +203,11 @@ export default function TvEscritorioPage() {
           const aceitou = evProp.find(e => ['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) && !vistos.has(`p:${e.id}`));
           const aNovos = alertas.filter(a => !vistos.has(`a:${a.id}`));
           const ctx = ctxRef.current;
+          const novoGerado = gerados.find(g => !vistos.has(`g:${g.id}`));
+          if (novoGerado) {
+            if (ctx) { ctx.resume().catch(() => {}); somContratoGerado(ctx); }
+            setGerado(novoGerado);
+          }
           // Cada contrato fechado entra na fila de comemoração (uma por cliente; aceita → contrato em geração não repete).
           for (const e of evProp) {
             if (!['ACEITA', 'CONTRATO_EM_GERACAO'].includes(e.status) || vistos.has(`p:${e.id}`) || festejadosRef.current.has(e.cliente)) continue;
@@ -261,6 +276,12 @@ export default function TvEscritorioPage() {
   }, [festa]);
 
   useEffect(() => {
+    if (!gerado) return;
+    const t = setTimeout(() => setGerado(null), 7_000);
+    return () => clearTimeout(t);
+  }, [gerado]);
+
+  useEffect(() => {
     if (!aviso) return;
     const t = setTimeout(() => setAviso(null), 12_000);
     return () => clearTimeout(t);
@@ -309,6 +330,16 @@ export default function TvEscritorioPage() {
               <div className="festa-nome">{festa.cliente}</div>
               {festa.mensalidade ? <div className="festa-valor">{brl(festa.mensalidade)}<small>/mês</small></div> : null}
               <div className="festa-det">{[festa.plano && `Plano ${festa.plano}`, festa.implantacao && `implantação ${brl(festa.implantacao)}`, festa.por && `por ${festa.por}`].filter(Boolean).join(' · ')}</div>
+            </div>
+          </div>
+        )}
+        {gerado && !festa && (
+          <div className="festa" onClick={() => setGerado(null)}>
+            <div className="festa-card gerado-card">
+              <div className="festa-emoji">📄✍️</div>
+              <div className="festa-rot">Contrato gerado</div>
+              <div className="festa-nome">{gerado.cliente}</div>
+              <div className="festa-det">{[`Nº ${gerado.numero}`, gerado.plano && `Plano ${gerado.plano}`, 'pronto para revisar e enviar'].filter(Boolean).join(' · ')}</div>
             </div>
           </div>
         )}
@@ -744,6 +775,7 @@ const CSS = `
 .festa { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(0,0,0,.72); animation: festaIn .4s ease-out; }
 .festa-card { position: relative; z-index: 2; text-align: center; padding: 48px 72px; border-radius: 28px; background: linear-gradient(135deg, #14532d, #065f46 60%, #0f766e); color: #fff; box-shadow: 0 0 0 4px #facc15, 0 30px 120px rgba(250,204,21,.45); animation: festaPop .7s cubic-bezier(.2,1.6,.4,1); }
 .festa-emoji { font-size: 64px; }
+.gerado-card { background: linear-gradient(135deg, #1e3a8a, #1d4ed8 60%, #2563eb); box-shadow: 0 0 0 4px #93c5fd, 0 30px 120px rgba(147,197,253,.45); }
 .festa-rot { font-size: 28px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #fde68a; }
 .festa-nome { font-size: 64px; font-weight: 900; line-height: 1.1; margin: 10px 0; }
 .festa-valor { font-size: 80px; font-weight: 900; color: #facc15; font-variant-numeric: tabular-nums; }

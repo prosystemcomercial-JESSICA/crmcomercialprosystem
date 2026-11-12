@@ -1652,6 +1652,7 @@ $L
 - Se a Marta completar algum dado na hora em que você clicar, o envio é segurado uma vez para você conferir. É só clicar de novo.
 - Botão **Conferir com a Marta** (12/11/2026): no contrato ainda não enviado, peça a conferência quando quiser. Ela completa pela Receita o que estiver vazio e mostra o que ainda falta. O botão não envia nada para o cliente.
 - **Baixar PDF** (12/11/2026): o contrato vai direto para a pasta **Downloads** com o nome `Contrato_56_2026 RAZÃO SOCIAL.pdf` (número do contrato e razão social da empresa). O documento enviado à ZapSign usa o mesmo nome.
+- **Contrato gerado** (12/11/2026): quando a Marta termina de conferir e não falta nada, o contrato passa sozinho de **A gerar** para **Gerado**. Na hora aparece um aviso grande no CRM e na TV do Escritório, com som, por 7 segundos. Depois é só revisar e clicar em **Enviar para assinatura**.
 
 ## Escritório: tela cheia, visitas, conversas e temas de feriado (11/11/2026)
 

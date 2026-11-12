@@ -303,6 +303,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
     } catch {}
   };
+  // ── Aviso grande: a Marta gerou um contrato (fica 7 s na tela, com som) ───
+  const [avisoContrato, setAvisoContrato] = useState<{ titulo: string; cliente: string; detalhe: string } | null>(null);
+  const tocarSomContrato = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Mesmo som da TV: arpejo subindo duas vezes e um acorde final.
+      [[523, 0, 0.25], [659, 0.12, 0.25], [784, 0.24, 0.3], [659, 0.6, 0.25], [784, 0.72, 0.25], [1047, 0.84, 0.4],
+        [523, 1.3, 1.2], [784, 1.3, 1.2], [1047, 1.3, 1.2], [1319, 1.3, 1.2]].forEach(([f, t, d]) => {
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        const t0 = ctx.currentTime + t;
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+        o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + d + 0.05);
+      });
+    } catch {}
+  };
+  useEffect(() => {
+    if (!avisoContrato) return;
+    const t = setTimeout(() => setAvisoContrato(null), 7_000);
+    return () => clearTimeout(t);
+  }, [avisoContrato]);
+
   useEffect(() => {
     if (!user) return;
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
@@ -312,6 +335,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     es.onmessage = (ev) => {
       try {
         const e = JSON.parse(ev.data);
+        if (e.tipo === 'contrato_gerado') {
+          tocarSomContrato();
+          setAvisoContrato({ titulo: e.titulo, cliente: e.cliente, detalhe: e.detalhe });
+          return;
+        }
         if (e.tipo !== 'lead_qualificado') return;
         tocarAlarmeLead();
         setAvisoLead({ titulo: e.titulo, detalhe: e.detalhe, alerta: e.alerta || null });
@@ -800,6 +828,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <FolhaMaisIOS aberta={maisAberto} onFechar={() => setMaisAberto(false)} grupos={gruposVisiveis} pathname={pathname} ceo={(user?.role || '').toUpperCase() === 'CEO'}
         onAbrirExterno={(i) => { setMaisAberto(false); abrirExterno(i as NavItem); }} />
 
+      {avisoContrato && (
+        <div className="fixed inset-0 z-[70] grid place-items-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setAvisoContrato(null)} role="alertdialog" aria-live="assertive" aria-label={avisoContrato.titulo}>
+          <div className="w-full max-w-lg rounded-2xl text-center text-white px-8 py-10 shadow-2xl"
+            style={{ background: 'linear-gradient(135deg, #1e3a8a, #2563eb)', boxShadow: '0 0 0 4px #93c5fd, 0 30px 80px rgba(37,99,235,0.45)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="text-5xl">📄✍️</div>
+            <p className="mt-3 text-sm font-extrabold uppercase tracking-widest text-blue-100">{avisoContrato.titulo}</p>
+            <p className="mt-2 text-3xl font-black leading-tight">{avisoContrato.cliente}</p>
+            <p className="mt-2 text-sm text-blue-100">{avisoContrato.detalhe}</p>
+            <div className="mt-6 flex justify-center gap-2">
+              <button onClick={() => { setAvisoContrato(null); router.push('/contratos'); }}
+                className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-blue-800">Abrir Contratos</button>
+              <button onClick={() => setAvisoContrato(null)}
+                className="rounded-lg border border-white/60 px-5 py-2 text-sm font-bold text-white">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {avisoLead && (
         <div className="fixed bottom-5 right-5 z-[60] w-80 rounded-xl shadow-2xl border border-emerald-200 bg-white p-4">
           <div className="flex items-start justify-between gap-2">

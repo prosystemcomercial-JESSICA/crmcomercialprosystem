@@ -41,6 +41,20 @@ export async function completarContrato(prisma: PrismaClient, id: string) {
     if (preenchidos.length) c = await prisma.contratoComercial.update({ where: { id }, data: dados as any });
   }
   const pendencias = pendenciasContrato(c);
+  // Marta concluiu sem pendência: o contrato vai para a coluna Gerado e a gestão é avisada (aviso grande no CRM + TV).
+  // updateMany com status A_GERAR: duas conferências ao mesmo tempo não avisam duas vezes.
+  if (c.status === 'A_GERAR' && !pendencias.length) {
+    const mudou = await prisma.contratoComercial.updateMany({ where: { id, status: 'A_GERAR' }, data: { status: 'GERADO', gerado_at: new Date() } });
+    if (mudou.count) {
+      c = (await prisma.contratoComercial.findUnique({ where: { id } }))!;
+      // Dono que não existe: o evento chega só a quem vê tudo (gestão).
+      emitirEventoConversa('gestao', 'contrato_gerado', {
+        titulo: 'Contrato gerado',
+        cliente: (c.nome_fantasia || c.razao_social || 'Cliente').trim(),
+        detalhe: `Nº ${c.numero_contrato}${c.plano_contratado ? ` · plano ${c.plano_contratado}` : ''} · pronto para você revisar e enviar`,
+      });
+    }
+  }
   registrarAcaoAgente('marta', `conferiu o contrato ${c.numero_contrato}: ${pendencias.length ? `faltam ${pendencias.length} dado(s)` : 'pronto para revisar'}`);
   return { contrato: c, pendencias, preenchidos };
 }

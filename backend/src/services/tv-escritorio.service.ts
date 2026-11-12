@@ -184,6 +184,15 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     })), ...comemoracoesTeste.filter(c => agora.getTime() - new Date(c.em).getTime() < 3 * 60_000)],
   };
 
+  // Contratos que a Marta gerou hoje (a TV mostra um aviso grande com som a cada novo).
+  const contratosGerados = (await prisma.contratoComercial.findMany({
+    where: { status: 'GERADO', gerado_at: hoje }, orderBy: { gerado_at: 'desc' }, take: 10,
+    select: { id: true, numero_contrato: true, razao_social: true, nome_fantasia: true, plano_contratado: true, gerado_at: true },
+  }).catch(() => [])).map(c => ({
+    id: c.id, numero: c.numero_contrato, cliente: (c.nome_fantasia || c.razao_social || 'Cliente').trim(),
+    plano: c.plano_contratado || null, em: c.gerado_at?.toISOString() || null,
+  }));
+
   const movimentos = msgs.map(m => {
     const quem = m.direcao === 'ENTRADA' ? null
       : REMETENTE[m.enviada_por || ''] || (m.enviada_por && nomeUsuario.get(m.enviada_por)) || 'Equipe (celular)';
@@ -219,7 +228,7 @@ export async function montarTvEscritorio(prisma: PrismaClient, agora = new Date(
     sumiram: { total: sumiram.length, lista: sumiram.slice(0, 12) },
     qualificados,
     aprovacoes: { mensagens: msgsParaAprovar, documentos: docsParaAprovar },
-    feed, movimentos, conversando, propostas,
+    feed, movimentos, conversando, propostas, contratos_gerados: contratosGerados,
     laya: await import('./laya-caderno.service').then(async m => { const r = await m.resumoCaderno(prisma); return { tarefas: r.tarefas, total: r.total, cerebro: r.cerebro }; }).catch(() => null),
     retencao: await montarRetencaoTv(prisma, agora).catch((e: any) => { console.warn('[TV] retenção:', e?.message); return null; }),
     captacao: await import('./tv-captacao.service').then(m => m.montarCaptacao(prisma, agora)).catch((e: any) => { console.warn('[TV] captação:', e?.message); return null; }),

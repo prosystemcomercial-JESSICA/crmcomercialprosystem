@@ -2269,3 +2269,10 @@ Pedido da Jessica: "quem define a prioridade é a Laya"; cliente que responde co
 - **Download direto:** a rota do PDF responde `Content-Disposition: attachment` (antes `inline`). O botão "Baixar PDF" salva o arquivo na pasta Downloads do computador em vez de abrir uma aba. Acentos vão em `filename*` (RFC 5987).
 - **Provisório:** pedido da Jessica, "por enquanto" vai para Downloads; depois será estruturado um lugar para guardar os arquivos e as informações do cliente.
 - **Teste:** `backend/tests/contrato-assinatura.test.ts` (9 passando). **Banco:** sem mudança.
+
+### Atualização 12/11/2026: contrato gerado pela Marta vai para a coluna Gerado, com aviso grande na TV e no CRM
+
+- **Regra:** quando a conferência da Marta (`completarContrato`, em `backend/src/services/contrato-assinatura.service.ts`) termina sem pendências e o contrato está em **A gerar**, ele passa para **Gerado** (`status = GERADO`, `gerado_at` = agora). A troca usa `updateMany` com `status = A_GERAR`, então duas conferências ao mesmo tempo não avisam duas vezes. Vale para todo lugar que chama a conferência: criação do contrato, dados de quem assina recebidos no WhatsApp e botão "Conferir com a Marta". Contrato em Pendente de correção não muda sozinho.
+- **Aviso no CRM:** evento `contrato_gerado` no canal de eventos (`/whatsapp/eventos`), entregue só a quem vê tudo (gestão). O `DashboardLayout` mostra um cartão grande no centro da tela (cliente, número, plano), toca um som próprio (arpejo subindo duas vezes e acorde final) e fecha sozinho em **7 segundos**. Tem os botões "Abrir Contratos" e "Fechar".
+- **Aviso na TV do Escritório:** `GET /painel-tv/escritorio` passa a trazer `contratos_gerados` (status Gerado, gerado hoje, até 10). Cada contrato novo desde a última busca mostra um aviso grande azul "Contrato gerado" com o mesmo som, por **7 segundos**. Se uma comemoração de contrato fechado estiver na tela, ela tem a vez.
+- **Não envia nada:** o envio à ZapSign continua com a gestora. **Banco:** sem mudança.

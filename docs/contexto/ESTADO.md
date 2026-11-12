@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (contrato gerado vai para Gerado, com aviso):** a pedido da Jessica, quando a conferência da Marta termina sem pendências, o contrato em A gerar passa para Gerado e a gestão recebe um aviso grande com som, por 7 segundos, no CRM (evento `contrato_gerado`) e na TV do Escritório (`contratos_gerados`). Teste combinado: o contrato 56/2026 (GARCIA E PERON) está em A gerar e sem pendências; depois de publicar, com a TV e o CRM abertos, clicar em "Conferir com a Marta" nele dispara os dois avisos.
+
 - **12/11/2026 (nome padrão do contrato e download direto):** a pedido da Jessica, o PDF do contrato sai como `Contrato_56_2026 GARCIA E PERON LTDA.pdf` (regra única `nomeArquivoContrato`, usada também no título do PDF e no nome do documento na ZapSign) e o "Baixar PDF" salva direto na pasta Downloads (`attachment`). Provisório: depois ela quer estruturar um lugar para guardar os arquivos e as informações do cliente.
 
 - **12/11/2026 (botão "Conferir com a Marta" publicado):** o contrato ainda não enviado ganhou o botão roxo "Conferir com a Marta" em Contratos (rota `POST /contratos-comerciais/:id/conferir`, que reaproveita `completarContrato`). Completa pela Receita só o que está vazio e mostra o que falta; não gera PDF nem envia. Antes disso o disco C: chegou a 0 MB e o ESTADO.md ficou vazio; foi restaurado do Git e foram apagados só caches (`frontend/.next`, cache do npm, `backend/node_modules/.cache`). O perfil dos agentes ficou com outra sessão.
