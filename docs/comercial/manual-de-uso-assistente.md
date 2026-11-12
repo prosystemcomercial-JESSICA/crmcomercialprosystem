@@ -497,7 +497,7 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - `POST /assistente/aprovacoes/:id/negociacao` com {pct: 0 | 20 | 30}
 - **Quem dispara notificação:**
   - `enviarAvisoGestao`: todo aviso que vai pelo WhatsApp da gestão também vira notificação. Abre /aprovar quando o texto fala de aprovação ou autorização; senão, /whatsapp.
-  - `pedirAutorizacaoNegociacao`: "🙋 Luiz Felipe pede autorização de campanha", abrindo /aprovar.
+  - `pedirAutorizacaoNegociacao`: "🙋 Luiz Felipe pede autorização de campanha", abrindo /aprovar. **Desde 12/11/2026 não é mais enviado:** quem decide é o Rafael; a gestão recebe "🧑‍💼 Rafael autorizou a campanha…" ou "…decidiu sem campanha".
   - `lembrarResponsavelDemo`: "⏰ Demonstração às HH:MM", abrindo /atividades.
 - **Negociação:** `decidirNegociacao` foi separada de `responderAutorizacaoNegociacao` e é usada pelos botões do WhatsApp e pela tela Aprovar. A mensagem pendente guarda `negociacao: true` no meta.
 - **Frontend:**

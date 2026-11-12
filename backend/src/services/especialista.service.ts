@@ -437,17 +437,30 @@ export async function transferirConhecimento(prisma: PrismaClient, foco: { titul
   }
 }
 
+/** Registro do CRM de uma conversa, para o Rafael não perguntar à Jessica o que já está gravado (12/11/2026). */
+async function registroCrm(prisma: PrismaClient, l: { dados: any; proposta_id: string | null }): Promise<string> {
+  const { textoRegistroCampanha } = await import('@/lib/assistente/negociacao');
+  const p = l.proposta_id
+    ? await prisma.propostaComercial.findUnique({ where: { id: l.proposta_id }, select: { plano_selecionado: true, valor_final: true, status: true, validade: true, condicao_especial: true } }).catch(() => null)
+    : null;
+  const dia = (d: Date) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const proposta = p
+    ? `Proposta: plano ${p.plano_selecionado || '—'}, total R$ ${p.valor_final ?? '—'}, status ${p.status}${p.validade ? `, validade ${dia(p.validade)}` : ''}${p.condicao_especial ? `, condição: ${p.condicao_especial.slice(0, 200)}` : ''}.`
+    : 'Sem proposta no CRM.';
+  return `REGISTRO DO CRM: ${textoRegistroCampanha(l.dados)} ${proposta}`;
+}
+
 export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe', opts: { foco?: { titulo: string; conteudo: string }[] } = {}) {
   const nome = NOME_AGENTE[agente] || agente;
   const desde = new Date(Date.now() - 14 * 864e5);
-  const leads = await prisma.sdrLead.findMany({ where: { agente, updated_at: { gte: desde } }, orderBy: { updated_at: 'desc' }, take: 25, select: { conversaId: true, nome: true, empresa: true, status: true } });
+  const leads = await prisma.sdrLead.findMany({ where: { agente, updated_at: { gte: desde } }, orderBy: { updated_at: 'desc' }, take: 25, select: { conversaId: true, nome: true, empresa: true, status: true, dados: true, proposta_id: true } });
   const conversas: string[] = [];
   for (const l of leads) {
     if (conversas.length >= 12 || !l.conversaId) continue;
     const ms = await prisma.whatsappMensagem.findMany({ where: { conversaId: l.conversaId }, orderBy: { created_at: 'desc' }, take: 18, select: { direcao: true, enviada_por: true, conteudo: true, transcricao: true, tipo: true, created_at: true } });
     if (!ms.some(m => m.enviada_por === agente)) continue;
     const linhas = ms.reverse().map(m => `[${m.created_at.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}] ${m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === agente ? nome : AUTOMATICOS.includes(m.enviada_por || '') ? `Sistema(${m.enviada_por})` : 'Equipe'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 280)}`);
-    conversas.push(`### ${l.empresa || l.nome || 'cliente'} (status ${l.status})\n${linhas.join('\n')}`);
+    conversas.push(`### ${l.empresa || l.nome || 'cliente'} (status ${l.status})\n${await registroCrm(prisma, l)}\n${linhas.join('\n')}`);
   }
   if (!conversas.length && !opts.foco?.length) { registrarAcaoAgente('rafael', `não achou conversas recentes do ${nome} para treinar`); return null; }
   const { instrucoesPara } = await import('./agentes-conversa.service');
@@ -459,6 +472,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
     `Crie também um DIÁLOGO de treinamento entre você (Rafael) e o ${nome}, de 10 a 14 falas, natural e respeitoso, como numa reunião 1:1 no escritório: você mostra um caso, ele reconhece, pergunta, você orienta, ele reescreve a mensagem e você valida. O ${nome} fala em primeira pessoa como agente.`,
     'Por fim, consolide as REGRAS que ele deve seguir a partir de agora (6 a 12, curtas e verificáveis), mantendo as regras atuais que continuam valendo.',
     'Se faltar informação para orientar algo (produto, mercado, regra), liste em "pesquisar" (máximo 2 perguntas objetivas) em vez de inventar.',
+    'O que aconteceu numa conversa (campanha oferecida, desconto, validade, proposta, quem autorizou) está no REGISTRO DO CRM no topo de cada conversa: consulte ali e NUNCA coloque isso em "pesquisar" nem pergunte à Jessica. A campanha de fim de mês é a mesma condição enviada a todos e você tem autonomia para avaliá-la e orientar os agentes sobre a continuidade (12/11/2026). Se o registro mostrar campanha sem autorização ou vencida, trate como erro do agente e oriente a correção.',
     'Responda APENAS com JSON: {"resumo": string, "nota_antes": 0-10, "pontos_fortes": [string], "problemas": [{"problema": string, "exemplo_real": string, "por_que": string, "como_fazer": string, "mensagem_melhor": string}], "regras": [string], "dialogo": [{"quem": "rafael"|"agente", "texto": string}], "pesquisar": [string]}',
     regrasAtuais ? `\nRegras atuais do agente:${regrasAtuais}` : '',
     pops.length ? `\nMaterial aprovado do setor (use como referência):\n${pops.map(x => `## ${x.titulo}\n${x.conteudo.slice(0, 1500)}`).join('\n\n')}` : '',
@@ -511,6 +525,7 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
       `Um cliente (ou a equipe) perguntou e nenhum agente soube responder: "${q}". Origem: ${origem}.`,
       'Pesquise e escreva a resposta que os agentes podem dar pelo WhatsApp, para farmácias/padarias. Se for sobre o PRODUTO Prosystem e você não achar fonte confiável, NÃO invente: diga o que a equipe precisa confirmar.',
       'Responda APENAS com JSON: {"titulo": string (curto, começando com "Resposta: "), "conteudo": string (markdown: resposta curta pronta para o WhatsApp + explicação + o que confirmar com a equipe, se houver), "perguntas_para_jessica": [string] (até 2 perguntas objetivas para a Jessica, a gestora, sobre o que SÓ ELA pode confirmar: recurso do produto Prosystem, preço, prazo, regra da casa; respondíveis em 1 a 3 frases; lista vazia se a pesquisa resolveu)}',
+      'NUNCA pergunte à Jessica o que aconteceu numa conversa ou cliente específico (campanha oferecida, condição, validade, proposta, registro de aprovação): isso está no CRM e é você quem consulta. A campanha de fim de mês (mesma condição para todos) é decisão sua; avalie e oriente os agentes.',
     ].join('\n'),
     timeoutMs: 180_000,
   });

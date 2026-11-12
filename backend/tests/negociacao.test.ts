@@ -20,3 +20,15 @@ describe('negociação (campanha com autorização)', () => {
     expect(menuNegociacao('m1', t).opcoes.map(o => o.id)).toEqual(['neg_30_m1', 'neg_20_m1', 'neg_0_m1']);
   });
 });
+
+describe('registro da campanha para o Rafael (12/11/2026)', () => {
+  it('autorizada, recusada ou inexistente', async () => {
+    const { textoRegistroCampanha } = await import('../src/lib/assistente/negociacao');
+    const em = '2026-11-10T13:00:00.000Z';
+    const c = { ...calcularCondicao(20, 1000, 200), por: 'Rafael', em };
+    expect(textoRegistroCampanha({ desconto_autorizado: c }, new Date('2026-11-12T12:00:00Z'))).toMatch(/AUTORIZADA por Rafael em 10\/11: 20%.*válida até 15\/11 \(vigente\)/);
+    expect(textoRegistroCampanha({ desconto_autorizado: c }, new Date('2026-11-20T12:00:00Z'))).toMatch(/VENCIDA/);
+    expect(textoRegistroCampanha({ campanha_recusada: true, campanha_mes: '2026-11' })).toMatch(/NÃO autorizada/);
+    expect(textoRegistroCampanha(null)).toMatch(/Nenhuma campanha autorizada/);
+  });
+});

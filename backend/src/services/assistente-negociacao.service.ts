@@ -25,8 +25,19 @@ async function propostaDo(prisma: PrismaClient, sdr: any) {
   return sdr.proposta_id ? prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: SELECT }) : null;
 }
 
-/** Envia para a gestão (quem recebe avisos de lead) a prévia da proposta + a mensagem + botões de desconto. */
-export async function pedirAutorizacaoNegociacao(prisma: PrismaClient, sdr: any, msg: { id: string; texto: string }, agente: string) {
+/**
+ * Pedido de autorização da campanha. Desde 12/11/2026 quem decide é o Rafael (services/rafael-aprovador),
+ * com as mesmas opções dos botões; a gestão recebe o aviso do que ele decidiu. A tela "Aprovar" continua
+ * mostrando a pendente enquanto ele não decide, então a Jessica ainda pode decidir antes, se quiser.
+ */
+export async function pedirAutorizacaoNegociacao(prisma: PrismaClient, _sdr: any, msg: { id: string; texto: string }, _agente: string) {
+  setTimeout(() => {
+    import('./rafael-aprovador.service').then(m => m.rafaelRevisarPendentes(prisma, msg.id)).catch((e: any) => console.warn('[RAFAEL] campanha:', e?.message));
+  }, 3000);
+}
+
+/** Pedido antigo para a gestão (prévia da proposta + a mensagem + botões de desconto). Não é mais chamado; fica para voltar atrás. */
+export async function pedirAutorizacaoNegociacaoGestao(prisma: PrismaClient, sdr: any, msg: { id: string; texto: string }, agente: string) {
   const inst = await obterInstanciaEmpresa(prisma);
   if (!inst?.instance_token) return;
   const p = await propostaDo(prisma, sdr);

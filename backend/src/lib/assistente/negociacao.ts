@@ -96,3 +96,18 @@ export function textoCondicaoAplicada(c: CondicaoAutorizada): string {
     `Condição válida por ${VALIDADE_CAMPANHA_DIAS} dias, até ${ateData(c)}.`,
   ].join('\n');
 }
+
+/**
+ * Registro da campanha no CRM (dados do SdrLead), em uma frase, para o Rafael ler no treino em vez de
+ * perguntar à Jessica "onde está o registro de aprovação" (12/11/2026).
+ */
+export function textoRegistroCampanha(dados: any, agora = new Date()): string {
+  const d = dados && typeof dados === 'object' ? dados : {};
+  const c: CondicaoAutorizada | undefined = d.desconto_autorizado;
+  if (c?.impl_pct) {
+    const em = c.em ? new Date(c.em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : 'data não gravada';
+    return `Campanha AUTORIZADA por ${c.por || 'gestão'} em ${em}: ${c.impl_pct}% na implantação e ${c.mens_pct}% na mensalidade por ${c.meses} meses, válida até ${ateData(c)} (${campanhaVigente(c, agora) ? 'vigente' : 'VENCIDA'}).`;
+  }
+  if (d.campanha_recusada) return `Campanha NÃO autorizada (${d.campanha_mes || 'mês não gravado'}): o agente só pede a previsão de decisão.`;
+  return 'Nenhuma campanha autorizada para este cliente: se o agente ofereceu desconto ou prazo de campanha, ofereceu sem autorização.';
+}

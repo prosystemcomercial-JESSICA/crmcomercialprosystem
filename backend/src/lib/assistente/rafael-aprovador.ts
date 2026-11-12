@@ -9,9 +9,28 @@ export const REESCRITAS_MAX = 2;
 
 export type DecisaoRafael = { decisao: 'aprovar' | 'editar' | 'descartar'; texto: string | null; motivo: string };
 
-/** Só a autorização de campanha/revisão de proposta (preço) continua com a Jessica. */
-export function rafaelRevisa(meta: { negociacao?: boolean } | null | undefined): boolean {
-  return !meta?.negociacao;
+/**
+ * Desde 12/11/2026 (resposta da Jessica a uma pergunta do Rafael: "você está liberado para avaliar a proposta enviada
+ * para todos, tomar as atitudes e instruir os agentes da continuidade") o Rafael decide também a autorização da
+ * campanha / revisão de proposta. Os limites não mudam: só 30%, 20% ou sem campanha (lib/assistente/negociacao).
+ */
+export function rafaelRevisa(_meta?: { negociacao?: boolean } | null): boolean {
+  return true;
+}
+
+/** Opções da campanha que o Rafael pode escolher (as mesmas dos botões da gestão). */
+export const OPCOES_CAMPANHA = [30, 20, 0] as const;
+/** IA sem resposta no prazo: autoriza a opção menor (20%), que já é a condição padrão enviada a todos. */
+export const CAMPANHA_NO_PRAZO = 20;
+
+export type DecisaoCampanha = { pct: 30 | 20 | 0; motivo: string };
+
+/** Lê a escolha da IA do Rafael para a campanha. Fora das opções = null. */
+export function lerDecisaoCampanha(r: any): DecisaoCampanha | null {
+  if (!r || typeof r !== 'object') return null;
+  const pct = Number(String(r.pct ?? '').replace('%', '').trim());
+  if (!(OPCOES_CAMPANHA as readonly number[]).includes(pct) || String(r.pct ?? '').trim() === '') return null;
+  return { pct: pct as 30 | 20 | 0, motivo: String(r.motivo || '').replace(/\s+/g, ' ').trim().slice(0, 300) };
 }
 
 /** Lê a resposta da IA do Rafael. Inválida = null (o motor tenta de novo ou usa a regra do prazo). */

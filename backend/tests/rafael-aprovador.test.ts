@@ -1,16 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, PRAZO_RAFAEL_MS } from '../src/lib/assistente/rafael-aprovador';
+import { decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, PRAZO_RAFAEL_MS, lerDecisaoCampanha, CAMPANHA_NO_PRAZO } from '../src/lib/assistente/rafael-aprovador';
 
 describe('Rafael aprova no lugar da Jessica (12/11/2026)', () => {
   it('prazo de 2 minutos', () => {
     expect(PRAZO_RAFAEL_MS).toBe(120_000);
   });
 
-  it('autorização de proposta (preço) continua com a Jessica', () => {
-    expect(rafaelRevisa({ negociacao: true })).toBe(false);
+  it('o Rafael decide também a autorização da campanha (desde 12/11/2026)', () => {
+    expect(rafaelRevisa({ negociacao: true })).toBe(true);
     expect(rafaelRevisa({ negociacao: false })).toBe(true);
     expect(rafaelRevisa({})).toBe(true);
     expect(rafaelRevisa(null)).toBe(true);
+  });
+
+  it('campanha: só 30%, 20% ou sem campanha; prazo vencido = 20%', () => {
+    expect(lerDecisaoCampanha({ pct: 30, motivo: 'ok' })).toEqual({ pct: 30, motivo: 'ok' });
+    expect(lerDecisaoCampanha({ pct: '20%' })?.pct).toBe(20);
+    expect(lerDecisaoCampanha({ pct: 0 })?.pct).toBe(0);
+    expect(lerDecisaoCampanha({ pct: 50 })).toBeNull();
+    expect(lerDecisaoCampanha({ pct: 25 })).toBeNull();
+    expect(lerDecisaoCampanha({ pct: '' })).toBeNull();
+    expect(lerDecisaoCampanha({})).toBeNull();
+    expect(lerDecisaoCampanha(null)).toBeNull();
+    expect(CAMPANHA_NO_PRAZO).toBe(20);
   });
 
   it('lê a decisão da IA', () => {

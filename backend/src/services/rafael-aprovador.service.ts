@@ -2,10 +2,11 @@
 // Toda mensagem que ficaria esperando aprovação (primeiro contato, retomada ou segurada pela Laya) é decidida
 // pelo Rafael em até 2 minutos: aprova, corrige o texto ou pede outra versão. Se a IA dele não responder no
 // prazo, vale a regra: defeito objetivo (link quebrado, texto cortado, repetição) vai para reescrita, o resto sai.
-// Fica com a Jessica só a autorização de campanha/revisão de proposta (preço), que tem botões no WhatsApp dela.
+// Desde 12/11/2026 a autorização de campanha/revisão de proposta também é do Rafael (30%, 20% ou sem campanha);
+// a Jessica recebe só o aviso do que ele decidiu.
 import type { PrismaClient } from '@prisma/client';
 import { registrarAcaoAgente } from '../lib/assistente/escritorio';
-import { PRAZO_RAFAEL_MS, REESCRITAS_MAX, decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, type DecisaoRafael } from '../lib/assistente/rafael-aprovador';
+import { PRAZO_RAFAEL_MS, REESCRITAS_MAX, CAMPANHA_NO_PRAZO, decisaoNoPrazo, lerDecisaoRafael, lerDecisaoCampanha, rafaelRevisa, urgente, type DecisaoRafael, type DecisaoCampanha } from '../lib/assistente/rafael-aprovador';
 
 const emRevisao = new Set<string>();
 const adiadas = new Map<string, number>();
@@ -50,6 +51,7 @@ function lerMeta(acao: string | null): any { try { return JSON.parse(acao || '{}
 
 /** true = a mensagem foi enviada (aprovada ou editada). */
 async function revisarUma(prisma: PrismaClient, m: any, meta: any, sdr: any): Promise<boolean> {
+  if (meta?.negociacao) return revisarCampanha(prisma, m, sdr);
   const { conferirPura } = await import('../lib/laya-guardia');
   const ultimas = (await prisma.whatsappMensagem.findMany({ where: { conversaId: m.conversaId, direcao: 'SAIDA', enviada_por: sdr.agente }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true } })).map(u => u.conteudo || '');
   const defeito = (t: string) => conferirPura({ mensagens: t.split(/\n{2,}/).map(s => s.trim()).filter(Boolean), ultimas }).join('; ');
@@ -90,6 +92,55 @@ async function revisarUma(prisma: PrismaClient, m: any, meta: any, sdr: any): Pr
   await decidirMensagem(prisma, m.id, { aprovar: true, texto: d.decisao === 'editar' ? d.texto : null }, 'rafael');
   registrarAcaoAgente('rafael', d.decisao === 'editar' ? `corrigiu e aprovou a mensagem do ${quem} para ${cliente}` : `aprovou a mensagem do ${quem} para ${cliente}`);
   return true;
+}
+
+/**
+ * Autorização da campanha / revisão de proposta (12/11/2026): o Rafael escolhe 30%, 20% ou sem campanha,
+ * a mesma decisão dos botões da gestão (decidirNegociacao), e avisa a Jessica e o agente do que ficou valendo.
+ */
+async function revisarCampanha(prisma: PrismaClient, m: any, sdr: any): Promise<boolean> {
+  const venceu = Date.now() - new Date(m.created_at).getTime() >= PRAZO_RAFAEL_MS;
+  let d: DecisaoCampanha | null = null;
+  try { d = await perguntarCampanha(prisma, m, sdr); }
+  catch (e: any) { console.warn('[RAFAEL] IA da campanha falhou:', e?.message); }
+  if (!d) {
+    if (!venceu) return false;
+    d = { pct: CAMPANHA_NO_PRAZO, motivo: 'prazo de 2 minutos: autorizada a condição padrão (20%), a revisão por IA não respondeu' };
+  }
+  const { decidirNegociacao } = await import('./assistente-negociacao.service');
+  const resultado = await decidirNegociacao(prisma, m.id, d.pct, { id: 'rafael', nome: 'Rafael' });
+  if (/já foi respondida|Não achei|Não consegui/.test(resultado)) return false;
+  const quem = NOMES[sdr.agente] || 'agente';
+  const cliente = sdr.nome || sdr.empresa || 'um lead';
+  const oQue = d.pct ? `autorizou a campanha (${d.pct}% na implantação e 10% na mensalidade por 12 meses, válida 5 dias)` : 'decidiu sem campanha (o agente só pede a previsão de decisão)';
+  registrarAcaoAgente('rafael', `${oQue} para ${cliente}`);
+  const { anotar } = await import('./equipe.service');
+  await anotar(prisma, { de: 'rafael', para: sdr.agente, tipo: 'ORIENTACAO', assunto: `Campanha de ${cliente}`, texto: `${quem}, ${oQue}. Motivo: ${d.motivo || '—'}. Siga a conversa com essa condição, sem oferecer nada além dela; se o cliente topar, a proposta é atualizada e enviada com os botões de aceite.`, ref: m.conversaId }).catch(() => {});
+  const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+  await enviarAvisoGestao(prisma, 'lead_qualificado', [`🧑‍💼 *Rafael ${oQue}*`, `Cliente: *${cliente}* (com o ${quem}).`, d.motivo ? `Motivo: ${d.motivo}` : '', '', 'Você liberou o Rafael para essa decisão em 12/11. Se discordar, fale com ele no Escritório › Rafael.'].filter(Boolean).join('\n'), { somenteAprovadora: true }).catch(() => {});
+  return true;
+}
+
+async function perguntarCampanha(prisma: PrismaClient, m: any, sdr: any): Promise<DecisaoCampanha | null> {
+  const historico = await prisma.whatsappMensagem.findMany({ where: { conversaId: m.conversaId }, orderBy: { created_at: 'desc' }, take: 14, select: { direcao: true, conteudo: true, transcricao: true, tipo: true, created_at: true } });
+  const hora = (x: Date) => new Date(x).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const conversa = historico.reverse().map(x => `[${hora(x.created_at)}] ${x.direcao === 'ENTRADA' ? 'Cliente' : 'Prosystem'}: ${((x.tipo === 'AUDIO' ? x.transcricao : x.conteudo) || `[${String(x.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n');
+  const p = sdr.proposta_id ? await prisma.propostaComercial.findUnique({ where: { id: sdr.proposta_id }, select: { plano_selecionado: true, valor_implantacao: true, valor_final: true, status: true, validade: true, desconto: true } }) : null;
+  const { chamarGemini } = await import('./ia-gemini.service');
+  const { lerJsonIa } = await import('../lib/assistente/ia-texto');
+  const r = lerJsonIa<any>(await chamarGemini(prisma, {
+    sistema: `Você é o Rafael, especialista comercial da Prosystem. A Jessica, gestora, liberou você para autorizar a campanha de fim de mês (a mesma condição oferecida a todos): 30% ou 20% de desconto na implantação + 10% na mensalidade por 12 meses, válida 5 dias. Você não pode dar nada fora dessas opções. Responda só JSON.`,
+    partes: [{ text: [
+      `O agente ${NOMES[sdr.agente] || sdr.agente} quer oferecer a campanha / revisão da proposta para ${sdr.nome || 'o lead'}${sdr.empresa ? ` (${sdr.empresa})` : ''}.`,
+      p ? `Proposta: plano ${p.plano_selecionado || '—'}, implantação R$ ${p.valor_implantacao ?? '—'}, total R$ ${p.valor_final ?? '—'}, status ${p.status}, desconto atual R$ ${p.desconto ?? 0}.` : 'Sem proposta vinculada no CRM.',
+      'Escolha: 30 (cliente quente, objeção de preço clara, perto de fechar), 20 (padrão) ou 0 (sem campanha: cliente sem interesse real, pediu para parar, ou a oferta não faz sentido na conversa).',
+      'Responda: {"pct": 30 | 20 | 0, "motivo": "uma frase"}',
+      '', '=== CONVERSA ===', conversa || '(sem mensagens)',
+      '', '=== MENSAGEM QUE O AGENTE QUER ENVIAR ===', m.texto,
+    ].join('\n') }],
+    json: true, temperatura: 0.1, timeoutMs: 40_000, simples: true, agente: 'rafael',
+  }));
+  return lerDecisaoCampanha(r);
 }
 
 async function perguntarAoRafael(prisma: PrismaClient, m: any, meta: any, sdr: any, semDescartar: boolean): Promise<DecisaoRafael | null> {
