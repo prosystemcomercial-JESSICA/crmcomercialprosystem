@@ -9,7 +9,7 @@ A Jessica: "incluir no portal técnico um agendador de tarefas, inclusive nos ca
 - **Backend:** tabela `AgendaTecnico` (`backend/prisma/schema.prisma`), regras puras `backend/src/lib/implantacao/agenda-tecnico.ts`, rotas `backend/src/routes/agenda-tecnico.ts` (`/agenda-tecnico`), alertas em `backend/src/services/agenda-tecnico.service.ts` com agendador de 1 minuto em `server.ts` (`iniciarSchedulerCronometro`). `avisarTecnico` ganhou `forcarWhatsapp` e `url`. O quadro (`GET /implantacoes/quadro`) traz `proximo_compromisso` em cada card.
 - **Frontend:** `frontend/components/implantacao/Agenda.tsx` (menu Agenda, formulário, seção do card), ligado em `app/portal-tecnico/page.tsx` (aba `agenda`, também por `?tab=agenda`) e `components/implantacao/Portal.tsx` (seção "Agenda com o cliente" em Visão geral; etiqueta 🗓 no card do quadro). Métodos `agendaTecnico*` em `lib/api-client.ts`.
 - **Docs:** os 6 de `docs/produto/` (entrada "12/11/2026 (7)"), `docs/comercial/manual-de-uso-assistente.md`, `docs/comercial/novidades-crm.html`, `docs/contexto/ESTADO.md`.
-- Commit e deploy: ver a entrada do dia no `ESTADO.md` (hash e resultado do deploy registrados lá).
+- Commit `55fee79` (código e docs), enviado ao GitHub. **Não publicado ainda** (ver Pendente).
 
 ## Verificado
 
@@ -29,10 +29,13 @@ A Jessica: "incluir no portal técnico um agendador de tarefas, inclusive nos ca
 
 ## Pendente
 
+- **Publicar (decide a Jessica):** criar a tabela na produção e rodar o deploy. Diferença do banco já conferida no servidor (só `CREATE TABLE AgendaTecnico`; o `DROP TABLE UsuarioPerfil` antigo nunca se aplica). A criação foi bloqueada pelo controle de permissões da sessão. Passos: backup (`mysqldump` para `/root/backups-deploy/pre-agenda-<data>.sql.gz`), `prisma migrate diff --script` sem a linha do `UsuarioPerfil`, aplicar com `mysql`, depois `deploy-vps.sh <commit>`.
 - A Jessica (ou um técnico) testar marcando um compromisso para daqui a alguns minutos e conferir o WhatsApp.
 - Cadastros de técnico sem celular não recebem no WhatsApp (o alerta fica no portal): conferir em Usuários.
 - Ideias não pedidas: convite no Google Agenda, mostrar a agenda no "Meu dia", lembrete ao cliente (só se ela pedir).
 
 ## Próxima sessão
+
+Primeiro: com a autorização da Jessica, criar a tabela e publicar (passos em Pendente). Conferir no log do `comercial-backend` que a rota `agenda-tecnico` carregou e que não há `[AGENDA] Erro`.
 
 Se ela relatar que o alerta não chegou: ler `AgendaTecnico.alerta_status` do compromisso em produção (script só de leitura, ver `CONTEXTO-CRM-COMERCIAL-LOCAL.md`) e o log `[AGENDA]` do `comercial-backend`. Skill sugerida: `diagnosing-bugs`.
