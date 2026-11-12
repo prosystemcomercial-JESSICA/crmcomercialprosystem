@@ -4,7 +4,7 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
-- **12/11/2026 (resumo da nova demanda):** a pedido da Jessica, a mensagem no WhatsApp da nova demanda traz conversão de dados (de qual sistema), quantas máquinas, responsável, contato do responsável e o link do card (`textoNovaDemanda`, `backend/src/lib/implantacao/nova-demanda.ts`). Dados da proposta; sem ela, do representante do contrato.
+- **12/11/2026 (resumo da nova demanda):** a pedido da Jessica, a mensagem no WhatsApp da nova demanda traz conversão de dados (de qual sistema), quantas máquinas, responsável, contato do responsável e o link do card (`textoNovaDemanda`, `backend/src/lib/implantacao/nova-demanda.ts`). Dados da proposta; sem ela, do representante do contrato. Publicado (`b79a94f`), com backup, banco sem alterações.
 
 - **12/11/2026 (publicado):** deploy de `ba03896` na produção, com backup, banco sem alterações, site e API respondendo. No ar: link do contrato obrigatório para ir a Enviado p/ assinatura e onboarding automático com o Lucas Diniz e aviso de nova demanda. Falta conferir na produção o cadastro ativo "Lucas Diniz" e testar com um contrato real.
 
