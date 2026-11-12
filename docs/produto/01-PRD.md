@@ -2341,3 +2341,11 @@ Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, 
 - **Nada passa da borda:** fileiras de abas e botões quebram linha, tabelas rolam dentro do cartão, o calendário da semana divide a largura e as listas suspensas da barra de cima abrem na largura da tela.
 - **Teclado do iPhone:** ao fechar, a tela volta para o topo (a barra de cima não fica mais escondida).
 - **Portal Técnico:** cronômetro compacto (tempo e ícones) e sem o botão ✕ no celular (usa o "← CRM").
+
+### Atualização 12/11/2026 (4): app da tela de início passa a se atualizar sozinho
+
+Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela de início do iPhone continuava com a versão antiga.
+
+Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
+
+- Depois de cada publicação, o CRM aberto (computador, Safari ou app da tela de início) passa para a versão nova sozinho: ao voltar para o app ou com a janela em segundo plano. Nunca recarrega no meio do que a pessoa está digitando.

@@ -2302,3 +2302,11 @@ Pedido da Jessica: "quero um resumo: se for conversão de dados, de qual sistema
 Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, coisas passavam da borda e o rodapé das janelas sumia. Só celular (abaixo de 768px); o computador não muda.
 
 Sem mudança de banco, de rota ou de serviço: tudo no frontend (`app/celular.css`, `components/mobile/VoltarCelular.tsx`, `components/mobile/CelularTecladoGuarda.tsx`, `DashboardLayout.tsx`, `implantacao/Cronometro.tsx`, `portal-tecnico/page.tsx`).
+
+### Atualização 12/11/2026 (4): app da tela de início passa a se atualizar sozinho
+
+Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela de início do iPhone continuava com a versão antiga.
+
+Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
+
+- `GET /health`: `versao` agora é o commit curto do Git do servidor (antes, sempre "dev" na VPS). Sem banco.

@@ -42,3 +42,11 @@ Só frontend, só abaixo de 768px. Detalhes técnicos na "Atualização 12/11/20
 ## Próxima sessão
 
 Se vier print de problema no celular: abrir a tela no tamanho do aparelho com a auditoria (Playwright, viewport do iPhone) e preferir regra em `frontend/app/celular.css`. Skills: `diagnosing-bugs`, `webapp-testing`.
+
+## Continuação: app da tela de início continuava com a versão antiga
+
+- **Pedido:** "Ao compartilhar para deixar na tela com atalho, volta e fica da mesma forma que estava antes."
+- **Verificado:** o app da tela de início não guarda cópia das telas (`public/sw.js` só cuida de notificações) e o HTML sai com `no-cache`. A produção no modo app (áreas seguras de 59pt/34pt simuladas no teste) mostra a versão nova correta. Causa achada: `/health` com `versao: "dev"`, então o `VersionWatcher` nunca recarregava; e o iPhone retoma o app sem `focus`.
+- **Feito:** `backend/src/server.ts` (versão = `git rev-parse --short HEAD`) e `frontend/components/VersionWatcher.tsx` (confere em `visibilitychange`/`pageshow`; recarrega só ao voltar ou em segundo plano).
+- **Decisão:** não recarregar com a página na frente pela checagem de 3 min (agora que o recarregamento passa a funcionar de fato, recarregar no meio de uma digitação no computador perderia texto).
+- **Pendente:** a Jessica fechar o app por completo uma vez (deslizar para cima no seletor de apps) e abrir de novo; dali em diante ele se atualiza sozinho.

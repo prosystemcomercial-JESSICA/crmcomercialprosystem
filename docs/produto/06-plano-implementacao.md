@@ -2325,3 +2325,13 @@ Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, 
 - [x] Formulários "Novo…" de 9 telas: antes, o "Salvar Proposta" ficava sob a barra de abas; depois, o botão final fica visível e clicável em todos.
 - [x] Computador conferido igual (logo, modo escuro, menu lateral, sem voltar).
 - [ ] Não conferido: Safari de verdade num iPhone (o teste usa o Chromium com tamanho e toque de iPhone); 4 telas não abrem com dados fictícios (Painel da IA, Relatório de Retenção, LTV, Configurações) e não foram medidas; janelas abertas por outros botões além de "Novo…".
+
+### Atualização 12/11/2026 (4): app da tela de início passa a se atualizar sozinho
+
+Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela de início do iPhone continuava com a versão antiga.
+
+Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
+
+- [x] Conferido no servidor: `git rev-parse --short HEAD` responde na pasta do `comercial-backend`.
+- [x] Modo app simulado (áreas seguras de 59pt em cima e 34pt embaixo) na produção: voltar, barra de cima e abas corretos.
+- [ ] Depois do deploy: `/health` com o commit em vez de "dev"; a Jessica fechar e abrir o app uma vez.

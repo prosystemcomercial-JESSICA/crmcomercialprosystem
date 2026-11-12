@@ -2295,3 +2295,11 @@ Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, 
 - Selo de prazo do card (`SlaBadge`) quebra linha em vez de esticar o card; no máximo 100% da largura.
 - Card com trava final (`overflow: hidden`, `overflow-wrap: anywhere`); nome do cliente quebra linha; etiquetas cortadas com reticências mostram o texto completo na dica.
 - Contrato visual testado em `frontend/e2e/implantacao-quadro.spec.ts` (360 a 2560 px).
+
+### Atualização 12/11/2026 (4): app da tela de início passa a se atualizar sozinho
+
+Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela de início do iPhone continuava com a versão antiga.
+
+Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
+
+- Sem aviso visual: a troca de versão acontece quando a pessoa volta ao app, para não interromper.

@@ -20,6 +20,7 @@ console.log('[BOOT] build rev: dashboard-bigint-fix-2026-05-29');
 
 import './carregar-env';
 import Fastify from 'fastify';
+import { execSync } from 'node:child_process';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 
@@ -49,9 +50,14 @@ const fastify = Fastify({
 });
 
 // 4) Health check ANTES de tudo — se chegamos aqui, o app está vivo
-// `versao` = commit do deploy (Railway injeta RAILWAY_GIT_COMMIT_SHA); o front
-// usa isso para detectar nova versão e recarregar sozinho (mata o cache antigo).
-const VERSAO_DEPLOY = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERSAO || 'dev';
+// `versao` = commit do deploy; o front usa isso para detectar nova versão e recarregar sozinho
+// (mata o cache antigo, inclusive no app da tela de início do iPhone). Na VPS não há variável do
+// Railway: até 12/11/2026 a versão ficava "dev" e o recarregamento automático nunca acontecia.
+// Agora lê o commit do próprio Git do servidor (o deploy faz checkout do commit antes de reiniciar).
+const VERSAO_DEPLOY = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERSAO || (() => {
+  try { return execSync('git rev-parse --short HEAD', { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 }).toString().trim() || 'dev'; }
+  catch { return 'dev'; }
+})();
 fastify.get('/health', async () => ({
   status: 'ok',
   rev: 'bigint-fix-v2',

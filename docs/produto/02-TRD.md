@@ -2324,3 +2324,11 @@ Pedido da Jessica: no celular ela não conseguia voltar, a parte de cima sumia, 
 - `DashboardLayout.tsx`: modo escuro e WhatsApp em nova aba com `ios-so-computador`; item "Modo escuro/claro" (md:hidden) no menu do perfil; classes `cel-topo-drop` e `cel-aviso-lead`.
 - Portal: `Cronometro.tsx` (rótulo e textos "Pausar"/"Outra atividade" com `pt-sem-celular`; ícone com `pt-so-celular`) e `portal-tecnico/page.tsx` (classe `pt-cab`; modo escuro e ✕ com `pt-sem-celular`).
 - Sem banco, rota ou IA.
+
+### Atualização 12/11/2026 (4): app da tela de início passa a se atualizar sozinho
+
+Pedido da Jessica: depois de publicada a revisão do celular, o atalho na tela de início do iPhone continuava com a versão antiga.
+
+Causa: o `/health` devolvia `versao: "dev"` na VPS (lia `RAILWAY_GIT_COMMIT_SHA`, que só existia no Railway), então o `VersionWatcher` nunca via versão nova e nunca recarregava; e o iPhone retoma o app da tela de início sem o evento `focus`.
+- `backend/src/server.ts`: `VERSAO_DEPLOY` cai para `git rev-parse --short HEAD` (cwd do processo; o deploy faz checkout antes do restart); `dev` só se o Git falhar.
+- `frontend/components/VersionWatcher.tsx`: confere também em `visibilitychange` e `pageshow` (persisted); versão nova achada pela checagem de 3 min fica pendente e só recarrega com `document.hidden` ou ao voltar para a frente.
