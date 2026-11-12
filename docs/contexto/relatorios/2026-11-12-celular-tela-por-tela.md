@@ -25,6 +25,8 @@ Só frontend, só abaixo de 768px. Detalhes técnicos na "Atualização 12/11/20
 - `tsc` sem erro nos arquivos mexidos; ESLint limpo nos arquivos novos (os avisos de `DashboardLayout.tsx`/`Cronometro.tsx` são antigos, em linhas não mexidas).
 - **Não verificado:** Safari real num iPhone; 4 telas que não abrem com dados fictícios (Painel da IA, Relatório de Retenção, LTV, Configurações); janelas abertas por botões que não começam com "Novo/Criar/Cadastrar…"; Escritório em tela cheia.
 
+- **Publicado:** commit `29e0d9f`, CI verde, `deploy-vps.sh` com backup (464M), banco sem alterações, site e API respondendo; auditoria repetida na produção (9 telas × 6 tamanhos) sem estouros e o "Salvar Proposta" clicável no 17 Pro Max e no SE.
+
 ## Decisões e porquês
 
 - Correção geral por CSS (seletores por classe/estilo) em vez de editar ~70 telas: resolve as telas futuras também e não mexe em arquivos de outras sessões. Tudo dentro de `@media (max-width: 767px)` para não tocar no computador.
