@@ -1255,6 +1255,22 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     return reply.send({ status: 'ok', data: updated, zapsign: zapRes });
   });
 
+  // ── CONFERIR COM A MARTA (botão do contrato): completa pela Receita e diz o que falta. Não envia nada.
+  fastify.post('/contratos-comerciais/:id/conferir', async (request, reply) => {
+    const { id } = request.params as any;
+    const { completarContrato } = await import('@/services/contrato-assinatura.service');
+    const r = await completarContrato(prisma, id);
+    if (!r) return reply.status(404).send({ status: 'error', message: 'Contrato não encontrado' });
+    if (!ANTES_DO_ENVIO.includes(r.contrato.status)) {
+      return reply.status(400).send({ status: 'error', message: 'Este contrato já saiu para assinatura; a conferência vale só antes do envio.' });
+    }
+    const message = [
+      r.preenchidos.length ? `A Marta preencheu pela Receita: ${r.preenchidos.length} campo(s) da empresa.` : 'A Marta não achou nada novo para preencher.',
+      r.pendencias.length ? `Ainda falta: ${r.pendencias.join(', ')}.` : 'Contrato completo, pronto para a sua revisão.',
+    ].join(' ');
+    return reply.send({ status: 'ok', data: comPendencias(r.contrato), preenchidos: r.preenchidos, message });
+  });
+
   // ── GERAR PDF DO CONTRATO (download/preview)
   // Reproduz o modelo padrão por plano com os dados da proposta/contrato.
   fastify.get('/contratos-comerciais/:id/pdf', async (request, reply) => {

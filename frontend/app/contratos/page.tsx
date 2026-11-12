@@ -321,6 +321,22 @@ export default function ContratosPage() {
     finally { setMarcando(false); }
   };
 
+  // Botão "Conferir com a Marta": completa os dados da empresa pela Receita e mostra o que falta. Não envia nada.
+  const [conferindo, setConferindo] = useState(false);
+  const handleConferirMarta = async () => {
+    if (!selected) return;
+    if (editDirty) { setZapMsg('Salve as alterações do contrato antes de pedir a conferência.'); return; }
+    setConferindo(true); setZapMsg(''); setConfirmarEnvio(false);
+    try {
+      // Chamada direta: lib/api-client.ts está com mudanças de outra sessão em andamento.
+      const r = await apiClient.client.post(`/contratos-comerciais/${selected.id}/conferir`);
+      if (r.data?.data) setSelected(r.data.data);
+      setZapMsg(r.data?.message || 'Conferência feita.');
+      load();
+    } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Não foi possível conferir agora.'); }
+    finally { setConferindo(false); }
+  };
+
   // Envio automático: gera o PDF (o mesmo modelo de sempre), manda para a ZapSign e o link vai
   // para o WhatsApp e o e-mail do cliente. Pede confirmação (2º clique) antes de enviar.
   const [confirmarEnvio, setConfirmarEnvio] = useState(false);
@@ -854,7 +870,14 @@ export default function ContratosPage() {
                 )}
                 {!['ENVIADO_ASSINATURA', 'ASSINADO', 'CANCELADO', 'RECUADO'].includes(selected.status) && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={handleEnviarAssinatura} disabled={marcando || filaDe(selected) === 'faltando'}
+                    {ANTES_DO_ENVIO.includes(selected.status) && (
+                      <button onClick={handleConferirMarta} disabled={marcando || conferindo}
+                        className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-bold disabled:opacity-60"
+                        style={{ border: '1.5px solid #7c3aed', color: '#7c3aed', background: 'var(--t-card-bg)' }}>
+                        <RefreshCw size={12} /> {conferindo ? 'Conferindo…' : 'Conferir com a Marta'}
+                      </button>
+                    )}
+                    <button onClick={handleEnviarAssinatura} disabled={marcando || conferindo || filaDe(selected) === 'faltando'}
                       className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-bold text-white disabled:opacity-60"
                       style={{ background: confirmarEnvio ? '#b45309' : '#7c3aed' }}>
                       <Send size={12} /> {marcando ? 'Enviando…' : confirmarEnvio ? 'Confirmar: enviar agora' : '✍️ Enviar para assinatura'}

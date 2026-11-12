@@ -1650,6 +1650,7 @@ $L
 - Se faltar algo, abra o contrato, clique em **Revisar dados**, preencha e salve. Ele passa para os prontos.
 - O envio para a ZapSign continua sendo seu: abra o contrato pronto, revise e clique em **Enviar para assinatura**. Com dado faltando, o botão fica desligado.
 - Se a Marta completar algum dado na hora em que você clicar, o envio é segurado uma vez para você conferir. É só clicar de novo.
+- Botão **Conferir com a Marta** (12/11/2026): no contrato ainda não enviado, peça a conferência quando quiser. Ela completa pela Receita o que estiver vazio e mostra o que ainda falta. O botão não envia nada para o cliente.
 
 ## Escritório: tela cheia, visitas, conversas e temas de feriado (11/11/2026)
 

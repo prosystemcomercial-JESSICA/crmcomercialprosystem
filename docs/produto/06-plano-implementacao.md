@@ -2275,3 +2275,10 @@ Pedido da Jessica: "quem define a prioridade é a Laya"; cliente que responde co
 - **Arquivos:** `backend/src/lib/assistente/prioridade-conversa.ts` (regras puras), `backend/src/services/caroline.service.ts` (`marcarPrioridade`, `avisarSemResposta`, fila de aprovação, vigia, outro número), `backend/src/lib/assistente/sdr.ts` (roteiro, `novo_contato.mesma_pessoa`, ficha do lead), `backend/src/services/laya-cerebro.service.ts`, `backend/src/services/whatsapp-sla.service.ts` (Alta = 8 h), `backend/src/routes/whatsapp.ts`, `frontend/app/whatsapp/page.tsx`.
 - **Testes:** `backend/tests/prioridade-conversa.test.ts` e `backend/tests/sdr-caroline.test.ts`. **Banco:** sem mudança (a coluna `prioridade` da conversa é texto).
 - **Limites:** a lista de conversas não é reordenada por prioridade (a conversa que acabou de receber mensagem já fica no topo); as conversas antigas travadas não são retomadas sozinhas; conversa assumida por uma pessoa continua sendo só dela.
+
+### Atualização 12/11/2026: botão "Conferir com a Marta" no contrato
+
+- **Onde:** em **Contratos**, ao abrir um contrato que ainda não foi enviado para assinatura (A gerar, Gerado ou Pendente de correção), aparece o botão roxo **Conferir com a Marta**, ao lado de **Enviar para assinatura**.
+- **O que faz:** chama `POST /contratos-comerciais/:id/conferir`, que usa `completarContrato` (`backend/src/services/contrato-assinatura.service.ts`): completa pela Receita só os dados vazios da empresa e devolve o contrato com a lista do que ainda falta. A tela mostra "A Marta preencheu pela Receita: N campo(s)" ou "não achou nada novo" e "Ainda falta: ..." ou "Contrato completo, pronto para a sua revisão".
+- **Não envia nada:** não gera PDF nem manda para a ZapSign. Contrato já enviado responde 400. Com alterações não salvas na tela, pede para salvar antes.
+- **Banco:** sem mudança. **Teste:** `backend/tests/contrato-assinatura.test.ts` (8 passando).
