@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { pascoa, temaDoDia, sortearDialogo, TEMAS, PAPO_CASUAL } from '../../frontend/components/escritorio/sala-temas';
+
+// O arquivo é do frontend: o caminho vai numa variável para o `tsc` do backend (rootDir = backend) não o incluir.
+const caminho = '../../frontend/components/escritorio/sala-temas';
+const { pascoa, temaDoDia, sortearDialogo, TEMAS, PAPO_CASUAL } = await import(/* @vite-ignore */ caminho);
+type Dialogo = string[];
 
 describe('temas do Escritório vivo', () => {
   it('calcula o domingo de Páscoa', () => {
@@ -24,6 +28,7 @@ describe('temas do Escritório vivo', () => {
   it('sorteia conversas sem repetir a anterior e com falas curtas', () => {
     let ant = sortearDialogo('natal');
     for (let i = 0; i < 200; i++) { const d = sortearDialogo('natal', ant); expect(d).not.toBe(ant); expect(d.length).toBeGreaterThanOrEqual(2); ant = d; }
-    [...PAPO_CASUAL, ...Object.values(TEMAS).flatMap(t => t.papo)].forEach(d => d.forEach(f => expect(f.length).toBeLessThanOrEqual(70)));
+    const todas: Dialogo[] = [...PAPO_CASUAL, ...Object.values(TEMAS as Record<string, { papo: Dialogo[] }>).flatMap(t => t.papo)];
+    todas.forEach(d => d.forEach(f => expect(f.length).toBeLessThanOrEqual(70)));
   });
 });

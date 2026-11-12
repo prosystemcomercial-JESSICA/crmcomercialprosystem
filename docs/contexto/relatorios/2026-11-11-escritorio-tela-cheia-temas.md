@@ -13,6 +13,9 @@ novelas e outros assuntos nas horas livres) e ter temas conforme os feriados (P�
   - botão **🔍 Visitar** em cada sala: a câmera aproxima e a boneca "Você" anda até a sala (e volta ao sair);
   - conversas de 3 ou 4 falas entre dois agentes parados no café (uma por vez, sem repetir a anterior);
   - tema do dia: enfeites, destaque no café, varal no corredor, partículas, chapéu nos bonecos e conversas da data.
+  - decoração fixa (pedido da Jessica durante a entrega: "mais decorações, mais papelarias"): papelaria e um objeto em cada
+    mesa, arquivo, estante, impressora, calendário, prancheta e quadro de post-its nas salas, material na mesa de reunião,
+    itens no café, na sala da Jessica e no corredor; nos feriados, 20 enfeites, um em cada mesa e varal nos dois corredores.
 - **`frontend/app/escritorio/page.tsx`:** a dica abaixo da sala cita a tela cheia, a visita e o café.
 - **`backend/tests/sala-temas.test.ts` (novo):** datas da Páscoa, tema por data, sorteio e tamanho das falas.
 - Documentos: os seis de `docs/produto/`, o manual, as novidades e o `ESTADO.md`.
@@ -27,6 +30,12 @@ novelas e outros assuntos nas horas livres) e ter temas conforme os feriados (P�
 - Tipos do frontend (`npx tsc --noEmit -p .`): sem erros. Lint dos dois arquivos da sala: sem erros.
 - `npx vitest run tests/sala-temas.test.ts`: 3 testes passaram.
 - Prévia isolada da sala (sem o servidor do Next, que não cabia no disco: 83 MB livres), aberta no Edge com 17 agentes de exemplo: tela cheia, visita ao Café e a Vendas com a "Você" andando até lá, temas Natal e Páscoa e conversas casuais apareceram, sem erro no console. **Não conferido dentro da página real do CRM, com login.**
+
+## Tropeços
+- O commit `20d25fc` não foi publicado: o teste importava o arquivo do frontend e a conferência de tipos do backend na CI
+  recusou (TS6059, rootDir). O script de deploy barrou sozinho; nada mudou em produção. Corrigido no commit seguinte.
+- O disco C: chegou a 0 bytes livres por volta das 20h30. O `docs/contexto/ESTADO.md` ficou vazio e foi restaurado do
+  último commit (`9451547`); os outros arquivos foram conferidos e estavam inteiros.
 
 ## Fora desta entrega
 - Conversas casuais no painel "Agora no escritório".

@@ -60,8 +60,33 @@ const JESSICA = { mesa: { x: 1045, y: 600 }, assento: { x: 1052, y: 588 } };
 
 /** Onde a Jessica para ao visitar uma sala (perto da porta, fora das mesas). */
 const pontoVisita = (s: Sala): P => s.lado === 'baixo' ? { x: s.porta.x, y: s.y + s.h - 40 } : s.lado === 'cima' ? { x: s.porta.x, y: s.y + 40 } : { x: s.x + 50, y: s.porta.y };
-// Lugares dos enfeites de feriado (cantos livres das salas).
-const ENFEITES: P[] = [{ x: 350, y: 28 }, { x: 740, y: 28 }, { x: 350, y: 388 }, { x: 740, y: 388 }, { x: 1140, y: 28 }, { x: 1140, y: 268 }, { x: 1140, y: 488 }, { x: 830, y: 640 }];
+// Lugares dos enfeites de feriado (cantos e paredes livres das salas).
+const ENFEITES: P[] = [
+  { x: 350, y: 28 }, { x: 740, y: 28 }, { x: 350, y: 388 }, { x: 740, y: 388 }, { x: 1140, y: 28 }, { x: 1140, y: 268 }, { x: 1140, y: 488 }, { x: 830, y: 640 },
+  { x: 34, y: 96 }, { x: 424, y: 96 }, { x: 34, y: 456 }, { x: 424, y: 456 }, { x: 830, y: 196 }, { x: 1010, y: 268 }, { x: 830, y: 548 }, { x: 1010, y: 652 },
+  { x: 290, y: 300 }, { x: 680, y: 300 }, { x: 110, y: 660 }, { x: 500, y: 660 },
+];
+// Decoração fixa: papelaria e móveis de escritório (emoji, só visual). Nas salas de setor fica nas paredes, fora do caminho.
+type Decor = { e: string; x: number; y: number; t?: number };
+const DECOR: Decor[] = [
+  ...SALAS.filter(s => s.id in SETORES).flatMap((s, k): Decor[] => [
+    { e: '🗄️', x: s.x + 10, y: s.y + 140, t: 24 }, { e: '📚', x: s.x + 10, y: s.y + 212, t: 22 },
+    { e: '🖨️', x: s.x + 336, y: s.y + 140, t: 22 }, { e: ['🚰', '🗑️', '🌍', '📦'][k % 4], x: s.x + 338, y: s.y + 214, t: 20 },
+    { e: ['📅', '🕐', '📈', '🗺️'][k % 4], x: s.x + 250, y: s.y + 8, t: 18 }, { e: '📋', x: s.x + 290, y: s.y + 8, t: 18 },
+  ]),
+  // sala de reunião: material em cima da mesa e cavalete
+  { e: '📒', x: 930, y: 112, t: 15 }, { e: '🖊️', x: 952, y: 126, t: 12 }, { e: '💻', x: 990, y: 106, t: 17 }, { e: '📄', x: 1030, y: 124, t: 14 }, { e: '📑', x: 1060, y: 110, t: 14 }, { e: '🥤', x: 1012, y: 140, t: 12 },
+  { e: '📽️', x: 836, y: 60, t: 20 }, { e: '🕐', x: 1000, y: 26, t: 16 },
+  // café
+  { e: '📰', x: 1108, y: 412, t: 14 }, { e: '🍪', x: 1108, y: 292, t: 13 }, { e: '🫖', x: 962, y: 284, t: 16 }, { e: '🎲', x: 1150, y: 380, t: 18 }, { e: '🖼️', x: 960, y: 264, t: 16 },
+  // sala da Jessica
+  { e: '📚', x: 1146, y: 560, t: 22 }, { e: '🗄️', x: 1146, y: 610, t: 24 }, { e: '🖼️', x: 1060, y: 486, t: 18 }, { e: '📅', x: 1100, y: 486, t: 16 },
+  { e: '📄', x: 1002, y: 590, t: 12 }, { e: '🖊️', x: 1062, y: 596, t: 11 }, { e: '☎️', x: 1020, y: 578, t: 12 }, { e: '🛋️', x: 836, y: 580, t: 26 },
+  // corredor
+  { e: '🧯', x: 786, y: 40, t: 15 }, { e: '🪴', x: 786, y: 660, t: 20 }, { e: '🪧', x: 786, y: 300, t: 16 },
+];
+// Papelaria em cima de cada mesa (varia de mesa para mesa).
+const PAPELARIA: [string, string][] = [['📄', '🖊️'], ['📒', '📌'], ['🗂️', '✏️'], ['📑', '📎'], ['📝', '🖍️'], ['📕', '✂️'], ['🗒️', '📏'], ['📔', '🖇️']];
 
 const PAPO_CAFE = ['☕ Café novo saindo!', '😄 Que dia bom de vendas', '🥐 Alguém quer pão de queijo?', '📈 Hoje rendeu', '🙌 Bora que a meta vem', '😂 Essa foi boa'];
 const PAPO_REUNIAO = ['📊 Vamos ver os números', '🎯 Qual a meta da semana?', '💡 Tive uma ideia', '✅ Combinado!'];
@@ -421,20 +446,27 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
         {[[30, 300], [740, 300], [30, 660], [740, 660], [1150, 220], [1150, 440]].map(([x, y], k) => <span key={k} className="sv-planta" style={{ left: x, top: y, zIndex: y + 20 }}>🪴</span>)}
         {SALAS.filter(s => s.id in SETORES).map(s => <span key={`q-${s.id}`} className="sv-quadro" style={{ left: s.x + s.w / 2 - 40, top: s.y + 10 }} />)}
 
+        {/* decoração fixa do escritório */}
+        {DECOR.map((d, k) => <span key={`d-${k}`} className="sv-decor" style={{ left: d.x, top: d.y, fontSize: d.t || 18, zIndex: Math.round(d.y + (d.t || 18)) }} aria-hidden>{d.e}</span>)}
+
         {/* tema de feriado: enfeites, varal no corredor e partículas caindo */}
         {tema.destaque && <span className="sv-enfeite grande" style={{ left: 905, top: 296, zIndex: 350 }} aria-hidden>{tema.destaque}</span>}
         {tema.enfeites.length > 0 && ENFEITES.map((p, k) => <span key={`e-${k}`} className="sv-enfeite" style={{ left: p.x, top: p.y, zIndex: 6 }} aria-hidden>{tema.enfeites[k % tema.enfeites.length]}</span>)}
         {tema.varal && <div className="sv-varal" aria-hidden>{tema.varal.repeat(14)}</div>}
+        {tema.varal && <div className="sv-varal pe" aria-hidden>{tema.varal.repeat(14)}</div>}
         {tema.particulas.length > 0 && Array.from({ length: 16 }, (_, k) => (
           <span key={`p-${tema.id}-${k}`} className="sv-floco" style={{ left: (k * 83 + 30) % LARG, animationDuration: `${9 + (k % 5) * 2}s`, animationDelay: `${-k * 1.3}s` }} aria-hidden>{tema.particulas[k % tema.particulas.length]}</span>
         ))}
 
         {/* mesas dos agentes */}
-        {agentes.map(a => {
+        {agentes.map((a, i) => {
           const m = mesas[a.id]; if (!m) return null;
+          const [papel, caneta] = PAPELARIA[i % PAPELARIA.length];
           return (
             <div key={`mesa-${a.id}`} className={`sv-movel sv-mesa st-${a.status}${agenteApagado(a.id) ? ' apagada' : ''}`} style={{ left: m.mesa.x - 42, top: m.mesa.y - 15, zIndex: Math.round(m.mesa.y + 15), ['--c' as string]: a.cor }}>
               <span className="sv-monitor" /><span className="sv-teclado" /><span className="sv-caneca" />
+              <span className="sv-item a" aria-hidden>{papel}</span><span className="sv-item b" aria-hidden>{caneta}</span>
+              <span className="sv-item c" aria-hidden>{tema.enfeites.length ? tema.enfeites[i % tema.enfeites.length] : i % 3 === 0 ? '🪴' : i % 3 === 1 ? '🖼️' : '💡'}</span>
             </div>
           );
         })}
@@ -531,7 +563,11 @@ function EstilosSala() {
     .sv-placa:focus-visible,.sv-av:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
     .sv-placa-erro{width:9px;height:9px;border-radius:50%;background:#dc2626;animation:sv-pisca 1s steps(2) infinite}
     .sv-movel{position:absolute;pointer-events:none}
-    .sv-quadro{position:absolute;width:80px;height:8px;border-radius:3px;background:#fff;box-shadow:0 0 0 2px #cbd5e1}
+    .sv-quadro{position:absolute;width:80px;height:16px;border-radius:3px;box-shadow:0 0 0 2px #cbd5e1;background:linear-gradient(90deg,transparent 0 5px,#fde047 5px 19px,transparent 19px 24px,#f9a8d4 24px 38px,transparent 38px 43px,#86efac 43px 57px,transparent 57px 62px,#93c5fd 62px 76px,transparent 76px) 0 3px/100% 10px no-repeat,#fff}
+    .sv-decor{position:absolute;line-height:1;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(15,23,42,.18))}
+    .sv-item{position:absolute;line-height:1;font-size:10px}
+    .sv-item.a{left:3px;top:10px}.sv-item.b{left:72px;top:-7px;font-size:9px}.sv-item.c{left:46px;top:-11px;font-size:12px}
+    .sv-varal.pe{left:770px;top:28px;width:660px;transform-origin:0 0;transform:rotate(90deg) translateY(-22px)}
     .sv-mesa{width:84px;height:30px;border-radius:7px;background:linear-gradient(#fff,#f1f5f9);box-shadow:0 0 0 1.5px #cbd5e1,0 4px 0 #cbd5e1,0 6px 10px rgba(15,23,42,.12)}
     .sv-monitor{position:absolute;left:8px;top:-14px;width:30px;height:20px;border-radius:4px;background:#1e293b;box-shadow:inset 0 0 0 2.5px #1e293b;background-clip:padding-box}
     .sv-monitor::after{content:"";position:absolute;inset:3px;border-radius:2px;background:#334155}

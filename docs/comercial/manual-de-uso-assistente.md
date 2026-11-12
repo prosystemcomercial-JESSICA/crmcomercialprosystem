@@ -1656,4 +1656,5 @@ $L
 - **Tela cheia:** no canto de cima da sala, clique em **⛶ Tela cheia**. O escritório ocupa a tela inteira. Para sair, aperte Esc ou clique em **Sair da tela cheia**.
 - **Visitar uma sala:** cada sala tem o botão **🔍 Visitar**. A imagem aproxima daquela sala e a sua boneca ("Você") anda até lá. Para voltar, clique em **← Escritório inteiro** ou aperte Esc.
 - **Conversas casuais:** quando dois agentes estão sem trabalho, eles vão ao café e batem papo sobre filmes, novelas, séries, futebol, comida e o fim de semana. É só para dar vida ao escritório: nada disso vai para cliente e não gasta IA.
+- **Decoração:** as mesas têm papelaria (papéis, cadernos, canetas) e as salas têm arquivo, estante, impressora e quadro com post-its.
 - **Temas de feriado:** o escritório se enfeita sozinho no Natal (dezembro), no Ano Novo, no Carnaval, na Páscoa e na Festa Junina, com enfeites, chapéus nos bonecos e conversas sobre a data. Para ver um tema fora de época, escolha em **Tema**, ao lado do botão de tela cheia. Para voltar ao normal, escolha **Tema automático**.
