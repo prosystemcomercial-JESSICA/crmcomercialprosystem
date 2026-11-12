@@ -4,6 +4,8 @@ Atualizado em **14/10/2026, noite** (sessão longa com a Jessica). Ao terminar c
 
 ## Registro de mudanças após 14/10/2026 (mais novo primeiro)
 
+- **12/11/2026 (publicado):** deploy de `0c09740` na produção, com backup, banco sem alterações, site e API respondendo. Estão no ar o botão "Conferir com a Marta" (`b6335a0`), o nome padrão do contrato com download direto para a pasta Downloads (`9bbd8e7`) e o contrato gerado indo para Gerado com aviso grande na TV e no CRM (`0c09740`). Falta a Jessica testar com o contrato 56/2026.
+
 - **12/11/2026 (contrato gerado vai para Gerado, com aviso):** a pedido da Jessica, quando a conferência da Marta termina sem pendências, o contrato em A gerar passa para Gerado e a gestão recebe um aviso grande com som, por 7 segundos, no CRM (evento `contrato_gerado`) e na TV do Escritório (`contratos_gerados`). Teste combinado: o contrato 56/2026 (GARCIA E PERON) está em A gerar e sem pendências; depois de publicar, com a TV e o CRM abertos, clicar em "Conferir com a Marta" nele dispara os dois avisos.
 
 - **12/11/2026 (nome padrão do contrato e download direto):** a pedido da Jessica, o PDF do contrato sai como `Contrato_56_2026 GARCIA E PERON LTDA.pdf` (regra única `nomeArquivoContrato`, usada também no título do PDF e no nome do documento na ZapSign) e o "Baixar PDF" salva direto na pasta Downloads (`attachment`). Provisório: depois ela quer estruturar um lugar para guardar os arquivos e as informações do cliente.
