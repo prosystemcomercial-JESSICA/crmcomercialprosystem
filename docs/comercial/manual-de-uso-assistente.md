@@ -274,6 +274,8 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
 - Fora do horário, o cliente ouve "A nossa consultora fala com você amanhã a partir das 8h30", e o lead entra na lista às 8h30 do próximo dia útil.
 
 **Aprovar antes de enviar** (ligado nos três)
+- **Desde 12/11/2026 quem aprova é o Rafael**, em até 2 minutos por mensagem: ele aprova, corrige o texto ou pede outra versão. Você não precisa mais aprovar nada para a conversa andar. Só a **revisão de proposta na campanha** (preço) continua chegando para você autorizar no WhatsApp.
+- Se quiser, você ainda pode decidir antes dele pelo painel (o que está abaixo continua valendo).
 - Cada mensagem aparece para você **aprovar**, **ajustar** ou **🔄 Refazer**, com o campo opcional "o que mudar?".
 - Refazer escreve outra versão na hora, diferente das descartadas.
 - Os seus ajustes ensinam o seu tom para eles.

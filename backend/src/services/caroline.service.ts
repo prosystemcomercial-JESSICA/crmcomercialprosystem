@@ -1256,10 +1256,11 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       else {
         registrarAcaoAgente('laya', `segurou uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`);
         const final = nova || r;
-        await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: final.mensagens.join('\n\n'), acao: JSON.stringify({ acao: final.acao, nota: final.nota, nota_motivo: final.nota_motivo, duvida: final.duvida, motivo_perda: final.motivo_perda, laya_motivo: c.motivo.slice(0, 300) }) } });
+        const segurada = await prisma.sdrMensagem.create({ data: { sdrId, conversaId: sdr.conversaId, texto: final.mensagens.join('\n\n'), acao: JSON.stringify({ acao: final.acao, nota: final.nota, nota_motivo: final.nota_motivo, duvida: final.duvida, motivo_perda: final.motivo_perda, laya_motivo: c.motivo.slice(0, 300), fase }) } });
+        chamarRafael(prisma, segurada.id);
         if (fase === 'abertura' && !sdr.primeiro_envio_em) await prisma.sdrLead.update({ where: { id: sdrId }, data: { primeiro_envio_em: new Date() } });
         const { anotar } = await import('./equipe.service');
-        await anotar(prisma, { de: 'laya', para: 'rafael', tipo: 'DUVIDA', assunto: `Segurei uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || sdr.numero}`, texto: `${c.motivo}. A mensagem ficou esperando a Jessica.`, ref: sdr.conversaId }).catch(() => {});
+        await anotar(prisma, { de: 'laya', para: 'rafael', tipo: 'DUVIDA', assunto: `Segurei uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || sdr.numero}`, texto: `${c.motivo}. O Rafael decide a mensagem em até 2 minutos.`, ref: sdr.conversaId }).catch(() => {});
         emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
         return 'aprovacao';
       }
@@ -1306,7 +1307,8 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
       const { pedirAutorizacaoNegociacao } = await import('./assistente-negociacao.service');
       await pedirAutorizacaoNegociacao(prisma, sdr, { id: pendente.id, texto: pendente.texto }, nomeDe(sdr)).catch((e: any) => console.warn('[CAROLINE] autorização:', e?.message));
     }
-    registrarAcaoAgente(agenteDe(sdr), `escreveu para ${sdr.nome || 'um lead'}: esperando sua aprovação`);
+    registrarAcaoAgente(agenteDe(sdr), pedeAutorizacao ? `escreveu para ${sdr.nome || 'um lead'}: esperando sua autorização (proposta)` : `escreveu para ${sdr.nome || 'um lead'}: o Rafael aprova em até 2 minutos`);
+    if (!pedeAutorizacao) chamarRafael(prisma, pendente.id);
     emitirEventoConversa(null, 'conversa_atualizada', { conversaId: sdr.conversaId });
     return 'aprovacao';
   }
@@ -1368,6 +1370,13 @@ export async function responderAgora(prisma: PrismaClient, sdrId: string, fase: 
   const inst = await obterInstanciaEmpresa(prisma);
   if (!inst?.instance_token) throw new Error('O WhatsApp da empresa não está conectado.');
   return falar(prisma, inst.instance_token, sdrId, fase);
+}
+
+/** Mensagem ficou pendente: o Rafael decide logo (12/11/2026). Roda depois desta fala terminar, sem travar o motor. */
+function chamarRafael(prisma: PrismaClient, id: string) {
+  setTimeout(() => {
+    import('./rafael-aprovador.service').then(m => m.rafaelRevisarPendentes(prisma, id)).catch((e: any) => console.warn('[RAFAEL] aprovação:', e?.message));
+  }, 3_000);
 }
 
 /** Aprovar (com ou sem edição) ou descartar uma mensagem da Caroline. */
@@ -1950,7 +1959,9 @@ export async function rodarCaroline(prisma: PrismaClient, agora = new Date()): P
       const r = await falar(prisma, token, s.id, 'resposta').catch(() => 'falha' as const);
       if (r === 'falha') falhouEm.set(s.id, Date.now()); else falhouEm.delete(s.id);
       // Passou de 2 minutos e a resposta não saiu: prioridade máxima e aviso à gestão (só falas das últimas 24 h).
-      if ((r === 'falha' || r === 'aprovacao') && Date.now() - s.ultima_lead_em!.getTime() < 864e5)
+      // Esperando aprovação: o Rafael tem 2 minutos; a gestão só é avisada se passar de 3 (12/11/2026).
+      const presa = r === 'aprovacao' && !!(await prisma.sdrMensagem.findFirst({ where: { sdrId: s.id, status: 'PENDENTE', created_at: { lt: new Date(Date.now() - 3 * 60_000) } }, select: { id: true } }));
+      if ((r === 'falha' || presa) && Date.now() - s.ultima_lead_em!.getTime() < 864e5)
         await avisarSemResposta(prisma, s, r === 'aprovacao' ? 'a mensagem está esperando aprovação' : 'não conseguiu montar a resposta').catch((e: any) => console.warn('[AGENTES] aviso sem resposta:', e?.message));
     }
   }

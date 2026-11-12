@@ -469,6 +469,16 @@ async function iniciarSchedulerAssistente() {
     } catch (e: any) { console.error('[CAROLINE] rodada:', e?.message); } finally { carolineRodando = false; }
   };
   setInterval(iniciarCaroline, 2 * 60 * 1000);
+  // Rafael aprova as mensagens pendentes dos SDRs em até 2 minutos (12/11/2026): rodada a cada 30 s.
+  let rafaelAprovando = false;
+  setInterval(async () => {
+    if (rafaelAprovando) return;
+    rafaelAprovando = true;
+    try {
+      const { rafaelRevisarPendentes } = await import('./services/rafael-aprovador.service.js');
+      await rafaelRevisarPendentes(prismaClient!);
+    } catch (e: any) { console.error('[RAFAEL] aprovação:', e?.message); } finally { rafaelAprovando = false; }
+  }, 30 * 1000);
 }
 
 // 8c) Scheduler: motor de regras (EVO-3) — roda 1x/dia (~7h BRT = 10h UTC).
