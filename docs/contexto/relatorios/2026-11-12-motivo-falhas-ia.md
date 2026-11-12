@@ -20,7 +20,9 @@ A Jessica mandou um print do Escritório › Consumo de IA ("56% das chamadas fa
 
 - `npx vitest run` nos testes de IA (10 arquivos, 67 testes): passaram.
 - `tsc` do backend (arquivos mudados) e do frontend: sem erros novos.
-- Deploy e tela no ar: ver a entrada "publicado" no ESTADO.md. Se não houver, **não verificado**.
+- Deploy de `7868fa2` concluído com backup e banco sem alterações. O deploy seguinte, `7b79657`, o inclui. Site 200.
+- Na produção, `consumoDoMes` já devolve `erros_por_agente` com motivos reais. O log do backend saiu com data e hora.
+- A tela (botão nas falhas) **não foi aberta no navegador**: não verificado visualmente.
 
 ## Decisões e porquês
 
