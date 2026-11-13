@@ -1664,7 +1664,7 @@ $L
 - **Conversas casuais:** quando dois agentes estão sem trabalho, eles vão ao café e batem papo sobre filmes, novelas, séries, futebol, comida e o fim de semana. É só para dar vida ao escritório: nada disso vai para cliente e não gasta IA.
 - **Decoração:** as mesas têm papelaria (papéis, cadernos, canetas) e as salas têm arquivo, estante, impressora e quadro com post-its.
 - **Perfil do agente:** clique num agente e veja, no topo do painel, o retrato dele, a personalidade e o que ele faz com maestria.
-- **Temas de feriado:** o escritório se enfeita sozinho no Natal (dezembro), no Ano Novo, no Carnaval, na Páscoa e na Festa Junina, com enfeites, chapéus nos bonecos e conversas sobre a data. Para ver um tema fora de época, escolha em **Tema**, ao lado do botão de tela cheia. Para voltar ao normal, escolha **Tema automático**.
+- **Temas de feriado:** o escritório se enfeita sozinho no Natal (dezembro), no Ano Novo, no Carnaval, na Páscoa e na Festa Junina, com enfeites, chapéus nos bonecos e conversas sobre a data. No Natal, cada sala ganha um pisca-pisca colorido no alto da parede. Para ver um tema fora de época, escolha em **Tema**, ao lado do botão de tela cheia. Para voltar ao normal, escolha **Tema automático**.
 
 ## Prioridade de atendimento: quem define é a Laya (12/11/2026)
 

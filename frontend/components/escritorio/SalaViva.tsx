@@ -454,6 +454,7 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
         {tema.enfeites.length > 0 && ENFEITES.map((p, k) => <span key={`e-${k}`} className="sv-enfeite" style={{ left: p.x, top: p.y, zIndex: 6 }} aria-hidden>{tema.enfeites[k % tema.enfeites.length]}</span>)}
         {tema.varal && <div className="sv-varal" aria-hidden>{tema.varal.repeat(14)}</div>}
         {tema.varal && <div className="sv-varal pe" aria-hidden>{tema.varal.repeat(14)}</div>}
+        {tema.pisca && SALAS.map(s => <PiscaPisca key={`pp-${s.id}`} x={s.x + 18} y={s.y + 2} w={s.w - 36} />)}
         {tema.particulas.length > 0 && Array.from({ length: 16 }, (_, k) => (
           <span key={`p-${tema.id}-${k}`} className="sv-floco" style={{ left: (k * 83 + 30) % LARG, animationDuration: `${9 + (k % 5) * 2}s`, animationDelay: `${-k * 1.3}s` }} aria-hidden>{tema.particulas[k % tema.particulas.length]}</span>
         ))}
@@ -510,6 +511,28 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
   );
 }
 
+/** Pisca-pisca de Natal: fio caído em curvas (a cada 90 px) com lâmpadas coloridas acendendo em 3 tempos. */
+function PiscaPisca({ x, y, w }: { x: number; y: number; w: number }) {
+  const VAO = 90, CAIDA = 9, PASSO = 15;
+  const vaos = Math.max(1, Math.round(w / VAO)), larg = vaos * VAO;
+  const fio = 'M0,1' + Array.from({ length: vaos }, (_, k) => ` Q${k * VAO + VAO / 2},${1 + 2 * CAIDA} ${(k + 1) * VAO},1`).join('');
+  const lampadas = Array.from({ length: Math.floor(larg / PASSO) - 1 }, (_, k) => {
+    const lx = (k + 1) * PASSO, u = (lx % VAO) / VAO;
+    return { lx, ly: 1 + 4 * CAIDA * u * (1 - u) };
+  }).filter(l => l.lx % VAO !== 0); // nos ganchos não vai lâmpada
+  return (
+    <svg className="sv-pisca" style={{ left: x + (w - larg) / 2, top: y }} width={larg} height={CAIDA + 14} aria-hidden>
+      <path d={fio} fill="none" stroke="#14532d" strokeWidth={1.4} />
+      {lampadas.map((l, k) => (
+        <g key={k} className={`sv-lampada c${k % 4}`} style={{ animationDelay: `${(k % 3) * 0.45}s` }}>
+          <rect x={l.lx - 1.6} y={l.ly - 0.5} width={3.2} height={2.6} rx={0.6} fill="#166534" />
+          <ellipse cx={l.lx} cy={l.ly + 5} rx={2.6} ry={3.6} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 function Boneco({ id, cor, chapeu = null }: { id: string; cor: string; chapeu?: string | null }) {
   const [cabelo, longo, pele] = VISUAL[id] || ['#3f2a1d', false];
   return (
@@ -541,6 +564,10 @@ function EstilosSala() {
     .sv-enfeite{position:absolute;font-size:20px;pointer-events:none;animation:sv-balanca 3s ease-in-out infinite alternate;transform-origin:50% 0}
     .sv-enfeite.grande{font-size:46px;animation:none;filter:drop-shadow(0 4px 4px rgba(15,23,42,.2))}
     .sv-varal{position:absolute;left:28px;top:343px;width:745px;overflow:hidden;white-space:nowrap;font-size:14px;letter-spacing:10px;line-height:1;pointer-events:none;z-index:2}
+    .sv-pisca{position:absolute;pointer-events:none;overflow:visible;z-index:4}
+    .sv-lampada{animation:sv-acende 1.35s steps(1) infinite}
+    .sv-lampada.c0{fill:#ef4444;color:#ef4444}.sv-lampada.c1{fill:#facc15;color:#facc15}.sv-lampada.c2{fill:#22c55e;color:#22c55e}.sv-lampada.c3{fill:#3b82f6;color:#3b82f6}
+    @keyframes sv-acende{0%{opacity:1;filter:drop-shadow(0 0 3px currentColor) drop-shadow(0 0 1px currentColor)}66%{opacity:.3;filter:none}}
     .sv-floco{position:absolute;top:-30px;font-size:16px;pointer-events:none;z-index:8500;opacity:.85;animation:sv-cai linear infinite}
     .sv-chapeu{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);font-size:13px;line-height:1}
     .sv-gorro{position:absolute;left:5px;bottom:46px;width:20px;height:11px;border-radius:11px 14px 0 0;background:#dc2626}

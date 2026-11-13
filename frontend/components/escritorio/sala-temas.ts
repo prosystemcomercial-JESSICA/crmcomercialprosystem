@@ -8,13 +8,15 @@ export type Tema = {
   /** 'gorro' desenha o gorro de Natal; qualquer outro texto é um emoji sobre a cabeça. */
   chapeu: string | null;
   destaque: string; enfeites: string[]; varal: string; particulas: string[];
+  /** Fio de luzinhas coloridas piscando no alto da parede de cada sala (Natal, 13/11/2026). */
+  pisca?: boolean;
   papo: Dialogo[];
 };
 
 export const TEMAS: Record<TemaId, Tema> = {
   nenhum: { id: 'nenhum', nome: 'Sem tema', icone: '🏢', chapeu: null, destaque: '', enfeites: [], varal: '', particulas: [], papo: [] },
   natal: {
-    id: 'natal', nome: 'Natal', icone: '🎄', chapeu: 'gorro', destaque: '🎄', enfeites: ['🎁', '⭐', '🔔', '🕯️'], varal: '🎄✨🎁✨', particulas: ['❄️', '❄️', '✨'],
+    id: 'natal', nome: 'Natal', icone: '🎄', chapeu: 'gorro', destaque: '🎄', enfeites: ['🎁', '⭐', '🔔', '🕯️'], varal: '🎄✨🎁✨', particulas: ['❄️', '❄️', '✨'], pisca: true,
     papo: [
       ['🎁 Já tirou o seu amigo secreto?', 'Tirei! Mas não conto nem sob tortura 🤐', 'Só me diz se a pessoa gosta de chocolate…', '😂 Todo mundo aqui gosta'],
       ['🎄 Quem montou a árvore do café?', 'Fui eu! Ficou torta?', 'Ficou linda. Torta, mas linda 😄'],
