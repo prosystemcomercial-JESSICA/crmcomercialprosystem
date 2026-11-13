@@ -577,6 +577,55 @@ export async function jessicaResponde(prisma: PrismaClient, notaId: string, resp
   return doc;
 }
 
+/**
+ * O Rafael responde sozinho, pela Universidade Prosystem, as perguntas abertas para a Jessica que são sobre
+ * FUNÇÕES do sistema (13/11/2026, pedido da Jessica). Preço, desconto, links, cadência, casos de clientes e
+ * regras da casa continuam com ela. A resposta vale na hora para todos os agentes (DICA aprovada, origem
+ * "universidade") e fecha a pergunta e as repetidas. `simular` só mostra o que faria, sem gravar.
+ */
+export async function responderPendentesPelaUniversidade(prisma: PrismaClient, opts: { simular?: boolean; lote?: number } = {}) {
+  const { anotar, normalPergunta, EQUIPE } = await import('./equipe.service');
+  const abertas = await prisma.agenteNota.findMany({ where: { tipo: 'PERGUNTA', resolvida_em: null }, orderBy: { created_at: 'desc' }, select: { id: true, texto: true, assunto: true, ref: true } });
+  const grupos = new Map<string, typeof abertas>();
+  for (const n of abertas) { const k = normalPergunta(n.texto); grupos.set(k, [...(grupos.get(k) || []), n]); }
+  const unicas = [...grupos.values()];
+  const lote = opts.lote ?? 6;
+  const respondidas: { pergunta: string; resposta: string; fechadas: number }[] = [];
+  const ficaram: { pergunta: string; motivo: string }[] = [];
+  for (let i = 0; i < unicas.length; i += lote) {
+    const parte = unicas.slice(i, i + lote);
+    const pergunta = [
+      'Abaixo estão perguntas abertas que você (Rafael) fez à Jessica. Para cada uma, decida:',
+      '1) "funcao": a pergunta é sobre uma FUNÇÃO/RECURSO do sistema Prosystem (o que ele faz, em qual plano/segmento, como funciona, integrações, fiscal do sistema)? Preço, mensalidade, taxa, desconto, validade de proposta, links/apresentações, cadência de contato, remetente, número de suporte, caso de um cliente específico ou regra da casa NÃO são função.',
+      '2) Se for função, responda SOMENTE com o que está no seu conhecimento do produto (guia e índice) e nos artigos listados junto da pergunta. "respondida": true só se esse material responder de verdade; se faltar algo, responda o que existe e diga em "falta" o que só a Jessica confirma.',
+      'A resposta é para os agentes usarem com clientes pelo WhatsApp: curta, prática, sem travessão, com o link do artigo quando houver. Não invente recurso, plano nem prazo.',
+      'Responda APENAS com JSON: {"itens": [{"n": número, "funcao": boolean, "respondida": boolean, "resposta": string, "falta": string}]}',
+      ...parte.map((g, j) => `\n### Pergunta ${i + j + 1}\n${g[0].texto}\n${trechosUniversidade(g[0].texto, 3, 7000)}`),
+    ].join('\n');
+    let r: { itens?: { n: number; funcao: boolean; respondida: boolean; resposta: string; falta?: string }[] } | null = null;
+    try { r = lerJsonIa(await chamarGemini(prisma, { sistema: await sistemaRafael(prisma), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 180_000 })); }
+    catch (e: any) { console.error('[RAFAEL] universidade lote', i, e?.message); }
+    for (const [j, g] of parte.entries()) {
+      const it = r?.itens?.find(x => Number(x.n) === i + j + 1);
+      if (!it) { ficaram.push({ pergunta: g[0].texto, motivo: 'sem resposta da IA' }); continue; }
+      if (!it.funcao) { ficaram.push({ pergunta: g[0].texto, motivo: 'não é função do sistema (fica com a Jessica)' }); continue; }
+      if (!it.respondida || !it.resposta?.trim()) { ficaram.push({ pergunta: g[0].texto, motivo: `a Universidade não responde${it.falta ? `: ${it.falta}` : ''}` }); continue; }
+      const resposta = `${it.resposta.trim()}${it.falta?.trim() ? `\n\nA confirmar com a Jessica: ${it.falta.trim()}` : ''}`.slice(0, 4000);
+      respondidas.push({ pergunta: g[0].texto, resposta, fechadas: g.length });
+      if (opts.simular) continue;
+      await prisma.agenteNota.updateMany({ where: { id: { in: g.map(x => x.id) } }, data: { resolvida_em: new Date() } });
+      await anotar(prisma, { de: 'rafael', para: EQUIPE, tipo: 'RESPOSTA', assunto: g[0].texto.slice(0, 150), texto: `Respondido pela Universidade Prosystem: ${resposta}`, ref: g[0].ref });
+      const doc = await gravarDoc(prisma, { tipo: 'DICA', titulo: `Resposta (Universidade): ${g[0].texto.slice(0, 200)}`, conteudo: `> Pergunta: "${g[0].texto}" (${g[0].assunto})\n\n**Resposta pela Universidade Prosystem:** ${resposta}` }, 'universidade');
+      await decidirDoc(prisma, doc.id, true, 'rafael').catch(() => {});
+    }
+  }
+  if (!opts.simular && respondidas.length) {
+    registrarAcaoAgente('rafael', `respondeu ${respondidas.length} pergunta(s) de função do sistema pela Universidade`);
+    await avisar(prisma, [`📚 *O Rafael respondeu ${respondidas.length} pergunta(s) pela Universidade Prosystem*`, ...respondidas.slice(0, 8).map(x => `• ${x.pergunta.slice(0, 120)}`), '', `Ficaram ${ficaram.length} com você (preço, links, cadência, casos de clientes ou o que a Universidade não cobre): ${linkPerguntas()}`].join('\n'));
+  }
+  return { abertas: abertas.length, unicas: unicas.length, respondidas, ficaram };
+}
+
 /** Pergunta que não se aplica: sai da lista sem resposta (nada vai para os agentes). */
 export async function dispensarPergunta(prisma: PrismaClient, notaId: string) {
   const n = await prisma.agenteNota.findUnique({ where: { id: notaId } });
