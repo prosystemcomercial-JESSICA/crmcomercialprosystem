@@ -27,3 +27,26 @@ describe('fase Interessados do WhatsApp', () => {
     expect(sinaisDeInteresse({ ...base, ia_sugestao: { intencao: 'comprar', qualificacao: 'quente' }, lead_temperatura: 'MORNO' })).toEqual(['quer comprar', 'qualificação quente', 'lead morno']);
   });
 });
+
+import { vendaFechada, finaisTelefone, rotuloImplantacao } from '../src/lib/funil-whatsapp';
+
+describe('fase Fechado do WhatsApp (cliente que fechou, em implantação)', () => {
+  it('fechou = lead FECHADO, status GANHO ou implantação não cancelada', () => {
+    expect(vendaFechada({ etapa_comercial: 'FECHADO' })).toBe(true);
+    expect(vendaFechada({ status: 'GANHO' })).toBe(true);
+    expect(vendaFechada({ implantacao_status: 'AGUARDANDO_INSTALACAO' })).toBe(true);
+    expect(vendaFechada({ implantacao_status: 'INSTALADO' })).toBe(true);
+    expect(vendaFechada({ implantacao_status: 'CANCELADA' })).toBe(false);
+    expect(vendaFechada({ etapa_comercial: 'PROPOSTA_ENVIADA', status: 'NOVO' })).toBe(false);
+  });
+  it('acha a conversa pelos 8 últimos dígitos de cada telefone, sem repetir', () => {
+    expect(finaisTelefone('(27) 99876-5432', '+55 27 99876-5432', null, '123')).toEqual(['98765432']);
+    expect(finaisTelefone('27 3333-4444', '27 98888-7777')).toEqual(['33334444', '88887777']);
+  });
+  it('mostra a situação da implantação no cartão', () => {
+    expect(rotuloImplantacao('AGENDADA')).toBe('Em implantação: instalação agendada');
+    expect(rotuloImplantacao('INSTALADO')).toBe('Implantado');
+    expect(rotuloImplantacao('CANCELADA')).toBeNull();
+    expect(rotuloImplantacao(null)).toBeNull();
+  });
+});

@@ -32,3 +32,27 @@ export function deveIrParaInteressados(c: ConversaInteresse, agora = new Date())
   if (!c.ultima_entrada || agora.getTime() - c.ultima_entrada.getTime() > DIAS_INTERAGINDO * 864e5) return false;
   return sinaisDeInteresse(c).length > 0;
 }
+
+// ── Fase "Fechado" (13/11/2026, pedido da Jessica) ─────────────────────────────
+// Cliente que fechou fica em "Fechado" no Kanban do WhatsApp, mesmo durante a implantação,
+// para a equipe continuar falando com ele. Fechou = lead em FECHADO, status GANHO
+// ou com implantação que não foi cancelada.
+
+export type LeadVenda = { etapa_comercial?: string | null; status?: string | null; implantacao_status?: string | null };
+
+export function vendaFechada(l: LeadVenda): boolean {
+  if (l.etapa_comercial === 'FECHADO' || l.status === 'GANHO') return true;
+  return !!l.implantacao_status && l.implantacao_status !== 'CANCELADA';
+}
+
+/** Últimos 8 dígitos de cada telefone do lead (mesma chave usada no resto do CRM para achar a conversa). */
+export function finaisTelefone(...telefones: Array<string | null | undefined>): string[] {
+  const fins = telefones.map(t => String(t || '').replace(/\D/g, '')).filter(t => t.length >= 8).map(t => t.slice(-8));
+  return [...new Set(fins)];
+}
+
+/** Nome curto da situação da implantação, para o cartão da coluna Fechado. */
+export function rotuloImplantacao(status?: string | null): string | null {
+  const mapa: Record<string, string> = { AGUARDANDO_INSTALACAO: 'Em implantação: aguardando instalação', AGENDADA: 'Em implantação: instalação agendada', INSTALADO: 'Implantado' };
+  return status ? mapa[status] || null : null;
+}

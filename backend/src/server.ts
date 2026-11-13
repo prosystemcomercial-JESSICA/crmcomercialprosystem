@@ -535,9 +535,12 @@ async function iniciarSchedulerCronometro() {
   // Kanban do WhatsApp: fase "Interessados" (interesse + conversando nos últimos 7 dias).
   const funil = async () => {
     try {
-      const { moverInteressados } = await import('./services/funil-whatsapp.service.js');
+      const { moverInteressados, moverFechados } = await import('./services/funil-whatsapp.service.js');
       const n = await moverInteressados(prismaClient!);
       if (n) console.log(`[FUNIL] ${n} conversa(s) movida(s) para Interessados`);
+      // Quem fechou (lead Fechado/Ganho ou com implantação) fica na coluna Fechado (13/11/2026).
+      const f = await moverFechados(prismaClient!);
+      if (f) console.log(`[FUNIL] ${f} conversa(s) de cliente fechado movida(s) para Fechado`);
     } catch (err: any) { console.error('[FUNIL] Erro:', err?.message); }
   };
   setInterval(funil, 10 * 60 * 1000);

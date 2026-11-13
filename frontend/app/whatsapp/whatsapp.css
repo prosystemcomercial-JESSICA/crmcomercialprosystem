@@ -148,6 +148,7 @@
 .wpp-chamado-status { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; line-height: 17px; color: var(--t-text-secondary); }
 .wpp-chamado-status > span { display: inline-flex; align-items: center; gap: 4px; }
 .wpp-chamado-atrasado, .wpp-chamado-critico { color: var(--t-error); font-weight: 600; }
+.wpp-chamado-implantacao { color: var(--t-success); font-weight: 600; }
 .wpp-chamado-contexto { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--t-text-secondary); }
 .wpp-chamado-contexto > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 767px) {

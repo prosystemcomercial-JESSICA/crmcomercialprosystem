@@ -33,6 +33,9 @@ interface Conversa {
   etiqueta?: string | null;
   etiqueta_cor?: string | null;
   estagio_funil?: string;
+  // Quadro: conversa em Fechado que só vem para a coluna Fechado (finalizada ou antiga) e situação da implantação.
+  so_no_fechado?: boolean;
+  implantacao?: string | null;
   prioridade?: string;
   sla_prazo_em?: string | null;
   dono_id?: string | null;   // null = sem dono (pool do WhatsApp da empresa)
@@ -1640,8 +1643,8 @@ export default function WhatsappPage() {
               <span className="wpp-quadro-ajuda">{agruparKanban === 'fase' ? 'Arraste para mudar a fase' : 'Selecione um contato para atender'}</span>
             </div>
             <div className="wpp-quadro-rolagem" tabIndex={0} aria-label="Colunas da fila">
-              {conversasFiltradas.length === 0 && agruparKanban === 'atendente' && <p className="wpp-quadro-vazio">Nenhuma conversa encontrada.</p>}
-              {(agruparKanban === 'atendente' ? colunasPorAtendente(conversasFiltradas) : ESTAGIOS_FUNIL.map(col => ({ ...col, cards: conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor) }))).map(col => {
+              {conversasFiltradas.filter(c => !c.so_no_fechado).length === 0 && agruparKanban === 'atendente' && <p className="wpp-quadro-vazio">Nenhuma conversa encontrada.</p>}
+              {(agruparKanban === 'atendente' ? colunasPorAtendente(conversasFiltradas.filter(c => !c.so_no_fechado)) : ESTAGIOS_FUNIL.map(col => ({ ...col, cards: conversasFiltradas.filter(c => (c.estagio_funil || 'NOVO_CONTATO') === col.valor) }))).map(col => {
                 const cards = col.cards;
                 const arrastavel = agruparKanban === 'fase';
                 const Icone = col.valor.startsWith('ia:') || col.valor === 'triagem' ? Bot : col.valor.startsWith('p:') ? UserRound : Inbox;
@@ -1673,6 +1676,7 @@ export default function WhatsappPage() {
                               </span>
                               {c.nao_lidas > 0 && <span className="wpp-chamado-nao-lidas" aria-label={c.nao_lidas + ' mensagens não lidas'}>{c.nao_lidas}</span>}
                             </span>
+                            {arrastavel && c.implantacao && <span className="wpp-chamado-status"><span className="wpp-chamado-implantacao">{c.implantacao}</span></span>}
                             {(sla || prio) && <span className="wpp-chamado-status">
                               {prio && <span className={prio.valor === 'CRITICA' ? 'wpp-chamado-critico' : ''}>Prioridade {prio.nome.toLowerCase()}</span>}
                               {sla && <span className={sla.violado ? 'wpp-chamado-atrasado' : ''}><Clock3 size={12} aria-hidden="true" />{sla.texto.replace('Violado há', 'Vencido há')}</span>}

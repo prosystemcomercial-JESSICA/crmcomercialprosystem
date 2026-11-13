@@ -627,6 +627,28 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
       include: { instancia: { select: { instancia_nome: true, apelido: true, dono_nome: true, numero: true } } },
     });
 
+    // Quadro (Fila de Chamados): a coluna "Fechado" mostra todos os clientes que fecharam, mesmo com o
+    // atendimento finalizado ou fora das 500 conversas mais recentes (13/11/2026: em implantação, a equipe
+    // continua falando com eles). Esses extras vêm marcados (so_no_fechado) e só aparecem na visão "Por fase".
+    if (escopo === 'quadro' && !idDireto) {
+      const jaTem = new Set(conversas.map(c => c.id));
+      const fechadas = await prisma.whatsappConversa.findMany({
+        where: { ...filtroEscopo, ...(instanciaId ? { instanciaId } : {}), estagio_funil: 'FECHADO', id: { notIn: [...jaTem] } },
+        orderBy: { ultima_em: 'desc' }, take: 300,
+        include: { instancia: { select: { instancia_nome: true, apelido: true, dono_nome: true, numero: true } } },
+      }).catch(() => []);
+      for (const c of fechadas) conversas.push(Object.assign(c, { so_no_fechado: true }));
+      // Situação da implantação no cartão de quem está em Fechado.
+      const leadIds = [...new Set(conversas.filter(c => c.estagio_funil === 'FECHADO' && c.lead_id).map(c => c.lead_id!))];
+      if (leadIds.length) {
+        const imps = await prisma.implantacao.findMany({ where: { lead_id: { in: leadIds } }, orderBy: { created_at: 'desc' }, select: { lead_id: true, status: true } }).catch(() => []);
+        const situacao = new Map<string, string>();
+        for (const i of imps) if (i.lead_id && !situacao.has(i.lead_id)) situacao.set(i.lead_id, i.status);
+        const { rotuloImplantacao } = await import('@/lib/funil-whatsapp');
+        for (const conv of conversas as any[]) if (conv.lead_id && situacao.has(conv.lead_id)) conv.implantacao = rotuloImplantacao(situacao.get(conv.lead_id));
+      }
+    }
+
     // Anexa código + razão social dos clientes vinculados (etiqueta verde na conversa).
     const clienteIds = Array.from(new Set(conversas.map(c => c.cliente_id).filter(Boolean))) as string[];
     if (clienteIds.length) {

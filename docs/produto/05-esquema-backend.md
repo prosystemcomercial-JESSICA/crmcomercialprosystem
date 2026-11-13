@@ -1061,6 +1061,11 @@ Origem: documento de pesquisa de UX (lacunas 7, 9 e 11 + melhorias de UX/UI do c
 - Calendário: mês com viradas agendadas e fases de treino marcadas; navegação por mês.
 - Equipe (só supervisão): 14 dias por técnico com viradas e treinos, e as demandas ativas de cada um, piores primeiro.
 
+### Atualização 13/11/2026: coluna "Fechado" do Kanban do WhatsApp com os clientes que fecharam
+- Pedido da Jessica (print da Fila de Chamados, "Por fase", com Fechado = 0): quem fechou está em implantação e a equipe precisa continuar falando com ele, então precisa aparecer em **Fechado**.
+- **Regra:** a conversa vai sozinha para `FECHADO` quando o lead está em etapa `FECHADO`, com status `GANHO` ou tem implantação que não foi cancelada (inclusive implantação sem `lead_id`, achada pela proposta). A conversa é achada pelo lead vinculado ou pelos 8 últimos dígitos do telefone do lead (`telefone` e `responsavel_telefone`). Ao entrar, a cadência automática é pausada (igual à troca manual).
+- **Banco:** sem tabela nem campo novo. Usa `WhatsappConversa.estagio_funil`, `cadencia_*`, `Lead.etapa_comercial`/`status`/`telefone`/`responsavel_telefone`/`deleted_at`, `Implantacao.lead_id`/`proposta_id`/`status` e `Proposta.lead_id`. Resposta de `GET /whatsapp/conversas?escopo=quadro` ganha `so_no_fechado` e `implantacao` (só leitura).
+
 ### Atualização 05/10/2026: fase "Interessados" no Kanban do WhatsApp
 
 - Coluna nova **Interessados** (`INTERESSADO`), entre Novo Contato e Em Negociação, na vista "Por fase" do WhatsApp da empresa.

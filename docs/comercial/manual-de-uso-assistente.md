@@ -965,6 +965,11 @@ O cabeçalho do card mostra o perfil (ex.: "Implantação · Varejo · banco zer
 - **Card:** as abas agora ficam em 5 grupos (Visão geral, Cliente, Execução, Conversa, Tempos).
 - **Quadro:** além do Kanban, as vistas Lista, Calendário e Equipe (a última só para a supervisão).
 
+### Atualização 13/11/2026: clientes que fecharam na coluna Fechado do WhatsApp
+- Na **Fila de Chamados**, vista **Por fase**, a coluna **Fechado** agora reúne sozinha todos os clientes que fecharam (lead em Fechado, venda ganha ou com implantação), para você continuar o contato durante a implantação.
+- O cartão mostra em verde a situação: "Em implantação: aguardando instalação", "Em implantação: instalação agendada" ou "Implantado". Clique no cartão para abrir a conversa.
+- Atualiza a cada 10 minutos. Aparece mesmo se o atendimento estiver finalizado. A cadência automática de mensagens para quando o cliente entra em Fechado.
+
 ### Atualização 05/10/2026: coluna Interessados no WhatsApp
 
 - Na vista **Por fase** do WhatsApp, a coluna **Interessados** reúne sozinha os contatos que demonstraram interesse (intenção de comprar ou temperatura morna para cima) e mandaram mensagem nos últimos 7 dias. Ela atualiza a cada 10 minutos; quem a equipe já moveu para outra fase não é mexido.
