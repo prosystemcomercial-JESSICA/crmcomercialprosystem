@@ -2388,17 +2388,6 @@ Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folh
 - **Tela:** o aviso da aba Onboarding técnico explica que o card vai sozinho para Em andamento.
 - **Teste:** `backend/tests/implantacao-onboarding-coluna.test.ts` (4 casos).
 
-### Atualização 13/11/2026: a Laya mede sozinha a temperatura dos leads
-
-Pedido da Jessica: "a Laya já aprendeu o suficiente, comece a medir sozinha as temperaturas, com todos os pendentes". Antes, a coluna "Confirmar temperatura (ensina a Laya)" dos painéis dos SDRs esperava a Jessica escolher a temperatura de cada lead ("Está certo?").
-
-- [x] Leitura de produção: 409 pendentes, 188 sem resposta do cliente; acerto do palpite cru 7/138 contra os agentes e 10/80 contra a Jessica.
-- [x] Pesquisa do método (pontuação de leads: fit × intenção × engajamento, pontuação negativa, decaimento por inatividade, validar contra resultados reais).
-- [x] Termômetro puro + serviço + agendamento + tela; validação contra 154 confirmações: 95%.
-- [x] Palpite cru travado até a tarefa sair de Aprendiz.
-- [ ] Transcrever áudios para o termômetro ler (hoje "[áudio]" sem texto conta só como resposta).
-- [ ] Rever as regras quando a Jessica corrigir (as correções aparecem como "✔ confirmado" diferente da marca da Laya).
-
 ### Atualização 13/11/2026: o Rafael estudou a base de conhecimento (Universidade Prosystem)
 
 - **Pedido da Jessica:** "ele tem que estudar a nossa base de conhecimentos… leia por aqui e passe tudo para ele, coloque direto no conhecimento dele".

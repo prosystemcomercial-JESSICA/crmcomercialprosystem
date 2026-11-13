@@ -2403,15 +2403,6 @@ Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folh
 - **Tela:** o aviso da aba Onboarding técnico explica que o card vai sozinho para Em andamento.
 - **Teste:** `backend/tests/implantacao-onboarding-coluna.test.ts` (4 casos).
 
-### Atualização 13/11/2026: a Laya mede sozinha a temperatura dos leads
-
-Pedido da Jessica: "a Laya já aprendeu o suficiente, comece a medir sozinha as temperaturas, com todos os pendentes". Antes, a coluna "Confirmar temperatura (ensina a Laya)" dos painéis dos SDRs esperava a Jessica escolher a temperatura de cada lead ("Está certo?").
-
-- **Problema encontrado:** o palpite cru do modelo da Laya para temperatura acertava 10 de 80 casos confirmados (chamava de Quente quem era Frio) e já tinha esquentado 15 leads sozinho em 30 dias. As confirmações da Jessica, por outro lado, concordaram com a nota do agente em 152 de 154 casos.
-- **O que mudou:** a Laya passa a medir a temperatura com um termômetro de regras e memória (método de pontuação de leads: só a fala do cliente conta, sinal negativo derruba, pedido concreto esquenta, sem pedido fica no máximo Morno, quem sumiu há mais de 21 dias esfria um nível), validado contra as 154 confirmações da Jessica: **147 acertos (95%)**.
-- Mede os pendentes e reavalia sozinha quando a conversa muda (a cada 10 min). A Jessica pode corrigir na mesma lista; a correção dela vale e continua ensinando a Laya.
-- O palpite cru do modelo deixa de mudar a temperatura dos leads enquanto a tarefa "Temperatura" estiver no nível Aprendiz.
-
 ### Atualização 13/11/2026: o Rafael estudou a base de conhecimento (Universidade Prosystem)
 
 - **Pedido da Jessica:** "ele tem que estudar a nossa base de conhecimentos… leia por aqui e passe tudo para ele, coloque direto no conhecimento dele".
