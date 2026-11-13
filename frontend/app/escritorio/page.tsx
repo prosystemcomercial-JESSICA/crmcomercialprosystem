@@ -100,6 +100,7 @@ export default function EscritorioPage() {
   const [abaRafael, setAbaRafael] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('rafael') === 'perguntas') { setAbaRafael('PERGUNTAS'); setJanela('rafael'); }
+    if (new URLSearchParams(window.location.search).get('rafael') === 'decisoes') { setAbaRafael('DECISOES'); setJanela('rafael'); } // ex-tela /aprovar (13/11/2026)
     if (new URLSearchParams(window.location.search).get('diretoria')) setJanela('vitoria'); // link dos avisos da diretoria (13/11/2026)
     if (new URLSearchParams(window.location.search).get('leads')) { setAbaLaya('leads'); setJanela('laya'); } // link direto do Painel de Leads (13/11/2026)
   }, []);

@@ -171,7 +171,7 @@ export async function enviarAvisoGestao(prisma: PrismaClient, tipo: TipoAviso, t
       const linhas = texto.replace(/\*/g, '').split('\n').filter(Boolean);
       // Toque na notificação abre a conversa do aviso quando o texto traz o link dela (antes abria só /whatsapp, 16/10/2026).
       const daConversa = texto.match(/\/whatsapp\?conversa=([\w-]+)/)?.[1];
-      await enviarPush(prisma, [g.id], { titulo: linhas[0]?.slice(0, 80) || NOME_AVISO[tipo], corpo: linhas.slice(1).join(' ').slice(0, 180) || NOME_AVISO[tipo], url: opts.url || (daConversa ? `/whatsapp?conversa=${daConversa}` : /aprova|autoriza/i.test(texto) ? '/aprovar' : '/whatsapp'), tag: tipo });
+      await enviarPush(prisma, [g.id], { titulo: linhas[0]?.slice(0, 80) || NOME_AVISO[tipo], corpo: linhas.slice(1).join(' ').slice(0, 180) || NOME_AVISO[tipo], url: opts.url || (daConversa ? `/whatsapp?conversa=${daConversa}` : /aprova|autoriza/i.test(texto) ? '/escritorio?rafael=decisoes' : '/whatsapp'), tag: tipo });
       registrarAcaoAgente('marta', `avisou ${g.nome.split(' ')[0]}: ${NOME_AVISO[tipo].toLowerCase()}`);
     }
   } catch (e: any) {

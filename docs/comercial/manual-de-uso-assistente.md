@@ -506,7 +506,7 @@ Tudo vale só abaixo de 768px (`app/ios.css`). No computador nada muda.
   - `components/mobile/NotificacoesApp.tsx`: registra o service worker e mostra o aviso flutuante "Receba avisos no celular" (Ativar / Agora não). No iPhone fora do app, o aviso ensina a instalar na Tela de Início.
   - Ao ativar, o app pede permissão, inscreve o aparelho e manda um push de teste.
   - A bolinha no ícone é atualizada a cada 60 s e ao voltar para o app.
-- **Tela `/aprovar`** (item "Aprovar" no menu, só gestão): cartões iOS com tudo o que espera decisão, de todos os agentes.
+- **Tela `/aprovar`** (item "Aprovar" no menu, só gestão): cartões iOS com tudo o que espera decisão, de todos os agentes. **Saiu do menu em 13/11/2026:** o histórico das decisões do Rafael fica na aba "Decisões" do painel dele (veja a atualização de 13/11/2026).
   - Mensagens: Aprovar e enviar / Editar (enviar com meu ajuste) / Refazer (o que mudar?).
   - Campanhas: Autorizar 30% / Autorizar 20% / Não autorizar.
   - Mostra o tempo de espera e o link "Ver conversa"; atualiza a cada 30 s.
@@ -1793,3 +1793,12 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Ao marcar um lead como perdido, **escreva o motivo**.
 
 **Importante:** quando o painel avisar que há muitos leads sem contato, a saída **não é aumentar o limite de mensagens do WhatsApp** (isso arrisca o número). O certo é chamar primeiro os leads de melhor perfil e ajustar o ritmo de captação do Heitor.
+
+### Atualização 13/11/2026: a tela "Aprovar" saiu do menu; histórico das decisões no painel do Rafael
+
+- **Por quê:** desde 12/11/2026 o Rafael (`services/rafael-aprovador.service.ts`) decide em até 2 minutos todas as mensagens pendentes dos SDRs (Caroline, Julio, Luiz Felipe: primeiro contato, retomada, resposta, seguradas pela Laya) e as campanhas de 30%/20%. A tela `/aprovar` ficava sempre "Nada esperando por você". A Jessica pediu para tirá-la e pôr o histórico no painel do Rafael, sem aba separada.
+- **Menu:** o item "Aprovar" (Atendimento & IA) foi removido de `DashboardLayout.tsx`. O endereço `/aprovar` continua existindo só para redirecionar a `/escritorio?rafael=decisoes` (avisos antigos no celular).
+- **Painel do Rafael (Escritório virtual › Rafael):** nova aba **⚖️ Decisões** (`components/escritorio/DecisoesRafael.tsx`), logo depois de "Perguntas para você". Mostra o resumo do período (aprovadas, corrigidas, refeitas, campanhas), filtros (Todas, Aprovou, Corrigiu, Refazer, Campanhas), período (hoje e ontem, 7 ou 30 dias) e um cartão por decisão: rótulo colorido, cliente e empresa, agente e fase, data/hora e motivo (quando ele mandou refazer). Ao abrir: o texto do agente, o que saiu depois do Rafael (quando ele corrigiu) e "Ver conversa ›". Atualiza a cada 60 s.
+- **API:** `GET /especialista/decisoes?dias=1..30` (só gestão, padrão 7, até 200 itens). Lê `SdrMensagem` com `decidido_por = 'rafael'` e status APROVADA, EDITADA ou DESCARTADA. A classificação é pura: `resumirDecisaoRafael` em `lib/assistente/rafael-aprovador.ts` (APROVADA = Aprovou; EDITADA = Corrigiu e enviou; DESCARTADA = Pediu outra versão, motivo sem o prefixo "Rafael:"; campanha aprovada = "Autorizou N%" com o percentual de `SdrLead.dados.desconto_autorizado.impl_pct` quando `por = 'Rafael'`; campanha editada = Sem campanha). Testes em `tests/rafael-aprovador.test.ts`. Sem mudança de banco.
+- **Notificações:** os avisos que abriam `/aprovar` (teste de notificação, `enviarAvisoGestao` com texto de aprovação/autorização e pedido de campanha) agora abrem `/escritorio?rafael=decisoes`.
+- **Continua igual:** os botões de aprovar no painel da Caroline e no WhatsApp da gestão; se o Rafael for desligado, a tela pode voltar ao menu.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, PRAZO_RAFAEL_MS, lerDecisaoCampanha, CAMPANHA_NO_PRAZO } from '../src/lib/assistente/rafael-aprovador';
+import { decisaoNoPrazo, lerDecisaoRafael, rafaelRevisa, urgente, PRAZO_RAFAEL_MS, lerDecisaoCampanha, CAMPANHA_NO_PRAZO, resumirDecisaoRafael } from '../src/lib/assistente/rafael-aprovador';
 
 describe('Rafael aprova no lugar da Jessica (12/11/2026)', () => {
   it('prazo de 2 minutos', () => {
@@ -48,5 +48,21 @@ describe('Rafael aprova no lugar da Jessica (12/11/2026)', () => {
     expect(urgente({ fase: 'resposta' })).toBe(true);
     expect(urgente({ fase: 'abertura' })).toBe(false);
     expect(urgente({})).toBe(false);
+  });
+});
+
+describe('resumirDecisaoRafael (aba Decisões do painel do Rafael)', () => {
+  it('aprovada sem mudança = Aprovou', () => {
+    expect(resumirDecisaoRafael({ status: 'APROVADA', texto_final: 'oi', negociacao: false })).toMatchObject({ tipo: 'aprovou', enviada: true });
+  });
+  it('editada = Corrigiu e enviou', () => {
+    expect(resumirDecisaoRafael({ status: 'EDITADA', texto_final: 'oi!', negociacao: false })).toMatchObject({ tipo: 'corrigiu', rotulo: 'Corrigiu e enviou' });
+  });
+  it('descartada guarda o motivo sem o prefixo "Rafael:"', () => {
+    expect(resumirDecisaoRafael({ status: 'DESCARTADA', texto_final: 'Rafael: link cortado', negociacao: false })).toEqual({ tipo: 'refazer', rotulo: 'Pediu outra versão', motivo: 'link cortado', enviada: false });
+  });
+  it('campanha aprovada mostra o percentual; editada = sem campanha', () => {
+    expect(resumirDecisaoRafael({ status: 'APROVADA', texto_final: null, negociacao: true, pctAutorizado: 30 }).rotulo).toBe('Autorizou 30%');
+    expect(resumirDecisaoRafael({ status: 'EDITADA', texto_final: 'x', negociacao: true }).tipo).toBe('sem_campanha');
   });
 });

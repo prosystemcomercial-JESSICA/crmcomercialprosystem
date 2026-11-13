@@ -60,3 +60,24 @@ export function decisaoNoPrazo(p: { defeitoObjetivo: boolean }): DecisaoRafael {
 export function urgente(meta: { fase?: string } | null | undefined): boolean {
   return meta?.fase === 'resposta';
 }
+
+/**
+ * Histórico das decisões do Rafael (13/11/2026): a tela "Aprovar" saiu do menu (ficava sempre vazia, o Rafael decide
+ * em até 2 min) e o painel do Rafael ganhou a aba "Decisões" para a Jessica conferir o que ele fez.
+ * Lê a SdrMensagem decidida por ele: APROVADA, EDITADA (corrigiu) ou DESCARTADA (pediu outra versão / não saiu).
+ * Campanha: aprovada com pct = autorizou; editada = sem campanha (o texto vira o pedido de previsão de decisão).
+ */
+export type TipoDecisaoRafael = 'aprovou' | 'corrigiu' | 'refazer' | 'campanha' | 'sem_campanha';
+export function resumirDecisaoRafael(m: { status: string; texto_final: string | null; negociacao: boolean; pctAutorizado?: number | null }):
+  { tipo: TipoDecisaoRafael; rotulo: string; motivo: string | null; enviada: boolean } {
+  if (m.status === 'DESCARTADA') {
+    const motivo = (m.texto_final || '').replace(/^Rafael:\s*/i, '').trim() || null;
+    return { tipo: 'refazer', rotulo: m.negociacao ? 'Campanha não saiu' : 'Pediu outra versão', motivo, enviada: false };
+  }
+  if (m.negociacao) {
+    if (m.status === 'EDITADA') return { tipo: 'sem_campanha', rotulo: 'Sem campanha', motivo: null, enviada: true };
+    return { tipo: 'campanha', rotulo: m.pctAutorizado ? `Autorizou ${m.pctAutorizado}%` : 'Autorizou a campanha', motivo: null, enviada: true };
+  }
+  if (m.status === 'EDITADA') return { tipo: 'corrigiu', rotulo: 'Corrigiu e enviou', motivo: null, enviada: true };
+  return { tipo: 'aprovou', rotulo: 'Aprovou', motivo: null, enviada: true };
+}

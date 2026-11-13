@@ -43,7 +43,7 @@ export async function pushRoutes(fastify: FastifyInstance, options: { prisma: Pr
 
   fastify.post('/push/teste', async (request, reply) => {
     const u = logado(request, reply); if (!u) return;
-    const n = await enviarPush(prisma, [u.id], { titulo: 'CRM Prosystem', corpo: 'Tudo certo! As notificações estão funcionando. ✅', url: '/aprovar', tag: 'teste' });
+    const n = await enviarPush(prisma, [u.id], { titulo: 'CRM Prosystem', corpo: 'Tudo certo! As notificações estão funcionando. ✅', url: '/escritorio?rafael=decisoes', tag: 'teste' });
     return reply.send({ status: 'success', data: { enviados: n }, message: n ? 'Notificação de teste enviada.' : 'Nenhum aparelho ativo: toque em "Ativar notificações" primeiro.' });
   });
 

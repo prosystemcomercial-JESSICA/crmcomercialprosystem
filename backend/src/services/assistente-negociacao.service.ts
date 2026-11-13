@@ -55,7 +55,7 @@ export async function pedirAutorizacaoNegociacaoGestao(prisma: PrismaClient, sdr
     if (!(await lerPrefsAvisos(prisma, g.id)).includes('lead_qualificado')) continue;
     await evo.enviarMenu(inst.instance_token, g.telefone!, menu).catch((e: any) => console.error('[NEGOCIACAO] envio:', e?.message));
     const { enviarPush } = await import('./push.service');
-    await enviarPush(prisma, [g.id], { titulo: `🙋 ${agente} pede autorização de campanha`, corpo: `${(p?.nome_fantasia || p?.razao_social || sdr.nome || 'Cliente').trim()}: toque para ver a proposta e autorizar.`, url: '/aprovar', tag: `neg-${msg.id}` });
+    await enviarPush(prisma, [g.id], { titulo: `🙋 ${agente} pede autorização de campanha`, corpo: `${(p?.nome_fantasia || p?.razao_social || sdr.nome || 'Cliente').trim()}: toque para ver a decisão do Rafael.`, url: '/escritorio?rafael=decisoes', tag: `neg-${msg.id}` });
   }
 }
 

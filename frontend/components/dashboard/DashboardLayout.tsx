@@ -74,7 +74,6 @@ const navGroups: NavGroup[] = [
     label: 'Atendimento & IA',
     items: [
       { href: '/whatsapp',   icon: MessageSquare, label: 'WhatsApp',           roles: [...COMERCIAL, 'SDR'], destaque: 'whatsapp' },
-      { href: '/aprovar',    icon: Eye,           label: 'Aprovar',            roles: GESTAO_COMERCIAL },
       { href: '/retornos',   icon: MessageSquare, label: 'Retornos agendados', roles: [...COMERCIAL, 'SDR'] },
       { href: '/escritorio', icon: Building2,     label: 'Escritório virtual', roles: [...COMERCIAL, 'SDR'] },
       { href: '/meu-tempo',  icon: CalendarCheck, label: 'Meu tempo',          roles: [...ALL, 'SDR'] },

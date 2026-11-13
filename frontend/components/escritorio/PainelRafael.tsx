@@ -3,15 +3,17 @@
 // Painel do Rafael (especialista em vendas de software): documentos que viram parâmetro do setor.
 // Para aprovar: POPs, processos, exemplos, dicas, revisões de conversas e a abordagem inicial
 // de cada agente (ao aprovar a abordagem, o agente passa a usar).
+// Aba "Decisões" (13/11/2026): o que o Rafael aprovou/corrigiu/refez e as campanhas que autorizou (ex-tela /aprovar).
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import PerguntasRafael from './PerguntasRafael';
+import DecisoesRafael from './DecisoesRafael';
 
 type Doc = { id: string; tipo: string; titulo: string; conteudo: string; agente_alvo: string | null; status: string; versao: number; created_at: string };
 
 const TIPOS: { k: string; r: string }[] = [
-  { k: 'PERGUNTAS', r: '❓ Perguntas para você' }, { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'TREINAMENTO', r: '🎓 Treinamentos' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
+  { k: 'PERGUNTAS', r: '❓ Perguntas para você' }, { k: 'DECISOES', r: '⚖️ Decisões' }, { k: 'PENDENTES', r: '📝 Para aprovar' }, { k: 'TREINAMENTO', r: '🎓 Treinamentos' }, { k: 'ABORDAGEM', r: '🎯 Abordagens' }, { k: 'ALERTA', r: '👀 Revisões' }, { k: 'CONCORRENCIA', r: '🔍 Concorrência' },
   { k: 'POP', r: '📋 POPs' }, { k: 'PROCESSO', r: '🔁 Processos' }, { k: 'EXEMPLO', r: '💬 Exemplos' }, { k: 'DICA', r: '💡 Dicas' },
 ];
 const COR = '#1e40af';
@@ -85,7 +87,9 @@ export default function PainelRafael({ abaInicial }: { abaInicial?: string } = {
       {/* Sempre montado (só escondido) para o número de perguntas aparecer na aba. */}
       <div style={{ display: aba === 'PERGUNTAS' ? 'block' : 'none' }}><PerguntasRafael onTotal={setPerguntas} /></div>
 
-      {aba === 'PERGUNTAS' ? null : docs === null ? <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando…</div> : lista.length === 0 ? (
+      {aba === 'DECISOES' && <DecisoesRafael />}
+
+      {aba === 'PERGUNTAS' || aba === 'DECISOES' ? null : docs === null ? <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>Carregando…</div> : lista.length === 0 ? (
         <div style={{ fontSize: 13, color: 'var(--t-text-muted)' }}>{aba === 'PENDENTES' ? 'Nada esperando sua aprovação.' : 'Nada aqui ainda. Use os botões acima para o Rafael trabalhar.'}</div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>

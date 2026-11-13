@@ -26,6 +26,36 @@ export async function especialistaRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', data: { docs, em_andamento: [...emAndamento] } });
   });
 
+  // Aba "Decisões" do painel do Rafael (13/11/2026): o que ele aprovou, corrigiu, mandou refazer e quais campanhas
+  // autorizou no lugar da Jessica. Substitui a tela /aprovar, que ficava sempre vazia.
+  fastify.get('/especialista/decisoes', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const q = request.query as { dias?: string };
+    const dias = Math.min(Math.max(Number(q.dias) || 7, 1), 30);
+    const desde = new Date(Date.now() - dias * 864e5);
+    const ms = await prisma.sdrMensagem.findMany({
+      where: { decidido_por: 'rafael', decidido_em: { gte: desde }, status: { in: ['APROVADA', 'EDITADA', 'DESCARTADA'] } },
+      orderBy: { decidido_em: 'desc' }, take: 200,
+    });
+    const sdrs = await prisma.sdrLead.findMany({ where: { id: { in: [...new Set(ms.map(m => m.sdrId))] } }, select: { id: true, nome: true, empresa: true, agente: true, conversaId: true, dados: true } });
+    const porId = new Map(sdrs.map(s => [s.id, s]));
+    const NOMES: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
+    const { resumirDecisaoRafael } = await import('../lib/assistente/rafael-aprovador');
+    const itens = ms.map(m => {
+      const meta = (() => { try { return JSON.parse(m.acao || '{}') || {}; } catch { return {}; } })();
+      const s = porId.get(m.sdrId);
+      const aut = (s?.dados as any)?.desconto_autorizado;
+      const r = resumirDecisaoRafael({ status: m.status, texto_final: m.texto_final, negociacao: !!meta.negociacao, pctAutorizado: aut?.por === 'Rafael' ? aut.impl_pct : null });
+      return {
+        id: m.id, ...r, fase: meta.fase || null, decidido_em: m.decidido_em,
+        agente: NOMES[s?.agente || ''] || 'Agente', cliente: s?.nome || null, empresa: s?.empresa || null, conversaId: s?.conversaId || m.conversaId,
+        original: m.texto, enviado: r.enviada ? (m.texto_final || m.texto) : null,
+      };
+    });
+    const total = (t: string[]) => itens.filter(i => t.includes(i.tipo)).length;
+    return reply.send({ status: 'success', data: { dias, itens, resumo: { aprovou: total(['aprovou']), corrigiu: total(['corrigiu']), refazer: total(['refazer']), campanhas: total(['campanha', 'sem_campanha']) } } });
+  });
+
   fastify.post('/especialista/estudar', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const b = z.object({ tema: z.string().max(200).optional().nullable() }).safeParse(request.body || {});
