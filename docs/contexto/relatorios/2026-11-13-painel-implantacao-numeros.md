@@ -23,8 +23,17 @@ A Jessica mandou um print do Painel da implantação, com os Indicadores do mês
 - Escolhi o filtro por data, e não "coluna preenchida", porque é a mesma regra do quadro (`ehLegado`) e dos Indicadores do mês.
 - Nenhum dado foi alterado. As 11 antigas continuam no banco e no CRM, porque a regra do projeto é nunca apagar e marcar a conclusão delas depende de a Jessica confirmar quais terminaram.
 
+## Publicado e concluído depois
+- No ar com o deploy de `794d3df`, que contém `e69bd03`: CI verde, backup feito, banco sem mudança de estrutura e sem erro no log.
+- **As 11 antigas foram concluídas** a pedido da Jessica ("todas já foram concluídas há tempos, pode apenas concluir com a data de 30 dias depois da assinatura"):
+  - Feito direto no banco de produção. `data_conclusao` e `concluida_fila_em` ficaram com a data de assinatura + 30 dias; `etapa_execucao` e `coluna` foram para FINALIZADO e `status` para INSTALADO.
+  - Cada uma ganhou uma nota MUDANCA_ETAPA no histórico.
+  - Backup das linhas antes da mudança: `/root/backups/implantacoes-antigas-antes-concluir-20261113.sql`, na VPS.
+  - Conferido: 11 atualizadas e 0 antigas ainda abertas.
+  - Nenhum agendador reage a `INSTALADO` ou `FINALIZADO` (conferido no código), então nenhuma mensagem foi enviada a clientes.
+
 ## Pendente
-- **Jessica:** decidir se as 11 implantações antigas sem conclusão devem ser encerradas no CRM. Elas não aparecem mais no painel, mas continuam abertas no banco.
+- Nada.
 
 ## Próxima sessão
-- Se ela pedir para encerrar as antigas: listar as 11 com a query `concluida_fila_em IS NULL AND data_conclusao IS NULL AND data_assinatura < INICIO_PORTAL AND status <> 'CANCELADA'`, mostrar para ela e só então marcar a conclusão.
+- Abrir o Painel da implantação e conferir na tela os cartões de prazo. Ainda não foi verificado.
