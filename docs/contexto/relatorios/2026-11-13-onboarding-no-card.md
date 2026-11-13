@@ -13,7 +13,8 @@ A Jessica mandou o print da tela Onboarding técnico do Portal Técnico: "Acho q
 ## Verificado
 - vitest: `implantacao-onboarding-etapa`, `implantacao-portal`, `implantacao-onboarding-coluna`: 21/21.
 - tsc (backend e frontend): sem erro nos arquivos mexidos.
-- Deploy e visual em produção: ver ESTADO.md (registrado depois do deploy).
+- Deploy: o meu (`3c32238`) foi recusado pelo script porque o CI desse commit foi cancelado (a outra sessão fez push logo depois). Produção está em `c2a0a05`, que contém o `3c32238` (conferido com `git merge-base` no servidor), CI verde, PM2 online, `/portal-tecnico` responde 200.
+- Visual em produção (card com a barra): não verificado.
 
 ## Decisões e porquês
 - O bloco só aparece em implantações com onboarding pendente (não em serviço, legado ou concluído), para não poluir o card.
