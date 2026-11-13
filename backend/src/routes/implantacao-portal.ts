@@ -5,7 +5,7 @@ import { getUser, podeVerTudo } from '@/lib/scope';
 import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda, relatorioDeTempo, resumoTarefasCliente, ticketsDaDemanda, NOME_ESPERA } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, INICIO_PORTAL, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, INICIO_PORTAL, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING, etapaOnboarding } from '@/lib/implantacao/portal';
 import { normalizarItemCatalogo } from '@/lib/implantacao/oferta';
 import { obterJornada } from './implantacao-cronometro';
 import {
@@ -91,7 +91,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
         treinos_marcados: i.treinamento_fases.filter(f => f.marcada_em && !f.realizada_em).map(f => ({ ordem: f.ordem, nome: f.nome, marcada_em: f.marcada_em })),
         saude: saudeDoCard({ coluna: colunaDe(i), sla, tecnico_id: i.tecnico_id, designado_em: i.designado_em, data_assinatura: i.data_assinatura,
           ultima_sessao: i.sessoes[0]?.inicio || null, esperas_abertas: abertas, correcoes_altas: i.ocorrencias.filter(o => o.gravidade === 'ALTA').length, tarefas_vencidas: vencidasPorCard.get(i.id) || 0 }, agora),
-        onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length,
+        onboarding_ok: onboardingOk(i, i.checklist), onboarding_feitos: i.checklist.filter(c => c.grupo === 'ONBOARDING' && c.feito).length, onboarding_total: i.checklist.filter(c => c.grupo === 'ONBOARDING').length, onboarding: (({ etapa, prazo, atrasado }) => ({ etapa, prazo, atrasado }))(etapaOnboarding(i, i.checklist, agora)),
       };
     });
     return reply.send({ status: 'success', data: { colunas: COLUNAS, cards } });
@@ -809,15 +809,11 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     const where: any = { modulo: 'IMPLANTACAO', status: { not: 'CANCELADA' }, data_assinatura: { gte: desdeQuadro() } };
     if (ehTecnico(u) && !ehGestaoTecnica(u)) where.tecnico_id = u.id;
     const lista = await prisma.implantacao.findMany({ where, orderBy: { data_assinatura: 'asc' }, include: { checklist: { where: { grupo: 'ONBOARDING' }, select: { titulo: true, feito: true } } } });
-    const { SLA_ONBOARDING_DIAS_UTEIS, somarDiasUteis } = await import('@/lib/implantacao/portal');
     const agora = new Date();
     const cards = lista.filter(i => !ehLegado(i)).map(i => {
-      const feitos = i.checklist.filter(c => c.feito).length, total = i.checklist.length;
-      const aprovado = i.checklist.find(c => c.titulo === ITEM_APROVACAO)?.feito || !!i.onboarding_aprovado_em;
-      const etapa = i.onboarding_concluido_em ? 'CONCLUIDO' : !i.tecnico_id ? 'SEM_TECNICO' : feitos === 0 ? 'PRIMEIRO_CONTATO' : feitos >= total - 1 && !aprovado ? 'APROVACAO' : 'DIAGNOSTICO';
-      const prazo = i.designado_em ? somarDiasUteis(i.designado_em, SLA_ONBOARDING_DIAS_UTEIS) : null;
+      const { etapa, feitos, total, prazo, atrasado } = etapaOnboarding(i, i.checklist.map(c => ({ ...c, grupo: 'ONBOARDING' })), agora);
       return { id: i.id, cliente_razao_social: i.cliente_razao_social, tipo_base: i.tipo_base, sistema_anterior: i.sistema_anterior, tecnico_nome: i.tecnico_nome, designado_em: i.designado_em,
-        data_assinatura: i.data_assinatura, feitos, total, etapa, prazo, atrasado: !i.onboarding_concluido_em && !!prazo && prazo < agora, aprovado_cliente_em: i.onboarding_aprovado_em, concluido_em: i.onboarding_concluido_em };
+        data_assinatura: i.data_assinatura, feitos, total, etapa, prazo, atrasado, aprovado_cliente_em: i.onboarding_aprovado_em, concluido_em: i.onboarding_concluido_em };
     });
     return reply.send({ status: 'success', data: cards });
   });

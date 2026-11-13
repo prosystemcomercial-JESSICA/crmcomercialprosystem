@@ -7,7 +7,6 @@ import ExportButton from '@/components/ui/ExportButton';
 import { CronometroBarra, BotoesDemanda, PainelMeuDia } from '@/components/implantacao/Cronometro';
 import { PainelInicio } from '@/components/implantacao/Inicio';
 import { PainelAgendaTecnico } from '@/components/implantacao/Agenda';
-import { OnboardingTecnico } from '@/components/implantacao/Portal';
 import { QuadroDemandas, SinoAvisos, PainelAvisos, PainelGestaoImplantacao, ConfigPortalImplantacao, BuscaGlobal, ResumoImplantacaoTicket, InventarioTicket } from '@/components/implantacao/Portal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -370,7 +369,7 @@ export default function PortalTecnicoPage() {
   const tabParam = searchParams.get('tab') as Tab | null;
   // ?demanda=<id> abre o card direto no Quadro (link do aviso de nova demanda no WhatsApp, 12/11/2026).
   const demandaParam = searchParams.get('demanda');
-  const [tab, setTab] = useState<Tab>(demandaParam ? 'quadro' : (tabParam || 'inicio'));
+  const [tab, setTab] = useState<Tab>(demandaParam || tabParam === 'onboarding' ? 'quadro' : (tabParam || 'inicio'));
   const [abrirDemanda, setAbrirDemanda] = useState<string | null>(demandaParam);
 
   // Bootstrap auth from URL token (when opened as external window)
@@ -850,8 +849,7 @@ export default function PortalTecnicoPage() {
         { key: 'meudia'      as Tab, label: 'Meu dia',      icon: Timer,        badge: null },
         { key: 'avisos'      as Tab, label: 'Avisos',       icon: Zap,          badge: null },
         // 'Implantações' (lista antiga com Datas/Executar) saiu do menu: tudo isso está no card do Quadro.
-        // Para o técnico, o onboarding fica dentro do card; a lista geral é visão da supervisão.
-        ...(gestaoTecnica ? [{ key: 'onboarding' as Tab, label: 'Onboarding técnico', icon: Rocket, badge: null }] : []),
+        // 'Onboarding técnico' saiu do menu (13/11/2026): etapa, barra e prazo ficam no próprio card do Quadro.
       ],
     },
     {
@@ -1533,7 +1531,6 @@ export default function PortalTecnicoPage() {
         )}
 
         {/* ── TAB: ONBOARDING ── */}
-        {tab === 'onboarding' && gestaoTecnica && <OnboardingTecnico gestao={gestaoTecnica} />}
         {/* Onboarding antigo (dependia de Licenca, sempre vazia): mantido no código, fora de uso. */}
         {(tab as string) === 'onboarding_antigo' && (
           <div className="space-y-5">

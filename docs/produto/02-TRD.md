@@ -2458,3 +2458,10 @@ Pedido da Jessica (print da tela): os quadros dos agentes ficavam numa grade com
 - **API:** `GET /especialista/decisoes?dias=1..30` (só gestão, padrão 7, até 200 itens). Lê `SdrMensagem` com `decidido_por = 'rafael'` e status APROVADA, EDITADA ou DESCARTADA. A classificação é pura: `resumirDecisaoRafael` em `lib/assistente/rafael-aprovador.ts` (APROVADA = Aprovou; EDITADA = Corrigiu e enviou; DESCARTADA = Pediu outra versão, motivo sem o prefixo "Rafael:"; campanha aprovada = "Autorizou N%" com o percentual de `SdrLead.dados.desconto_autorizado.impl_pct` quando `por = 'Rafael'`; campanha editada = Sem campanha). Testes em `tests/rafael-aprovador.test.ts`. Sem mudança de banco.
 - **Notificações:** os avisos que abriam `/aprovar` (teste de notificação, `enviarAvisoGestao` com texto de aprovação/autorização e pedido de campanha) agora abrem `/escritorio?rafael=decisoes`.
 - **Continua igual:** os botões de aprovar no painel da Caroline e no WhatsApp da gestão; se o Rafael for desligado, a tela pode voltar ao menu.
+
+### Atualização 13/11/2026: tela "Onboarding técnico" sai do menu; barra do onboarding no card do Quadro
+
+- **Pedido da Jessica (print da tela):** "Acho que não precisamos dessa seção, já estão nos cards dos clientes, isso acaba ficando repetitivo, vamos deixar apenas no card e implemente a barra de evolução lá."
+- **Backend:** função pura `etapaOnboarding(i, itens, agora)` em `backend/src/lib/implantacao/portal.ts` (etapa, feitos, total, prazo = designação + `SLA_ONBOARDING_DIAS_UTEIS`, atrasado). `GET /implantacoes/quadro` passa a devolver `onboarding: { etapa, prazo, atrasado }` em cada card; `GET /implantacoes/onboarding` usa a mesma função (ficou sem tela, mantido por compatibilidade).
+- **Frontend:** `OnboardingNoCard` em `frontend/components/implantacao/Portal.tsx` (no lugar da etiqueta 🔒 e da tela `OnboardingTecnico`, removida); em `frontend/app/portal-tecnico/page.tsx` o item do menu saiu e `?tab=onboarding` abre o Quadro.
+- **Testes:** `backend/tests/implantacao-onboarding-etapa.test.ts`. Sem mudança de banco.

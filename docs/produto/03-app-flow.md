@@ -2459,3 +2459,8 @@ Pedido da Jessica (print da tela): os quadros dos agentes ficavam numa grade com
 - **API:** `GET /especialista/decisoes?dias=1..30` (só gestão, padrão 7, até 200 itens). Lê `SdrMensagem` com `decidido_por = 'rafael'` e status APROVADA, EDITADA ou DESCARTADA. A classificação é pura: `resumirDecisaoRafael` em `lib/assistente/rafael-aprovador.ts` (APROVADA = Aprovou; EDITADA = Corrigiu e enviou; DESCARTADA = Pediu outra versão, motivo sem o prefixo "Rafael:"; campanha aprovada = "Autorizou N%" com o percentual de `SdrLead.dados.desconto_autorizado.impl_pct` quando `por = 'Rafael'`; campanha editada = Sem campanha). Testes em `tests/rafael-aprovador.test.ts`. Sem mudança de banco.
 - **Notificações:** os avisos que abriam `/aprovar` (teste de notificação, `enviarAvisoGestao` com texto de aprovação/autorização e pedido de campanha) agora abrem `/escritorio?rafael=decisoes`.
 - **Continua igual:** os botões de aprovar no painel da Caroline e no WhatsApp da gestão; se o Rafael for desligado, a tela pode voltar ao menu.
+
+### Atualização 13/11/2026: tela "Onboarding técnico" sai do menu; barra do onboarding no card do Quadro
+
+- **Pedido da Jessica (print da tela):** "Acho que não precisamos dessa seção, já estão nos cards dos clientes, isso acaba ficando repetitivo, vamos deixar apenas no card e implemente a barra de evolução lá."
+- **Fluxo:** Portal Técnico → Quadro → card da implantação mostra o bloco do onboarding (etapa, barra, itens, prazo) até ele terminar → clicar no card abre a ficha (no onboarding, quando ele está pendente). O caminho antigo Menu → Onboarding técnico não existe mais; links com `?tab=onboarding` caem no Quadro.

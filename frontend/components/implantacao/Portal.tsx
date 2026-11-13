@@ -200,7 +200,6 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   className="pt-card" style={{ ...cartao, padding: 10, cursor: 'pointer', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, maxWidth: '100%', overflow: 'hidden', overflowWrap: 'anywhere', gap: 6, opacity: arrastando === c.id ? 0.5 : 1, background: 'var(--t-card-bg)', ...(c.sla?.situacao === 'ESTOURADO' || c.sla?.situacao === 'EM_RISCO' ? { borderLeft: `3px solid ${c.sla.situacao === 'ESTOURADO' ? '#dc2626' : '#d97706'}` } : {}) }}>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minWidth: 0 }}>
                     {c.modulo === 'SERVICO' ? <Etq cor="#0891b2">{c.tipo_servico_label || 'Serviço'}</Etq> : <Etq cor={c.tipo_base === 'BANCO_ZERADO' ? '#64748b' : '#16a34a'}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` ${c.sistema_anterior}` : ''}`}</Etq>}
-                    {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && <Etq cor="#0369a1">🔒 Onboarding {c.onboarding_feitos}/{c.onboarding_total}</Etq>}
                     {c.esperas_abertas.length > 0 && <Etq cor="#a16207">⏳ {NOME_ESPERA[c.esperas_abertas[0].tipo]}</Etq>}
                     {c.chamados_em_teste > 0 && <Etq cor="#286397">🧪 {c.chamados_em_teste} chamado(s) voltou: testar</Etq>}
                     {c.ocorrencias_abertas > 0 && <Etq cor="#dc2626">🐞 {c.ocorrencias_abertas} correção</Etq>}
@@ -216,6 +215,7 @@ export function QuadroDemandas({ gestao, abrirId, onAberto }: { gestao: boolean;
                   {c.proximo_passo && c.proximo_passo.quem !== 'NINGUEM' && (
                     <div style={{ fontSize: 12, lineHeight: 1.35, color: (c.proximo_passo.quem === 'GESTAO') === gestao ? '#286397' : 'var(--t-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {c.proximo_passo.titulo}</div>
                   )}
+                  {c.modulo === 'IMPLANTACAO' && !c.onboarding_ok && !c.legado && <OnboardingNoCard c={c} />}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px 8px', flexWrap: 'wrap', minWidth: 0 }}>
                     <span style={{ flex: '0 1 auto', minWidth: 0, maxWidth: '100%', display: 'flex' }}><SlaBadge sla={c.sla} etapa={c.sla_etapa} /></span>
                     <span style={{ marginLeft: 'auto', flexShrink: 0 }}><Iniciais nome={c.tecnico_nome} /></span>
@@ -997,44 +997,23 @@ const ETAPA_ONB: { key: string; label: string; cor: string; dica: string }[] = [
   { key: 'CONCLUIDO', label: 'Concluído', cor: '#16a34a', dica: 'Implantação liberada' },
 ];
 
-/** Tela "Onboarding": o primeiro contato do técnico com cada cliente, antes de qualquer ação. */
-export function OnboardingTecnico({ gestao }: { gestao: boolean }) {
-  const [cards, setCards] = useState<any[] | null>(null);
-  const [aberta, setAberta] = useState<string | null>(null);
-  const carregar = useCallback(async () => { try { const r = await apiClient.getOnboardingTecnico(); setCards(r.data.data || []); } catch { setCards([]); } }, []);
-  useEffect(() => { carregar(); const t = setInterval(carregar, 60000); return () => clearInterval(t); }, [carregar]);
-  if (!cards) return <div style={{ padding: 30 }}><Loader2 className="animate-spin" size={18} /></div>;
+/** Onboarding técnico dentro do card do Quadro: etapa, barra de evolução, itens e prazo (a tela separada saiu do menu, 13/11/2026). */
+function OnboardingNoCard({ c }: { c: any }) {
+  const o = c.onboarding || {};
+  const et = ETAPA_ONB.find(e => e.key === o.etapa) || ETAPA_ONB[1];
+  const total = c.onboarding_total || 0, feitos = c.onboarding_feitos || 0;
+  const cor = o.atrasado ? '#dc2626' : et.cor;
+  const prazo = o.prazo ? `${o.atrasado ? 'atrasado · ' : ''}prazo ${fmtData(o.prazo)}` : 'aguardando técnico';
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      <div style={{ ...cartao, padding: '12px 16px', fontSize: 13, color: 'var(--t-text-secondary)', lineHeight: 1.55 }}>
-        <b style={{ color: 'var(--t-text-primary)' }}>Onboarding técnico</b>: o primeiro contato do técnico com o cliente, <b>antes de qualquer ação</b>. O técnico se apresenta, explica as etapas e os prazos, levanta o diagnóstico da loja (empresa, estrutura, equipamentos, fiscal, estoque, integrações, operação e treinamento) e o cliente aprova. Prazo: 2 dias úteis após a designação. Só depois disso a implantação começa.
+    <div data-testid="onboarding-card" title={`Onboarding técnico: ${et.label} (${et.dica}). ${feitos} de ${total} itens do roteiro.`} style={{ display: 'grid', gap: 4, padding: '6px 8px', borderRadius: 6, background: `${et.cor}0d`, minWidth: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11, minWidth: 0 }}>
+        <span style={{ fontWeight: 600, color: et.cor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>🔒 Onboarding · {et.label}</span>
+        <span style={{ color: 'var(--t-text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{feitos}/{total}</span>
       </div>
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
-        {ETAPA_ONB.map(col => {
-          const doCol = cards.filter(c => c.etapa === col.key);
-          return (
-            <div key={col.key} style={{ ...cartao, minWidth: 230, flex: '1 1 0', background: 'var(--t-content-bg)', padding: 10, display: 'grid', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '2px 4px' }}>
-                <b style={{ fontSize: 13, color: col.cor }}>{col.label}</b><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-text-muted)' }}>{doCol.length}</span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--t-text-muted)', padding: '0 4px' }}>{col.dica}</div>
-              {doCol.length === 0 && <div style={{ fontSize: 12, color: 'var(--t-text-muted)', textAlign: 'center', padding: '12px 0' }}>Nenhuma</div>}
-              {doCol.map(c => (
-                <button key={c.id} onClick={() => setAberta(c.id)} style={{ ...cartao, padding: 10, cursor: 'pointer', textAlign: 'left', display: 'grid', gap: 6, borderLeft: `3px solid ${c.atrasado ? '#dc2626' : col.cor}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-primary)' }}>{c.cliente_razao_social}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-text-muted)' }}>{c.tipo_base === 'BANCO_ZERADO' ? 'Banco zerado' : `Conversão${c.sistema_anterior ? ` de ${c.sistema_anterior}` : ''}`} · {c.tecnico_nome ? c.tecnico_nome.split(' ')[0] : 'sem técnico'}</div>
-                  <Barra pct={c.total ? (c.feitos / c.total) * 100 : 0} cor={col.cor} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: c.atrasado ? '#dc2626' : 'var(--t-text-muted)' }}>
-                    <span>{c.feitos}/{c.total} itens</span>
-                    <span>{c.concluido_em ? `concluído ${fmtData(c.concluido_em)}` : c.prazo ? `${c.atrasado ? 'atrasado · ' : ''}prazo ${fmtData(c.prazo)}` : 'aguardando designação'}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          );
-        })}
+      <div style={{ height: 5, borderRadius: 99, background: 'color-mix(in srgb, var(--t-card-border) 70%, transparent)', overflow: 'hidden' }} aria-label={`Onboarding ${total ? Math.round((feitos / total) * 100) : 0}%`}>
+        <div style={{ height: '100%', borderRadius: 99, width: `${total ? Math.min(100, (feitos / total) * 100) : 0}%`, background: cor, transition: 'width .3s' }} />
       </div>
-      {aberta && <FichaDemanda id={aberta} gestao={gestao} abaInicial="onboarding" onClose={() => { setAberta(null); carregar(); }} />}
+      <div style={{ fontSize: 10, color: o.atrasado ? '#dc2626' : 'var(--t-text-muted)', fontWeight: o.atrasado ? 600 : 400 }}>{prazo}</div>
     </div>
   );
 }

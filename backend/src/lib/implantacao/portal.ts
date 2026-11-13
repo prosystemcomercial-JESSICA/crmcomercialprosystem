@@ -374,6 +374,22 @@ export function onboardingOk(i: { modulo?: string | null; data_assinatura?: Date
   return ob.length > 0 && ob.every(x => x.feito);
 }
 
+export type EtapaOnboarding = 'SEM_TECNICO' | 'PRIMEIRO_CONTATO' | 'DIAGNOSTICO' | 'APROVACAO' | 'CONCLUIDO';
+
+/** Em que pé está o onboarding técnico do card (mostrado no próprio card do Quadro, 13/11/2026). */
+export function etapaOnboarding(
+  i: { tecnico_id?: string | null; designado_em?: Date | null; onboarding_concluido_em?: Date | null; onboarding_aprovado_em?: Date | null },
+  itens: { grupo: string; titulo: string; feito: boolean }[],
+  agora: Date,
+): { etapa: EtapaOnboarding; feitos: number; total: number; prazo: Date | null; atrasado: boolean } {
+  const ob = itens.filter(x => x.grupo === 'ONBOARDING');
+  const feitos = ob.filter(x => x.feito).length, total = ob.length;
+  const aprovado = ob.find(x => x.titulo === ITEM_APROVACAO)?.feito || !!i.onboarding_aprovado_em;
+  const etapa: EtapaOnboarding = i.onboarding_concluido_em ? 'CONCLUIDO' : !i.tecnico_id ? 'SEM_TECNICO' : feitos === 0 ? 'PRIMEIRO_CONTATO' : feitos >= total - 1 && !aprovado ? 'APROVACAO' : 'DIAGNOSTICO';
+  const prazo = i.designado_em ? somarDiasUteis(i.designado_em, SLA_ONBOARDING_DIAS_UTEIS) : null;
+  return { etapa, feitos, total, prazo, atrasado: !i.onboarding_concluido_em && !!prazo && prazo < agora };
+}
+
 // Trilha real de implantação (Trello) — 3 grupos com os itens do técnico.
 export const CHECKLIST_PADRAO: { grupo: string; itens: string[] }[] = [
   {

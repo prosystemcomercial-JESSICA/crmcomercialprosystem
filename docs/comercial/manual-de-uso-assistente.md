@@ -1803,3 +1803,9 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - **API:** `GET /especialista/decisoes?dias=1..30` (só gestão, padrão 7, até 200 itens). Lê `SdrMensagem` com `decidido_por = 'rafael'` e status APROVADA, EDITADA ou DESCARTADA. A classificação é pura: `resumirDecisaoRafael` em `lib/assistente/rafael-aprovador.ts` (APROVADA = Aprovou; EDITADA = Corrigiu e enviou; DESCARTADA = Pediu outra versão, motivo sem o prefixo "Rafael:"; campanha aprovada = "Autorizou N%" com o percentual de `SdrLead.dados.desconto_autorizado.impl_pct` quando `por = 'Rafael'`; campanha editada = Sem campanha). Testes em `tests/rafael-aprovador.test.ts`. Sem mudança de banco.
 - **Notificações:** os avisos que abriam `/aprovar` (teste de notificação, `enviarAvisoGestao` com texto de aprovação/autorização e pedido de campanha) agora abrem `/escritorio?rafael=decisoes`.
 - **Continua igual:** os botões de aprovar no painel da Caroline e no WhatsApp da gestão; se o Rafael for desligado, a tela pode voltar ao menu.
+
+### Atualização 13/11/2026: o onboarding técnico aparece no card do Quadro
+
+- O item **Onboarding técnico** saiu do menu do Portal Técnico, porque repetia o que já está nos cards.
+- No **Quadro**, enquanto o primeiro contato com o cliente não termina, o card mostra a etapa (Sem técnico, Primeiro contato, Diagnóstico ou Aprovação do cliente), uma **barra de evolução** com os itens feitos (ex.: 7/22) e o prazo de 2 dias úteis. Se o prazo passou, aparece "atrasado" em vermelho.
+- Quando o onboarding termina, o bloco some do card. Para fazer o onboarding, é só clicar no card, como antes.
