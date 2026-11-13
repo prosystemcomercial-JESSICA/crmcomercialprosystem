@@ -38,3 +38,18 @@ A Jessica perguntou se o Rafael acessava sozinho a base de conhecimento. A respo
 
 ## Próxima sessão
 Para atualizar a base: rodar o script, conferir com `tests/universidade.test.ts`, depois commit e deploy (`backend/scripts/deploy-vps.sh`). Para checar o efeito: no Escritório › Rafael, ver se as próximas "Resposta: ..." citam links da Universidade.
+
+## Continuação (mesmo dia): respostas às perguntas pendentes
+- **Pedido:** "Todas as perguntas pendentes do Rafael sobre funções do sistema devem ser respondidas agora."
+- **Feito:** `responderPendentesPelaUniversidade` + script `rafael-responder-universidade.ts` (`40263c4`, `184024e`). A primeira simulação foi rígida demais (6 respostas), então a regra foi ajustada: responde quando a Universidade confirma o ponto central, e o detalhe vira pergunta curta para a Jessica.
+- **Verificado em produção:** 113 abertas → 33 respondidas (32 DICAs aprovadas), 72 não eram função, 8 sem cobertura; 27 perguntas curtas novas; o painel ficou com 107 abertas. Os números estão no ESTADO.md.
+- **Decisão:** gravei direto, sem segunda simulação, porque a Jessica pediu "agora" e as respostas da primeira simulação estavam fiéis aos artigos. Uma resposta ruim se arquiva no painel do Rafael.
+- **Pendente (Jessica):** fluxo de produto de revenda usado na produção e a parte fiscal disso, PBM no Farma Basic ou só no Pro (divergência entre artigo e guia), planos do Fidelimax, SNGPC na manipulação.
+- **Deploy:** o código foi publicado em `40263c4` por esta sessão e depois no deploy de outra sessão (servidor em `46318f9`).
+
+## Continuação 2 (13/11, tarde): segunda rodada pedida pela Jessica
+- **Pedido:** "responda as perguntas sobre ferramentas do Rafael com a base de conhecimento".
+- **Feito:** simulação em produção (`scripts/rafael-responder-universidade.ts`, sem gravar): 107 perguntas abertas → 18 respondidas pela Universidade, 75 não são função do sistema, 14 sem cobertura. As 18 foram gravadas **exatamente como simuladas** por script temporário (apagado), sem rodar a IA de novo. Ajuste manual: as 2 sobre o Fidelimax se contradiziam ("a partir do Pro" contra "o artigo não informa"); ficou a resposta do artigo (pontos, cashback, prêmios, link) e "não prometa plano", com a pergunta curta do plano para a Jessica.
+- **Verificado em produção:** 18 respondidas (DICAs aprovadas, origem `universidade`, e RESPOSTA no mural), 17 perguntas curtas novas (o detalhe que só a Jessica confirma), 0 não encontradas. Perguntas do Rafael abertas: 107 → 106 (PERGUNTA). Somando as DUVIDA, o painel tem 196 abertas.
+- **Conferido à mão nos 139 artigos:** não há nada sobre revenda usada na produção (Padaria Guarani), material de construção, nota emitida para outro CNPJ nem grade cor/tamanho para roupas. Essas perguntas ficam com a Jessica.
+- **Ponto de atenção:** como cada resposta parcial devolve uma pergunta curta, o total de abertas quase não cai. As perguntas novas são mais objetivas (plano de um recurso, se vale para padaria ou manipulação) e se respondem em 1 frase.
