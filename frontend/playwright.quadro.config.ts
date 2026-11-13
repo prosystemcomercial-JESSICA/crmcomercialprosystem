@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Quadro do Portal Técnico com API simulada: nenhum dado real de cliente.
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['implantacao-quadro.spec.ts', 'agenda-tecnico.spec.ts', 'diretoria.spec.ts', 'carrossel-quadros.spec.ts', 'painel-leads.spec.ts'],
+  testMatch: ['implantacao-quadro.spec.ts', 'agenda-tecnico.spec.ts', 'diretoria.spec.ts', 'carrossel-quadros.spec.ts', 'painel-leads.spec.ts', 'catalogo-oferta.spec.ts'],
   workers: 1,
   reporter: 'list',
   timeout: 90_000,

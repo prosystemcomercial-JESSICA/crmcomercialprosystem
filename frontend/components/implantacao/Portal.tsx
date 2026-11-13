@@ -2911,20 +2911,33 @@ export function ConfigPortalImplantacao() {
         <div style={rotulo}>Agentes</div>
         {liga(c.avisos_cliente, v => set(['avisos_cliente'], v), 'Avisos ao cliente', 'Próximos passos no contrato, 30%, 50%, 80%, loja virada (com boas-vindas, 1º vencimento, e-mail e regra do boleto) e cada fase do treinamento, por WhatsApp e e-mail, escritos com o contexto de cada cliente. Dias úteis, 8h às 18h, até 3 por rodada.')}
         {liga(c.agente_ativo, v => set(['agente_ativo'], v), 'Otávio, assistente de implantação', 'Fica de olho em tudo (prazo, espera, ficha, tela do Suporte, play esquecido, correção alta), avisa o técnico e a gestão e responde dúvidas do técnico pelo WhatsApp.')}
-        {liga(c.ofertas_ativo, v => set(['ofertas_ativo'], v), 'Agente de oferta', `Depois da virada, oferece ao cliente um item do catálogo que ele ainda não usa (1 por cliente a cada 30 dias, nunca se uma pessoa estiver atendendo a conversa). Só funciona com o catálogo preenchido.`)}
+        {liga(c.ofertas_ativo, v => set(['ofertas_ativo'], v), 'Agente de oferta', `Depois da virada, oferece ao cliente um item do catálogo que ele ainda não usa, seja produto Prosystem ou indicação de integração parceira (1 por cliente a cada 30 dias, nunca se uma pessoa estiver atendendo a conversa). Só funciona com o catálogo preenchido.`)}
         <label style={{ fontSize: 12 }}>Oferecer a partir de {num(c.ofertas_dias_apos_virada, n => set(['ofertas_dias_apos_virada'], n))} dias depois da virada</label>
       </div>
       <div style={{ ...cartao, padding: 16, display: 'grid', gap: 8, gridColumn: '1 / -1' }}>
         <div style={rotulo}>Catálogo do agente de oferta</div>
-        {c.catalogo.map((it: any, k: number) => (
-          <div key={k} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr)) auto', gap: 6 }}>
-            <input value={it.produto} onChange={e => set(['catalogo', String(k), 'produto'], e.target.value)} placeholder="Produto (ex.: Pacote fiscal)" className="ps-input" />
-            <input value={it.descricao} onChange={e => set(['catalogo', String(k), 'descricao'], e.target.value)} placeholder="O que é e o que resolve" className="ps-input" />
-            <input value={it.preco} onChange={e => set(['catalogo', String(k), 'preco'], e.target.value)} placeholder="Preço (ex.: R$ 50/mês)" className="ps-input" />
-            <button onClick={() => setC((p: any) => ({ ...p, catalogo: p.catalogo.filter((_: any, j: number) => j !== k) }))} style={btn('#dc2626', false)}><X size={12} /></button>
-          </div>
-        ))}
-        <div><button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { produto: '', descricao: '', preco: '' }] }))} style={btn('#286397', false)}>+ Produto ou pacote</button></div>
+        <div style={{ fontSize: 12, color: 'var(--t-text-muted)' }}><b>Produto Prosystem</b>: produto, pacote ou serviço que a Prosystem vende. <b>Integração parceira</b>: ferramenta de uma empresa parceira. O agente só indica; a empresa parceira entra em contato e fecha direto com o cliente (sem contrato com a Prosystem) e, depois que ele fechar, a Prosystem faz a integração.</div>
+        {c.catalogo.map((it: any, k: number) => {
+          const integ = it.tipo === 'INTEGRACAO';
+          const campo = (flex: string) => ({ flex, minWidth: 0 });
+          return (
+            <div key={k} data-testid="item-catalogo" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', paddingLeft: 8, borderLeft: `3px solid ${integ ? '#7c3aed' : '#286397'}` }}>
+              <select value={integ ? 'INTEGRACAO' : 'PRODUTO'} onChange={e => set(['catalogo', String(k), 'tipo'], e.target.value)} className="ps-input" aria-label="Tipo do item" style={campo('0 0 195px')}>
+                <option value="PRODUTO">Produto Prosystem</option>
+                <option value="INTEGRACAO">Integração parceira</option>
+              </select>
+              {integ && <input value={it.parceiro || ''} onChange={e => set(['catalogo', String(k), 'parceiro'], e.target.value)} placeholder="Empresa parceira" className="ps-input" style={campo('1 1 150px')} />}
+              <input value={it.produto} onChange={e => set(['catalogo', String(k), 'produto'], e.target.value)} placeholder={integ ? 'Integração (ex.: Delivery integrado)' : 'Produto (ex.: Pacote fiscal)'} className="ps-input" style={campo('1 1 170px')} />
+              <input value={it.descricao} onChange={e => set(['catalogo', String(k), 'descricao'], e.target.value)} placeholder="O que é e o que resolve" className="ps-input" style={campo('2 1 240px')} />
+              <input value={it.preco} onChange={e => set(['catalogo', String(k), 'preco'], e.target.value)} placeholder={integ ? 'Preço do parceiro (opcional)' : 'Preço (ex.: R$ 50/mês)'} className="ps-input" style={campo('1 1 140px')} />
+              <button onClick={() => setC((p: any) => ({ ...p, catalogo: p.catalogo.filter((_: any, j: number) => j !== k) }))} style={{ ...btn('#dc2626', false), flex: '0 0 auto' }} aria-label="Remover item" title="Remover"><X size={12} /></button>
+            </div>
+          );
+        })}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { tipo: 'PRODUTO', produto: '', descricao: '', preco: '' }] }))} style={btn('#286397', false)}>+ Produto ou pacote</button>
+          <button onClick={() => setC((p: any) => ({ ...p, catalogo: [...p.catalogo, { tipo: 'INTEGRACAO', parceiro: '', produto: '', descricao: '', preco: '' }] }))} style={btn('#7c3aed', false)}>+ Integração parceira</button>
+        </div>
       </div>
       <div style={{ gridColumn: '1 / -1' }}><ModelosChecklist c={c} setC={setC} /></div>
       <div style={{ gridColumn: '1 / -1' }}><TarefasClientePadrao c={c} setC={setC} /></div>

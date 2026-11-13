@@ -835,6 +835,7 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 - **Configurações:**
   - nome e **WhatsApp do Sinval** (com ele preenchido, o Sinval recebe as pendências e o lembrete; sem ele, use o link das pendências);
   - jornada, avisos ao cliente, Otávio, agente de oferta e o **catálogo** de produtos e pacotes (o agente de oferta só liga com o catálogo preenchido).
+  - **Catálogo: produto ou integração parceira (13/11/2026).** Em cada item, escolha o tipo. *Produto Prosystem* é o que a Prosystem vende (pacotes, extras, serviços). *Integração parceira* é a ferramenta de uma empresa parceira: preencha o nome da empresa, o nome da integração e o que ela resolve; o preço é opcional (só se o parceiro informar). O agente avisa o cliente que é uma indicação, que o próprio parceiro entra em contato e fecha com ele, sem contrato com a Prosystem, e que a Prosystem faz a integração depois. **Quando o cliente disser que quer, passe o contato dele para o parceiro**: o histórico do card mostra "🤝 Indicação de integração enviada".
 - **Sinval:** pelo link das pendências (sem login), marca "Resolvido" e o técnico é avisado na hora.
 
 ### Atualização 02/10/2026: clientes antigos e virada retroativa

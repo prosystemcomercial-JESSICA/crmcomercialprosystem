@@ -6,6 +6,7 @@ import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda, relatorioDeTempo, resumoTarefasCliente, ticketsDaDemanda, NOME_ESPERA } from '@/lib/implantacao/cronometro';
 import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, INICIO_PORTAL, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING } from '@/lib/implantacao/portal';
+import { normalizarItemCatalogo } from '@/lib/implantacao/oferta';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -1225,7 +1226,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       sla: z.object({ CONVERSAO: z.object({ virada: z.number().int().min(1).max(180), final: z.number().int().min(1).max(365) }), BANCO_ZERADO: z.object({ virada: z.number().int().min(1).max(180), final: z.number().int().min(1).max(365) }), SERVICO_DIAS_UTEIS: z.number().int().min(1).max(60) }).optional(),
       programacao: z.object({ nome: z.string().min(2).max(60), whatsapp: z.string().max(30), lembrete_horas: z.number().min(1).max(40) }).optional(),
       avisos_cliente: z.boolean().optional(), agente_ativo: z.boolean().optional(), ofertas_ativo: z.boolean().optional(), ofertas_dias_apos_virada: z.number().int().min(1).max(120).optional(),
-      catalogo: z.array(z.object({ produto: z.string().min(2).max(80), descricao: z.string().max(400), preco: z.string().max(60) })).max(40).optional(),
+      catalogo: z.array(z.object({ tipo: z.enum(['PRODUTO', 'INTEGRACAO']).optional(), produto: z.string().min(2).max(80), descricao: z.string().max(400), preco: z.string().max(60), parceiro: z.string().max(80).optional() })).max(40).optional(),
       modelos: z.array(z.object({ segmento: z.string().trim().min(2).max(60), grupos: z.object({ INSTALACAO: z.array(z.string().trim().min(2).max(300)).max(60), CONVERSAO: z.array(z.string().trim().min(2).max(300)).max(60), TREINAMENTO: z.array(z.string().trim().min(2).max(300)).max(60) }) })).max(20).optional(),
       extras_sistema: z.array(z.object({ sistema: z.string().trim().min(2).max(60), itens: z.array(z.string().trim().min(2).max(300)).max(40) })).max(40).optional(),
       tarefas_cliente: z.array(z.string().trim().min(2).max(200)).max(20).optional(),
@@ -1235,7 +1236,7 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
     if (!b.success) return reply.status(400).send({ status: 'error', message: 'Configuração inválida' });
     const atual = await obterConfigPortal(prisma);
     const { jornada, programacao, ...resto } = b.data;
-    const novo = { ...atual, ...resto, programacao: programacao ? { ...atual.programacao, ...programacao, whatsapp: programacao.whatsapp.replace(/\D/g, '') } : atual.programacao };
+    const novo = { ...atual, ...resto, ...(resto.catalogo ? { catalogo: resto.catalogo.map(normalizarItemCatalogo).filter((x): x is NonNullable<typeof x> => !!x) } : {}), programacao: programacao ? { ...atual.programacao, ...programacao, whatsapp: programacao.whatsapp.replace(/\D/g, '') } : atual.programacao };
     await salvarConfigPortal(prisma, novo, u.nome || u.id);
     if (jornada) {
       const valor = JSON.stringify({ ...(await obterJornada(prisma)), ...jornada });

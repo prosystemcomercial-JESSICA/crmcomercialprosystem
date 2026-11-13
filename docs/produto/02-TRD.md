@@ -751,6 +751,8 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - 1 oferta por cliente a cada 30 dias, até 2 por rodada;
   - nunca oferece se uma pessoa estiver atendendo a conversa;
   - **começa desligado, até o catálogo ser preenchido** nas Configurações.
+  - **Dois tipos de item no catálogo (13/11/2026):** *Produto Prosystem* (produto, pacote ou serviço que a Prosystem vende) e *Integração parceira* (ferramenta de uma empresa parceira). Na integração o agente só **indica**: a mensagem diz que a própria empresa parceira entra em contato e fecha direto com o cliente (sem contrato com a Prosystem) e que, depois que ele fechar, a Prosystem faz a integração com o sistema. Nunca diz que a Prosystem vende ou cobra a integração; preço só se a gestão preencher ("valor informado pelo parceiro"). A mensagem termina perguntando se pode passar o contato dele para o parceiro.
+  - Técnica: regras puras em `backend/src/lib/implantacao/oferta.ts` (`normalizarItemCatalogo`, `textoPadraoOferta`, `instrucaoOferta`, `linhaHistoricoOferta`), usadas por `rodarOfertas` em `implantacao-portal.service.ts`. Itens antigos sem `tipo` viram `PRODUTO`; integração sem nome de parceiro usa o nome do item. Testes: `backend/tests/implantacao-oferta.test.ts` e `frontend/e2e/catalogo-oferta.spec.ts` (1366 e 390 px).
 
 **Rotas (`routes/implantacao-portal.ts`):**
 - Quadro e ficha:

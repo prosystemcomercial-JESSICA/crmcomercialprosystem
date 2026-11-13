@@ -8,6 +8,7 @@ import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { numeroWhatsapp, ultimos8 } from '@/lib/assistente/campanhas';
 import { diaSP, temposDaDemanda, ticketsDaDemanda, ESPERAS_INTERNAS } from '@/lib/implantacao/cronometro';
 import { CONTATO_GERAL, LINK_CONTATO_GERAL } from '@/lib/triagem/fluxo';
+import { normalizarItemCatalogo, textoPadraoOferta, instrucaoOferta, linhaHistoricoOferta, ehIntegracao, type ItemCatalogo } from '@/lib/implantacao/oferta';
 import {
   SLA_PADRAO, TIPOS_SERVICO, COLUNAS, colunaDe, situacaoSla, prazosPadrao, horasUteisEntre, inferirTipoServico,
   progresso, marcosDevidos, gruposDoProgresso, FASES_TREINAMENTO, faseDoItemTreinamento, ehLegado, somarDiasUteis, SLA_ONBOARDING_DIAS_UTEIS, type ConfigSla, CORTE_PORTAL,
@@ -26,7 +27,7 @@ import {
 const CHAVE = 'implantacao.portal';
 export const URL_FRONT = () => (process.env.FRONTEND_URL || 'https://comercial.prosystemnet.com').replace(/\/$/, '');
 
-export type ItemCatalogo = { produto: string; descricao: string; preco: string };
+export type { ItemCatalogo } from '@/lib/implantacao/oferta';
 export type ConfigPortal = {
   sla: ConfigSla;
   programacao: { nome: string; whatsapp: string; token: string; lembrete_horas: number };
@@ -53,7 +54,7 @@ export async function obterConfigPortal(prisma: PrismaClient): Promise<ConfigPor
     ...PADRAO, ...salvo,
     sla: { ...PADRAO.sla, ...(salvo.sla || {}) },
     programacao: { ...PADRAO.programacao, token: '', ...(salvo.programacao || {}) },
-    catalogo: Array.isArray(salvo.catalogo) ? salvo.catalogo : [],
+    catalogo: Array.isArray(salvo.catalogo) ? salvo.catalogo.map(normalizarItemCatalogo).filter((x: ItemCatalogo | null): x is ItemCatalogo => !!x) : [],
     modelos: Array.isArray(salvo.modelos) ? salvo.modelos : [],
     extras_sistema: Array.isArray(salvo.extras_sistema) ? salvo.extras_sistema : [],
     tarefas_cliente: Array.isArray(salvo.tarefas_cliente) && salvo.tarefas_cliente.join('\n') !== TAREFAS_CLIENTE_ANTIGAS.join('\n') ? salvo.tarefas_cliente : TAREFAS_CLIENTE_PADRAO,
@@ -921,20 +922,20 @@ async function rodarOfertas(prisma: PrismaClient, cfg: ConfigPortal, agora: Date
     const item = cfg.catalogo.find(c => !ja.has(c.produto) && !contratados.some(t => t.includes(c.produto.toLowerCase())) && !(i.plano || '').toLowerCase().includes(c.produto.toLowerCase()));
     if (!item) continue;
     const coleta: any = i.coleta || {};
-    let texto = `Olá${coleta.contato_nome ? `, ${coleta.contato_nome.split(' ')[0]}` : ''}! Aqui é da Prosystem. Agora que a ${i.cliente_razao_social} já está rodando com o sistema, queria te apresentar: *${item.produto}*. ${item.descricao} Quer que eu te explique melhor?`;
+    let texto = textoPadraoOferta(item, { contato: coleta.contato_nome, empresa: i.cliente_razao_social });
     try {
       const { chamarGemini } = await import('./ia-gemini.service');
       const r = await chamarGemini(prisma, {
-        sistema: 'Você escreve UMA mensagem curta de WhatsApp (até 4 linhas) da Prosystem para um cliente que já usa o sistema há algumas semanas, apresentando um produto ou pacote que ele ainda não tem. Use SOMENTE os dados enviados (não invente recursos nem valores; cite o preço só se vier nos dados). Tom consultivo, sem pressão, sem travessão. Termine com UMA pergunta leve de interesse. Responda só o texto.',
-        partes: [{ text: JSON.stringify({ empresa: i.cliente_razao_social, contato: coleta.contato_nome || null, plano: i.plano, regime: coleta.regime_tributario || null, filiais: coleta.filiais || null, produto: item.produto, descricao: item.descricao, preco: item.preco }) }],
+        sistema: instrucaoOferta(item),
+        partes: [{ text: JSON.stringify({ empresa: i.cliente_razao_social, contato: coleta.contato_nome || null, plano: i.plano, regime: coleta.regime_tributario || null, filiais: coleta.filiais || null, tipo: ehIntegracao(item) ? 'integração de empresa parceira' : 'produto Prosystem', parceiro: item.parceiro || null, produto: item.produto, descricao: item.descricao, preco: item.preco || null }) }],
         temperatura: 0.7, simples: true, timeoutMs: 40000,
       });
       if (r && r.trim().length > 20) texto = r.trim().replace(/\s*[—–]\s*/g, ', ');
     } catch { /* texto padrão */ }
     if (!(await whats(prisma, numero, texto))) continue;
     await prisma.ofertaCliente.create({ data: { cliente_id: i.cliente_id, implantacao_id: i.id, numero, produto: item.produto, texto } }).catch(() => {});
-    await linha(prisma, i.id, 'COMUNICACAO', `🛍️ Oferta enviada ao cliente: ${item.produto}.`, 'Agente de oferta');
-    registrarAcaoAgente('otavio', `ofereceu ${item.produto} para ${i.cliente_razao_social}`);
+    await linha(prisma, i.id, 'COMUNICACAO', linhaHistoricoOferta(item), 'Agente de oferta');
+    registrarAcaoAgente('otavio', ehIntegracao(item) ? `indicou a integração ${item.produto} (${item.parceiro}) para ${i.cliente_razao_social}` : `ofereceu ${item.produto} para ${i.cliente_razao_social}`);
     feitas++;
   }
 }

@@ -763,6 +763,8 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - 1 oferta por cliente a cada 30 dias, até 2 por rodada;
   - nunca oferece se uma pessoa estiver atendendo a conversa;
   - **começa desligado, até o catálogo ser preenchido** nas Configurações.
+  - **Dois tipos de item no catálogo (13/11/2026):** *Produto Prosystem* (produto, pacote ou serviço que a Prosystem vende) e *Integração parceira* (ferramenta de uma empresa parceira). Na integração o agente só **indica**: a mensagem diz que a própria empresa parceira entra em contato e fecha direto com o cliente (sem contrato com a Prosystem) e que, depois que ele fechar, a Prosystem faz a integração com o sistema. Nunca diz que a Prosystem vende ou cobra a integração; preço só se a gestão preencher ("valor informado pelo parceiro"). A mensagem termina perguntando se pode passar o contato dele para o parceiro.
+  - Dados: sem tabela nova nem migração. O item do catálogo (JSON em `ConfiguracaoIntegracao` `implantacao.portal`, campo `catalogo`) passou a ser `{ tipo?: "PRODUTO" | "INTEGRACAO", produto, descricao, preco, parceiro? }`; `PUT /implantacoes/portal/config` aceita `tipo` e `parceiro` (até 80 caracteres) e normaliza antes de salvar. `OfertaCliente` continua igual (o `produto` guarda o nome do item).
 
 **Rotas (`routes/implantacao-portal.ts`):**
 - Quadro e ficha:

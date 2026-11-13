@@ -735,6 +735,8 @@ Desenho: `docs/superpowers/specs/2026-10-02-portal-implantacao-servicos-design.m
   - 1 oferta por cliente a cada 30 dias, até 2 por rodada;
   - nunca oferece se uma pessoa estiver atendendo a conversa;
   - **começa desligado, até o catálogo ser preenchido** nas Configurações.
+  - **Dois tipos de item no catálogo (13/11/2026):** *Produto Prosystem* (produto, pacote ou serviço que a Prosystem vende) e *Integração parceira* (ferramenta de uma empresa parceira). Na integração o agente só **indica**: a mensagem diz que a própria empresa parceira entra em contato e fecha direto com o cliente (sem contrato com a Prosystem) e que, depois que ele fechar, a Prosystem faz a integração com o sistema. Nunca diz que a Prosystem vende ou cobra a integração; preço só se a gestão preencher ("valor informado pelo parceiro"). A mensagem termina perguntando se pode passar o contato dele para o parceiro.
+  - Tela (Configurações do portal, cartão *Catálogo do agente de oferta*): cada item numa linha com a caixa *Tipo* (Produto Prosystem / Integração parceira), *Empresa parceira* (só na integração), nome, "O que é e o que resolve", preço (na integração: "Preço do parceiro (opcional)") e o × pequeno. Faixa azul à esquerda = produto; roxa = integração. Dois botões: *+ Produto ou pacote* e *+ Integração parceira*. No celular os campos quebram em linhas, sem rolagem lateral. Corrigido junto: antes os campos ficavam empilhados e o × virava uma barra vermelha, porque a regra de grade da linha era inválida.
 
 **Rotas (`routes/implantacao-portal.ts`):**
 - Quadro e ficha:
