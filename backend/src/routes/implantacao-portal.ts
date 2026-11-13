@@ -5,7 +5,7 @@ import { getUser, podeVerTudo } from '@/lib/scope';
 import { STATUS_ENCERRADO } from '@/lib/caso-churn-status';
 import { confirmarImplantacao } from '@/lib/comissao-fluxo';
 import { diaSP, emSP, resumoDoDia, temposDaDemanda, relatorioDeTempo, resumoTarefasCliente, ticketsDaDemanda, NOME_ESPERA } from '@/lib/implantacao/cronometro';
-import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING } from '@/lib/implantacao/portal';
+import { COLUNAS, CHAVES_COLUNA, CAMPOS_COLETA, TIPOS_SERVICO, colunaDe, situacaoSla, progresso, primeiroVencimento, ehLegado, INICIO_PORTAL, DIAS_QUADRO, onboardingOk, ONBOARDING_SECOES, ITEM_APROVACAO, PERGUNTAS_PRIMEIRO_CONTATO, CORTE_PORTAL, desdeQuadro, ehCargoTecnico, proximoPasso, pendenciasIniciarVirada, pendenciasConcluirVirada, pendenciasValidacao, etapaDaColuna, colunaIncoerente, statusAssistida, extrasDoSistema, CHECKLIST_PADRAO, saudeDoCard, perfilDe, descreverPerfil, camposColetaDoPerfil, onboardingSecoesDoPerfil, perguntasDoPerfil, montarResumoSuporte, prazoAjustado, msEsperaCliente, slaDaDemanda, indicadoresViradas, resumoDaDemanda, METAS_PADRAO, CARGOS_TECNICO, somarDiasUteis, PRAZO_TAREFA_CLIENTE_DIAS_UTEIS, TAREFA_LISTA_USUARIOS, formularioDaTarefa, respostaDoFormulario, itemPelaFicha, dadosDaFicha, rotuloCampoColeta, COLUNAS_ANTES_DO_ONBOARDING } from '@/lib/implantacao/portal';
 import { obterJornada } from './implantacao-cronometro';
 import {
   obterConfigPortal, salvarConfigPortal, avisarTecnico, visaoCliente, novoTokenCliente, pularMarcosPassados,
@@ -1269,15 +1269,19 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       }
       porTecnico.set(tid, acc);
     }
-    const esperas = await prisma.implantacaoEspera.findMany({ where: { inicio: { lt: fim }, OR: [{ fim: null }, { fim: { gt: ini } }] }, include: { implantacao: { select: { cliente_razao_social: true } } } });
+    // Mesma regra do quadro (13/11/2026): o que foi assinado antes de 02/10/2026 (legado) não entra nos números
+    // do painel. Antes, 11 implantações antigas sem conclusão inflavam "Prazo estourado". As horas dos técnicos seguem todas.
+    const doPortal = { data_assinatura: { gte: INICIO_PORTAL } };
+    const esperas = await prisma.implantacaoEspera.findMany({ where: { inicio: { lt: fim }, OR: [{ fim: null }, { fim: { gt: ini } }], implantacao: doPortal }, include: { implantacao: { select: { cliente_razao_social: true } } } });
     // Chamados do cliente (tarefas) pedidos no período.
     const tarefasPeriodo = await prisma.implantacaoTarefaCliente.findMany({ where: { created_at: { gte: ini, lt: fim } }, select: { status: true, created_at: true, enviada_em: true, concluida_em: true, devolucoes: true, bloqueia_inicio: true } });
     const motivos: Record<string, number> = {};
     for (const e of esperas.filter(x => x.tipo === 'PROGRAMACAO' || x.tipo === 'N3')) { const k = `${e.tipo === 'N3' ? 'N3' : 'Desenv.'}: ${e.motivo.trim().toLowerCase().slice(0, 60)}`; motivos[k] = (motivos[k] || 0) + 1; }
     const esp = (tipo: string) => { const xs = esperas.filter(e => e.tipo === tipo); return { qtd: xs.length, abertas: xs.filter(e => !e.fim).length, ms: xs.reduce((t, e) => t + ((e.fim || new Date()).getTime() - e.inicio.getTime()), 0) }; };
-    const ativas = await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' } }, select: { id: true, modulo: true, data_assinatura: true, prazo_virada: true, prazo_finalizacao: true, virada_fim_em: true } });
+    const ativas = await prisma.implantacao.findMany({ where: { concluida_fila_em: null, data_conclusao: null, status: { not: 'CANCELADA' }, ...doPortal }, select: { id: true, modulo: true, data_assinatura: true, prazo_virada: true, prazo_finalizacao: true, virada_fim_em: true, esperas: { select: { tipo: true, inicio: true, fim: true } } } });
     const sla = { NO_PRAZO: 0, EM_RISCO: 0, ESTOURADO: 0, SEM_PRAZO: 0 } as Record<string, number>;
-    for (const i of ativas) { const s = situacaoSla(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, null); sla[s?.situacao || 'SEM_PRAZO'] = (sla[s?.situacao || 'SEM_PRAZO'] || 0) + 1; }
+    // Mesmo cálculo do quadro: a espera do cliente pausa o prazo (antes o painel contava o prazo cru e divergia do card).
+    for (const i of ativas) { const s = slaDaDemanda(i.data_assinatura, i.virada_fim_em || i.modulo === 'SERVICO' ? i.prazo_finalizacao : i.prazo_virada, i.esperas, null); sla[s?.situacao || 'SEM_PRAZO'] = (sla[s?.situacao || 'SEM_PRAZO'] || 0) + 1; }
     const porCliente: Record<string, { cliente: string; trabalho: number; treinamento: number; correcao: number }> = {};
     for (const s of sessoes.filter(x => x.implantacao_id)) {
       const k = s.implantacao_id!; const ms = Math.min((s.fim || new Date()).getTime(), fim.getTime()) - Math.max(s.inicio.getTime(), ini.getTime());
@@ -1285,9 +1289,9 @@ export async function implantacaoPortalRoutes(fastify: FastifyInstance, options:
       c.trabalho += ms; if (s.etapa === 'TREINAMENTO') c.treinamento += ms; if (s.etapa === 'CORRECAO') c.correcao += ms;
     }
     const [viradas, cobrancas, concluidas] = await Promise.all([
-      prisma.implantacao.findMany({ where: { virada_fim_em: { gte: ini, lt: fim } }, select: { id: true, cliente_razao_social: true, virada_fim_em: true, data_primeiro_vencimento: true, cobranca_lancada_em: true } }),
-      prisma.implantacao.count({ where: { virada_fim_em: { not: null }, cobranca_lancada_em: null } }),
-      prisma.implantacao.findMany({ where: { concluida_fila_em: { gte: ini, lt: fim } }, select: { data_assinatura: true, concluida_fila_em: true, modulo: true } }),
+      prisma.implantacao.findMany({ where: { virada_fim_em: { gte: ini, lt: fim }, ...doPortal }, select: { id: true, cliente_razao_social: true, virada_fim_em: true, data_primeiro_vencimento: true, cobranca_lancada_em: true } }),
+      prisma.implantacao.count({ where: { virada_fim_em: { not: null }, cobranca_lancada_em: null, ...doPortal } }),
+      prisma.implantacao.findMany({ where: { concluida_fila_em: { gte: ini, lt: fim }, ...doPortal }, select: { data_assinatura: true, concluida_fila_em: true, modulo: true } }),
     ]);
     const prazoMedio = (mod: string) => { const xs = concluidas.filter(c => c.modulo === mod && c.data_assinatura); return xs.length ? xs.reduce((t, c) => t + (c.concluida_fila_em!.getTime() - c.data_assinatura!.getTime()), 0) / xs.length : null; };
     return reply.send({ status: 'success', data: {

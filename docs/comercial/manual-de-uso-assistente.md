@@ -829,6 +829,7 @@ Quando quem atende na loja diz que a pessoa procurada não é dali e passa o Wha
 
 **Gestão:**
 - **Painel da implantação:** horas e aproveitamento por técnico, esperas e o que mais trava, prazos, viradas, horas por cliente e **cobranças a lançar** (botão "Cobrança lançada").
+  - *Desde 13/11/2026:* os cartões de prazo, esperas, viradas, cobranças e prazo médio contam só as demandas do quadro (assinadas a partir de 02/10/2026), e o prazo desconta a espera do cliente, igual ao card. Os Indicadores do mês mostram "—" até a primeira loja virada (ou conclusão, ou pesquisa) do mês.
 - **Prazos:** mude no card (aba Resumo) ou os padrões em Configurações.
 - **Aviso para o técnico:** no card ou na aba Avisos (urgente também vai por WhatsApp). Mostra quando ele leu.
 - **Configurações:**
