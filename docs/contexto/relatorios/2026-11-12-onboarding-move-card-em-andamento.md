@@ -25,4 +25,4 @@ Jessica: "A partir do momento que o onboarding iniciar o card tem que passar aut
 - **Deploy barrado** pela tabela `AgendaTecnico` (agenda do técnico, commit 55fee79) fora do `PERMITIDO`, aguardando autorização da Jessica. Este commit entra no ar junto no próximo deploy.
 
 ## Próxima sessão
-Depois de a Jessica autorizar a tabela: rodar `backend/scripts/deploy-vps.sh <topo do main>` e conferir no portal que um card em "A fazer" vai para "Em andamento" ao dar Play no onboarding.
+Conferir no portal que um card em "A fazer" vai para "Em andamento" ao dar Play no onboarding.
