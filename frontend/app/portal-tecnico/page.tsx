@@ -453,7 +453,7 @@ export default function PortalTecnicoPage() {
     setKbLoading(true);
     try {
       const [artsR, catsR] = await Promise.all([
-        apiClient.getKbArtigos({ busca: kbBusca || undefined, categoria_id: kbCatFiltro || undefined, limit: 50 }),
+        apiClient.getKbArtigos({ busca: kbBusca || undefined, categoria_id: kbCatFiltro || undefined, limit: 200 }),
         apiClient.getKbCategorias(),
       ]);
       setKbArtigos(artsR.data?.data?.artigos || []);
@@ -2262,7 +2262,13 @@ export default function PortalTecnicoPage() {
                   {kbArtigoLoading ? (
                     <div style={{ textAlign: 'center', padding: 32 }}><Loader2 size={20} className="animate-spin" style={{ color: '#0891b2' }} /></div>
                   ) : (
-                    <div style={{ fontSize: 14, color: 'var(--t-text-primary)', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{kbArtigoAberto.conteudo}</div>
+                    <div style={{ fontSize: 14, color: 'var(--t-text-primary)', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {/* links do texto viram clicáveis (artigos da Universidade trazem o link do original) */}
+                      {String(kbArtigoAberto.conteudo || '').split(/(https?:\/\/[^\s)]+)/g).map((parte: string, i: number) =>
+                        /^https?:\/\//.test(parte)
+                          ? <a key={i} href={parte} target="_blank" rel="noopener noreferrer" style={{ color: '#0891b2', textDecoration: 'underline' }}>{parte}</a>
+                          : <span key={i}>{parte}</span>)}
+                    </div>
                   )}
                   {/* Feedback */}
                   <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--t-card-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
