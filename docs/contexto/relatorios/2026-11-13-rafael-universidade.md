@@ -22,6 +22,8 @@ A Jessica perguntou se o Rafael acessava sozinho a base de conhecimento. A respo
 - `npx vitest run tests/universidade.test.ts`: 3/3.
 - Perguntas reais testadas contra a base, todas achando os artigos certos: iFood, nota fiscal, balança Toledo, Farmácia Popular, backup, entregas.
 - Ponto fraco: "relatório de vendas pelo WhatsApp" achou "Avisos via WhatsApp" e uma nota de versão. O resultado é aceitável, mas a busca é por palavras.
+- **Deploy `bb363ab` no ar** (backup 465M, banco sem alterações). No servidor: 139 artigos carregados, conhecimento fixo de 12.847 letras, a dúvida de iFood acha o artigo.
+- **Tropeço:** o texto da Laya (outra sessão, ainda sem commit) entrou em `e50d2a4`; a limpeza `82e4e7b` saiu depois de a Laya ser commitada (`c9c2c50`) e apagou o texto dela; desfeito em `bb363ab`, árvore idêntica a `c9c2c50`.
 - Não verificado: o Rafael respondendo uma dúvida real em produção com a base. Vai aparecer na próxima dúvida ou revisão.
 
 ## Decisões e porquês
