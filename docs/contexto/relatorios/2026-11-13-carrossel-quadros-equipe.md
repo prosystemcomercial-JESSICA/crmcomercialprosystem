@@ -15,7 +15,7 @@ Print da Jessica da seção "Quadros da equipe" no Escritório: "Ajuste esses ca
 - `npx tsc --noEmit -p .` no frontend: nenhum erro nos arquivos mexidos. Os 3 erros que aparecem são de `components/escritorio/PainelLeads.tsx`, da outra sessão e ainda sem commit.
 - Playwright com a API simulada: `carrossel-quadros` 2/2 (12 cards com o mesmo topo e a mesma altura; setas; busca "otavio", "gerente", sem resultado e limpar; 1366 e 390 px sem alargar a página) e `diretoria` 2/2.
 - Prints conferidos a olho, em 1366 e 390 px.
-- Em produção: veja o ESTADO.md (deploy).
+- Produção: o commit `e9357d0` entrou no deploy de `4c8affd` (outra sessão, 13/11 12h16): backup 465M, banco sem alterações, build ok, pm2 reiniciado, frontend e backend respondendo. No servidor, o `CarrosselQuadros.tsx` existe e o build tem `esc-carrossel`. Não verificado: a tela logada com dados reais.
 
 ## Decisões e porquês
 - Escolhi o carrossel em vez de só alinhar a grade, porque foi o que ela descreveu ("uma única linha... girando").
