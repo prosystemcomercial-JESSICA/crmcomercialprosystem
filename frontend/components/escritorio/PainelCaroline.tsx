@@ -195,7 +195,7 @@ export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caro
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ textAlign: 'left', color: 'var(--t-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>
-                <th style={{ padding: 6 }}>Lead</th><th style={{ padding: 6 }}>Situação</th><th style={{ padding: 6 }}>Termômetro</th><th style={{ padding: 6 }}>Dor principal</th><th style={{ padding: 6 }}>Confirmar temperatura (ensina a Laya)</th>
+                <th style={{ padding: 6 }}>Lead</th><th style={{ padding: 6 }}>Situação</th><th style={{ padding: 6 }}>Termômetro</th><th style={{ padding: 6 }}>Dor principal</th><th style={{ padding: 6 }}>Temperatura (a Laya mede; corrija se errar)</th>
               </tr>
             </thead>
             <tbody>
@@ -217,7 +217,9 @@ export default function PainelCaroline({ agente = 'caroline' }: { agente?: 'caro
                           {Object.entries(TEMP).map(([k, v]) => <option key={k} value={k}>{v.nome}{k === l.temperatura ? ' (dela)' : ''}</option>)}
                         </select>
                       )}
-                      {l.temperatura_confirmada ? <span style={{ fontSize: 11, color: '#15803d', marginLeft: 6 }}>✔ confirmado</span> : null}
+                      {l.temperatura_confirmada && l.dados?.temperatura_laya?.valor === l.temperatura_confirmada
+                        ? <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }} title="A Laya mediu sozinha. Se estiver errado, troque: a sua correção ensina a Laya.">🤖 Laya mediu: {l.dados.temperatura_laya.motivo}</div>
+                        : l.temperatura_confirmada ? <span style={{ fontSize: 11, color: '#15803d', marginLeft: 6 }}>✔ confirmado</span> : null}
                     </td>
                   </tr>
                 );

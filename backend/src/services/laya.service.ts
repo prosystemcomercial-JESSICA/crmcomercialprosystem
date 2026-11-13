@@ -118,8 +118,11 @@ async function analisar(prisma: PrismaClient, conversaId: string): Promise<void>
   await prisma.whatsappConversa.update({ where: { id: conversaId }, data: { ia_sugestao: sugestao, ia_sugerido_em: new Date() } });
   // Interesse visto agora: a conversa vai para "Interessados" na hora (se ainda estiver em Novo Contato).
   { const { moverInteressados } = await import('./funil-whatsapp.service'); await moverInteressados(prisma, [conversaId]).catch(() => 0); }
-  // Temperatura: a Laya dá o veredito e aplica no lead (a troca feita por uma pessoa é respeitada).
-  if (conversa.lead_id && sugestao.temperatura && sugestao.intencao === 'comprar') await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
+  // Temperatura: o palpite cru do modelo só é aplicado no lead quando a tarefa sair de Aprendiz.
+  // Em 13/11/2026 ele acertou 10 de 80 casos confirmados (chamava de Quente quem era Frio) e tinha
+  // esquentado 15 leads em 30 dias. Quem mede a temperatura agora é o termômetro da Laya
+  // (services/laya-temperatura.service.ts), por regras e memória das confirmações da Jessica.
+  if (conversa.lead_id && sugestao.temperatura && sugestao.intencao === 'comprar' && autonoma(xs, 'temperatura')) await aplicarTemperatura(prisma, conversa.lead_id, conversaId, sugestao.temperatura, sugestao.temperatura_conf ?? 0).catch(() => {});
   // Ramo já informado no lead (pela equipe): vira comparação com o palpite de agora.
   if (conversa.lead_id) {
     const lead = await prisma.lead.findUnique({ where: { id: conversa.lead_id }, select: { segmento: true } }).catch(() => null);

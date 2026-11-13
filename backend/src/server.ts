@@ -417,6 +417,9 @@ async function iniciarSchedulerAssistente() {
       // (A Caroline tem rodada própria, a cada 2 min: ver iniciarCaroline abaixo.)
       const { salvarCopiaDiaria } = await import('./services/laya-caderno.service.js');
       await salvarCopiaDiaria(prismaClient!, agora).catch((e: any) => console.error('[LAYA] caderno:', e?.message));
+      // Termômetro da Laya (13/11/2026): mede sozinha a temperatura dos leads dos SDRs, todo dia e hora.
+      const { rodarTermometroLaya } = await import('./services/laya-temperatura.service.js');
+      await rodarTermometroLaya(prismaClient!, { agora }).catch((e: any) => console.error('[LAYA] termômetro:', e?.message));
       const dia =diaDaSemanaSP(agora);
       const hora = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora));
       if (dia === 0 || dia === 6 || hora < 8 || hora >= 19) return;
