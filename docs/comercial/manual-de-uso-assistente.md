@@ -279,7 +279,7 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
 - Cada mensagem aparece para você **aprovar**, **ajustar** ou **🔄 Refazer**, com o campo opcional "o que mudar?".
 - Refazer escreve outra versão na hora, diferente das descartadas.
 - Os seus ajustes ensinam o seu tom para eles.
-- Confirmar a temperatura na tabela do painel ensina a Laya.
+- A **Laya mede sozinha** a temperatura de cada lead (desde 13/11/2026) e mostra o motivo em roxo ("🤖 Laya mediu: ..."). Se estiver errado, troque na tabela: a sua escolha vale, ela não mexe mais naquele lead e a correção ensina a Laya.
 
 **Proteção do número (o mais importante)**
 - **Um limite único por dia** para os três agentes e as campanhas juntos: 15 primeiros contatos por dia nas duas primeiras semanas, depois até 30.
@@ -1717,3 +1717,11 @@ No Portal Técnico há o menu **Agenda**. Ali o técnico marca reuniões, ligaç
 ### Atualização 12/11/2026: o card anda sozinho quando o onboarding começa
 
 Assim que o técnico começa o onboarding técnico, o card passa sozinho de **A fazer** para **Em andamento**. Conta como começar: apertar o Play na etapa "Onboarding técnico", marcar qualquer item do roteiro ou preencher a ficha/perguntas do primeiro contato. Fica anotado no histórico do card. O card também pode ser arrastado para Em andamento antes de o onboarding terminar; para Acompanhamento em diante, o onboarding precisa estar concluído.
+
+### Atualização 13/11/2026: o Rafael conhece a base de conhecimento da Prosystem
+
+O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, SNGPC, notas fiscais, integrações, Gerencial, Manipulação, suporte e novidades das versões). Agora ele usa esse conteúdo em tudo o que faz: revisar conversas, treinar a Caroline, o Julio e o Luiz Felipe, e responder as dúvidas que nenhum agente soube responder.
+
+- Quando a dúvida é sobre o produto, ele procura primeiro na Universidade e só vai para a internet se não achar.
+- Se a Universidade responde, ele não pergunta isso para você e põe o link do artigo na resposta.
+- Quando a Universidade ganhar artigos novos, peça ao Claude para "reler a Universidade para o Rafael".

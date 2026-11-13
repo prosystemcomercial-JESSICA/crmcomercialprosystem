@@ -3,6 +3,7 @@ import { pesquisarComGemini, chamarGemini } from './ia-gemini.service';
 import { lerJsonIa } from '@/lib/assistente/ia-texto';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
 import { PLAYBOOK_CONVERSA } from '@/lib/assistente/sdr';
+import { conhecimentoProduto, trechosUniversidade } from '@/lib/assistente/universidade';
 
 // Rafael, especialista em vendas de software: os olhos e ouvidos da gestão no escritório.
 // 1) ESTUDA (internet): as melhores práticas de venda de software e de vendas no geral, com
@@ -21,6 +22,12 @@ const QUEM = [
   // 16/10/2026: o playbook de condução e objeções é a régua da revisão e do que você ensina aos agentes.
   'O que você ensina e cobra dos agentes (playbook da casa):\n' + PLAYBOOK_CONVERSA,
 ].join('\n');
+
+/** Quem é o Rafael + o que ele sabe do produto (Universidade Prosystem, 13/11/2026) + as instruções da gestão. */
+async function sistemaRafael(prisma: PrismaClient): Promise<string> {
+  const { instrucoesPara } = await import('./agentes-conversa.service');
+  return QUEM + conhecimentoProduto() + (await instrucoesPara(prisma, 'rafael'));
+}
 
 type DocNovo = { tipo: 'POP' | 'PROCESSO' | 'EXEMPLO' | 'DICA' | 'ALERTA' | 'ABORDAGEM' | 'CONCORRENCIA' | 'TREINAMENTO'; titulo: string; conteudo: string; agente_alvo?: string | null };
 
@@ -63,7 +70,7 @@ export async function estudarVendas(prisma: PrismaClient, tema: string | null = 
     aprovados.length ? `Já temos aprovados (não repita; se melhorar um deles, use o MESMO título para criar a nova versão): ${aprovados.map(a => a.titulo).join(' | ')}` : '',
     'Responda APENAS com JSON: {"resumo": string, "documentos": [{"tipo": "POP"|"PROCESSO"|"EXEMPLO"|"DICA", "titulo": string, "conteudo": string (markdown, com listas numeradas e exemplos)}]}. Traga de 3 a 6 documentos. Cite no conteúdo, de forma breve, de quem é cada ideia quando vier de um especialista.',
   ].filter(Boolean).join('\n');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), pergunta, timeoutMs: 240_000 });
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: await sistemaRafael(prisma), pergunta, timeoutMs: 240_000 });
   const r = lerJsonIa<{ resumo: string; documentos: DocNovo[] }>(texto);
   const docs = (r?.documentos || []).filter(d => d?.titulo && d?.conteudo && ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'].includes(d.tipo)).slice(0, 8);
   const gravados = [];
@@ -135,7 +142,7 @@ export async function revisarConversas(prisma: PrismaClient, opts: { limite?: nu
   const perguntas: string[] = [];
   if (paraAvaliar.length) {
     const { instrucoesPara } = await import('./agentes-conversa.service');
-    const sistema = QUEM + (await instrucoesPara(prisma, 'rafael'));
+    const sistema = await sistemaRafael(prisma);
     const resumos: string[] = [], alertas: Alerta[] = [], dicas: string[] = [];
     for (let i = 0; i < paraAvaliar.length; i += 10) {
       const lote = paraAvaliar.slice(i, i + 10);
@@ -270,7 +277,7 @@ export async function proporAbordagem(prisma: PrismaClient) {
     'Responda APENAS com JSON: {"resumo": string, "abordagens": [{"agente": "caroline"|"julio"|"luiz_felipe", "diagnostico": string (por que a atual funciona ou não, com base nos dados), "diretriz": string (como o agente deve abrir a conversa, em 3-6 regras curtas), "exemplos": [string, string, string] (mensagens prontas de primeira mensagem)}]}',
   ].filter(Boolean).join('\n');
   const { instrucoesPara } = await import('./agentes-conversa.service');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), pergunta, timeoutMs: 240_000 });
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: await sistemaRafael(prisma), pergunta, timeoutMs: 240_000 });
   const r = lerJsonIa<{ resumo: string; abordagens: { agente: string; diagnostico: string; diretriz: string; exemplos: string[] }[] }>(texto);
   const nomes: Record<string, string> = { caroline: 'Caroline', julio: 'Julio', luiz_felipe: 'Luiz Felipe' };
   const gravados = [];
@@ -479,7 +486,7 @@ export async function treinarAgente(prisma: PrismaClient, agente: 'luiz_felipe' 
     opts.foco?.length ? `\n=== CONHECIMENTO NOVO QUE VOCÊ ACABOU DE APRENDER E DEVE ENSINAR AGORA (de forma 100% didática: explique o porquê, mostre um exemplo real ou plausível de WhatsApp, peça para o agente reescrever e valide; transforme em regras práticas) ===\n${opts.foco.map(x => `## ${x.titulo}\n${x.conteudo.slice(0, 3000)}`).join('\n\n')}` : '',
     `\n=== CONVERSAS DO ${nome.toUpperCase()} (últimos 14 dias) ===\n${conversas.join('\n\n')}`,
   ].filter(Boolean).join('\n');
-  const r = lerJsonIa<any>(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.4, timeoutMs: 180_000 }));
+  const r = lerJsonIa<any>(await chamarGemini(prisma, { sistema: await sistemaRafael(prisma), partes: [{ text: pergunta }], json: true, temperatura: 0.4, timeoutMs: 180_000 }));
   if (!r?.dialogo?.length || !r?.regras?.length) throw new Error('o Rafael não conseguiu montar o treinamento desta vez');
   const dialogo: FalaTreino[] = r.dialogo.filter((f: any) => f?.texto).slice(0, 16).map((f: any) => ({ quem: f.quem === 'agente' ? 'agente' : 'rafael', texto: String(f.texto).slice(0, 600) }));
   const regras: string[] = r.regras.map((x: any) => String(x).slice(0, 300)).slice(0, 12);
@@ -520,10 +527,12 @@ export async function pesquisarDuvida(prisma: PrismaClient, duvida: string, orig
   registrarAcaoAgente('rafael', `foi pesquisar: "${q.slice(0, 60)}"`);
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const { texto, fontes } = await pesquisarComGemini(prisma, {
-    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    sistema: await sistemaRafael(prisma),
     pergunta: [
       `Um cliente (ou a equipe) perguntou e nenhum agente soube responder: "${q}". Origem: ${origem}.`,
-      'Pesquise e escreva a resposta que os agentes podem dar pelo WhatsApp, para farmácias/padarias. Se for sobre o PRODUTO Prosystem e você não achar fonte confiável, NÃO invente: diga o que a equipe precisa confirmar.',
+      'Primeiro procure a resposta no SEU conhecimento do produto (Universidade Prosystem) e nos artigos abaixo; só pesquise na internet o que não estiver lá. Escreva a resposta que os agentes podem dar pelo WhatsApp, para farmácias/padarias. Se for sobre o PRODUTO Prosystem e não estiver na Universidade nem em fonte confiável, NÃO invente: diga o que a equipe precisa confirmar.',
+      'Quando a Universidade responder, não pergunte isso à Jessica (perguntas_para_jessica vazia sobre esse ponto) e cite o link do artigo no conteúdo.',
+      trechosUniversidade(q),
       'Responda APENAS com JSON: {"titulo": string (curto, começando com "Resposta: "), "conteudo": string (markdown: resposta curta pronta para o WhatsApp + explicação + o que confirmar com a equipe, se houver), "perguntas_para_jessica": [string] (até 2 perguntas objetivas para a Jessica, a gestora, sobre o que SÓ ELA pode confirmar: recurso do produto Prosystem, preço, prazo, regra da casa; respondíveis em 1 a 3 frases; lista vazia se a pesquisa resolveu)}',
       'NUNCA pergunte à Jessica o que aconteceu numa conversa ou cliente específico (campanha oferecida, condição, validade, proposta, registro de aprovação): isso está no CRM e é você quem consulta. A campanha de fim de mês (mesma condição para todos) é decisão sua; avalie e oriente os agentes.',
     ].join('\n'),
@@ -593,7 +602,7 @@ export async function levantarPerguntas(prisma: PrismaClient) {
     'Responda APENAS com JSON: {"perguntas": [{"pergunta": string, "contexto": string, "doc": número do documento}]}',
     '', ...docs.map((d, i) => `### Documento ${i + 1}: [${d.tipo}] ${d.titulo}\n${d.conteudo.slice(0, 2000)}`),
   ].join('\n');
-  const r = lerJsonIa<{ perguntas: { pergunta: string; contexto?: string; doc?: number }[] }>(await chamarGemini(prisma, { sistema: QUEM + (await instrucoesPara(prisma, 'rafael')), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }));
+  const r = lerJsonIa<{ perguntas: { pergunta: string; contexto?: string; doc?: number }[] }>(await chamarGemini(prisma, { sistema: await sistemaRafael(prisma), partes: [{ text: pergunta }], json: true, temperatura: 0.2, timeoutMs: 150_000 }));
   const { perguntarAJessica } = await import('./equipe.service');
   const novas: string[] = [];
   for (const p of (r?.perguntas || []).slice(0, 10)) {
@@ -666,7 +675,7 @@ export async function orientarAgente(prisma: PrismaClient, agente: string, conve
   const texto = ms.reverse().map(m => `${m.direcao === 'ENTRADA' ? 'Cliente' : m.enviada_por === agente ? nome : 'Prosystem'}: ${((m.tipo === 'AUDIO' ? m.transcricao : m.conteudo) || `[${String(m.tipo).toLowerCase()}]`).replace(/\s+/g, ' ').slice(0, 300)}`).join('\n');
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const r = lerJsonIa<{ orientacao: string; mensagem: string }>(await chamarGemini(prisma, {
-    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    sistema: await sistemaRafael(prisma),
     partes: [{ text: `O agente ${nome} travou nesta conversa de WhatsApp e pediu sua orientação. Diga em 1 ou 2 frases como seguir e escreva a próxima mensagem dele: curta, natural, de gente, sem travessão, sem repetir o que ele já disse. Se o cliente só cumprimentou, cumprimente de volta e retome com leveza.\nResponda APENAS com JSON: {"orientacao": string, "mensagem": string}\n\n${texto}` }],
     json: true, temperatura: 0.5, timeoutMs: 60_000,
   }));
@@ -702,7 +711,7 @@ export async function analisarConversa(prisma: PrismaClient, conversaId: string,
   const nome = conv.contato_nome || conv.contato_numero;
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const r = lerJsonIa<{ resumo: string; erros: { quando: string; o_que_fez: string; por_que_errado: string; certo: string }[]; fluxo_certo: string[]; regra: string; licao_time: string; mensagem_agora: string }>(await chamarGemini(prisma, {
-    sistema: QUEM + (await instrucoesPara(prisma, 'rafael')),
+    sistema: await sistemaRafael(prisma),
     partes: [{ text: [
       `A Jessica pediu que você analise esta conversa do agente ${nomeAg} e mostre onde ele errou, para não repetir.${pedido ? ` Pedido dela: "${pedido}"` : ''}`,
       `Tipo de contato: ${tipoContato}. Leia a conversa INTEIRA. Julgue pelo playbook (começo, meio e fim; entender antes de oferecer; uma pergunta por vez; próximo passo combinado).`,

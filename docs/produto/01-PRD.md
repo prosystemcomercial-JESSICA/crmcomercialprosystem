@@ -2402,3 +2402,22 @@ Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folh
 - **Trava do quadro:** antes, sem onboarding concluído, o card só podia ficar em BackLog, A fazer ou Cancelados. Agora **Em andamento** também é liberado (`COLUNAS_ANTES_DO_ONBOARDING`), porque é onde o onboarding acontece. Acompanhamento em diante continua exigindo o onboarding concluído; instalação, conversão, virada e o Play nas outras etapas continuam travados.
 - **Tela:** o aviso da aba Onboarding técnico explica que o card vai sozinho para Em andamento.
 - **Teste:** `backend/tests/implantacao-onboarding-coluna.test.ts` (4 casos).
+
+### Atualização 13/11/2026: a Laya mede sozinha a temperatura dos leads
+
+Pedido da Jessica: "a Laya já aprendeu o suficiente, comece a medir sozinha as temperaturas, com todos os pendentes". Antes, a coluna "Confirmar temperatura (ensina a Laya)" dos painéis dos SDRs esperava a Jessica escolher a temperatura de cada lead ("Está certo?").
+
+- **Problema encontrado:** o palpite cru do modelo da Laya para temperatura acertava 10 de 80 casos confirmados (chamava de Quente quem era Frio) e já tinha esquentado 15 leads sozinho em 30 dias. As confirmações da Jessica, por outro lado, concordaram com a nota do agente em 152 de 154 casos.
+- **O que mudou:** a Laya passa a medir a temperatura com um termômetro de regras e memória (método de pontuação de leads: só a fala do cliente conta, sinal negativo derruba, pedido concreto esquenta, sem pedido fica no máximo Morno, quem sumiu há mais de 21 dias esfria um nível), validado contra as 154 confirmações da Jessica: **147 acertos (95%)**.
+- Mede os pendentes e reavalia sozinha quando a conversa muda (a cada 10 min). A Jessica pode corrigir na mesma lista; a correção dela vale e continua ensinando a Laya.
+- O palpite cru do modelo deixa de mudar a temperatura dos leads enquanto a tarefa "Temperatura" estiver no nível Aprendiz.
+
+### Atualização 13/11/2026: o Rafael estudou a base de conhecimento (Universidade Prosystem)
+
+- **Pedido da Jessica:** "ele tem que estudar a nossa base de conhecimentos… leia por aqui e passe tudo para ele, coloque direto no conhecimento dele".
+- **Antes:** o Rafael (especialista em vendas) não lia a base. Dúvida de produto virava pesquisa na internet ou pergunta para a Jessica, mesmo quando a Universidade já respondia.
+- **Leitura:** `backend/scripts/ler-universidade.ts` percorre https://universidade.prosystemnet.com/base-conhecimento (índice → categorias → artigos, site público) e grava o texto de cada artigo, sem o rodapé "Este artigo foi útil?", em `docs/comercial/universidade-prosystem.json`. Leitura de 13/11/2026: **139 artigos** em 27 categorias, ~330 mil letras. Os PDFs anexados (Manual Geral, manual da Manipulação) não foram lidos; só o texto das páginas.
+- **No conhecimento do Rafael:** `backend/src/lib/assistente/universidade.ts`. `conhecimentoProduto()` entra em **todas** as chamadas do Rafael (`sistemaRafael` em `especialista.service.ts`: estudo, revisão das conversas, abordagens, treino dos agentes, dúvidas, perguntas para a Jessica, análise de conversa): o guia comercial (`base-conhecimento-comercial.md`) + o índice de todos os artigos (~13 mil letras). Regra: usar isso antes da internet; o que não estiver lá, não inventar.
+- **Dúvida sem resposta (`pesquisarDuvida`):** recebe também os artigos completos ligados ao assunto (`trechosUniversidade`: até 4 artigos, 12 mil letras, busca por palavras com peso no título > categoria > corpo). Se a Universidade responde, ele cita o link e não pergunta isso à Jessica.
+- **Atualizar a base:** quando a Universidade ganhar artigos ou versões novas, rodar `cd backend && npx tsx scripts/ler-universidade.ts`, commit e deploy. Não há leitura automática no servidor.
+- **Teste:** `backend/tests/universidade.test.ts` (3 casos).

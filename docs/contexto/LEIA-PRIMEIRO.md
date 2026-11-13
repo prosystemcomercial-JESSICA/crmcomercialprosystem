@@ -49,6 +49,7 @@ Claude é o assistente da reunião semanal da Jessica com os superiores: um rela
 | Motor dos agentes de conversa (Caroline, Julio, Luiz Felipe): fila, primeiro contato, respostas, retomadas, aprovação | `backend/src/services/caroline.service.ts` |
 | Roteiro (prompt) e regras puras dos agentes: robô de loja, ficha do lead, quem decide, concorrente | `backend/src/lib/assistente/sdr.ts` |
 | Rafael (especialista): estudo, revisão das conversas, treinos, perguntas para a Jessica, rotinas agendadas | `backend/src/services/especialista.service.ts` · `equipe.service.ts` (mural) |
+| Conhecimento de produto do Rafael: Universidade Prosystem lida inteira (reler com `npx tsx scripts/ler-universidade.ts`) | `backend/src/lib/assistente/universidade.ts` · `docs/comercial/universidade-prosystem.json` |
 | Chamadas de IA (OpenAI, Grok, Gemini) | `backend/src/services/ia-gemini.service.ts` · `lib/assistente/ia-texto.ts` |
 | Placar, interessados esquecidos, propostas paradas, funil por origem, relatório de sexta | `backend/src/services/placar-comercial.service.ts` · `lib/placar-comercial.ts` · `lib/funil-origem.ts` |
 | Programa de Ativos, fila do dia, indicações | `backend/src/routes/ativos.ts` · `services/ativos-fila.service.ts` · `services/indicacoes-clientes.service.ts` |
