@@ -25,6 +25,7 @@ import FunilOrigem from '@/components/escritorio/FunilOrigem';
 import FaixaSaude from '@/components/escritorio/painel/FaixaSaude';
 import MenuSetores, { type Vista } from '@/components/escritorio/painel/MenuSetores';
 import QuadroAgente from '@/components/escritorio/painel/QuadroAgente';
+import CarrosselQuadros from '@/components/escritorio/painel/CarrosselQuadros';
 import Organograma from '@/components/escritorio/painel/Organograma';
 import EsperandoVoce from '@/components/escritorio/painel/EsperandoVoce';
 import ConsumoEscritorio from '@/components/escritorio/painel/ConsumoEscritorio';
@@ -284,14 +285,8 @@ export default function EscritorioPage() {
                 })()}
 
                 <h2 className="esc-sub">{setorAtual ? `Quadros de ${setorAtual.nome}` : 'Quadros da equipe'}</h2>
-                <div className="esc-quadros">
-                  {[...doSetor].sort((x, y) => Number(y.status === 'erro') - Number(x.status === 'erro')).map(a => (
-                    <div key={a.id} id={`quadro-${a.id}`} style={{ display: 'grid' }}>
-                      <QuadroAgente a={a} q={painel?.quadros.find(q => q.id === a.id)} selecionado={sel === a.id}
-                        onAbrir={abrirPainel} onConversar={id => setChat(id)} onAgenda={id => verAgenda(id)} />
-                    </div>
-                  ))}
-                </div>
+                <CarrosselQuadros agentes={doSetor} quadros={painel?.quadros} sel={sel}
+                  onAbrir={abrirPainel} onConversar={id => setChat(id)} onAgenda={id => verAgenda(id)} />
 
                 {vista === 'todos' && <MuralEquipe />}
               </>

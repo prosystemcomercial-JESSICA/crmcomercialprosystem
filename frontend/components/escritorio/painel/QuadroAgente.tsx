@@ -71,8 +71,8 @@ export default function QuadroAgente({ a, q, selecionado, onAbrir, onConversar, 
         {a.ultima ? `${a.ultima.texto} · ${haQuanto(a.ultima.em)}` : a.observacao || 'Aguardando a primeira tarefa'}
       </span>
 
-      <footer style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 'auto' }}>
-        {PAINEIS.includes(a.id) && <button className="esc-btn primario" style={{ background: a.cor }} onClick={() => onAbrir(a.id)}>{q?.erro ? 'Resolver no painel' : q?.precisa_de_voce ? 'Aprovar' : 'Abrir painel'}</button>}
+      <footer className="esc-quadro-acoes">
+        {PAINEIS.includes(a.id) && <button className="esc-btn primario esc-quadro-principal" style={{ background: a.cor }} onClick={() => onAbrir(a.id)}>{q?.erro ? 'Resolver no painel' : q?.precisa_de_voce ? 'Aprovar' : 'Abrir painel'}</button>}
         <button className="esc-btn" onClick={() => onAgenda(a.id)}>Agenda</button>
         <button className="esc-btn" onClick={() => onConversar(a.id)}>Conversar</button>
       </footer>
