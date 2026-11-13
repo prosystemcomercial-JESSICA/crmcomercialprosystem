@@ -13,9 +13,12 @@ describe('avaliação dos agentes (13/11/2026)', () => {
   });
   it('erro de 25% vira atenção e de 40% vira crítico', () => {
     expect(avaliarAgente(base({ decididas: dec(10, 5, 3, 2) })).nivel).toBe('atencao'); // 5/20
-    const c = avaliarAgente(base({ decididas: dec(4, 2, 2, 2, 2) })); // 6/10
+    const c = avaliarAgente(base({ decididas: dec(4, 2, 2, 2, 2) })); // 4/10 (seguradas não somam)
     expect(c.nivel).toBe('critico');
-    expect(c.sinais[0]).toContain('segurada(s) pela Laya');
+    expect(c.sinais[0]).toContain('a Laya segurou 2 para conferir');
+  });
+  it('segurada pela Laya não conta como erro (caso real de 13/11: 80 seguradas em 281)', () => {
+    expect(avaliarAgente(base({ decididas: dec(150, 84, 5, 42, 80) })).nivel).toBe('ok');
   });
   it('nota baixa no boletim também cobra, com o que melhorar', () => {
     const a = avaliarAgente(base({ id: 'heitor', mensagens: 0, nota: 5, melhorar: 'trazer o WhatsApp do decisor' }));

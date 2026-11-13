@@ -141,7 +141,7 @@ export default function PainelDiretoria({ foco = 'vitoria' }: { foco?: Foco }) {
                   ))}
                 </tbody>
               </table>
-              <p style={{ ...muted, marginTop: 8 }}>Limites: mais de 25% das mensagens corrigidas, descartadas ou seguradas pela Laya é atenção; mais de 40% é crítico. Nota abaixo de 6 no boletim é atenção; abaixo de 4, crítico. São precisas pelo menos 8 mensagens na semana para medir.</p>
+              <p style={{ ...muted, marginTop: 8 }}>Limites: mais de 25% das mensagens corrigidas ou descartadas (a mensagem segurada pela Laya só conta se o Rafael descartar) é atenção; mais de 40% é crítico. Nota abaixo de 6 no boletim é atenção; abaixo de 4, crítico. São precisas pelo menos 8 mensagens na semana para medir.</p>
             </div>
           )}
 

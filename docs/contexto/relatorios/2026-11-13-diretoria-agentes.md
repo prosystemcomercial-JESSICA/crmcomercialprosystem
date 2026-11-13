@@ -47,6 +47,7 @@ Respostas dela às perguntas:
 - `tsc` do frontend: 0 erros.
 - Playwright com API simulada: 2/2. Desfazer chama a rota certa, o painel cabe em 390 e 360 px e a sala mostra a diretoria. Prints em `frontend/test-results/diretoria-*.png`.
 - Suíte inteira local: 5 falhas, todas em testes que precisam de MySQL (PrismaClientInitializationError). Não têm relação com esta mudança.
+- Produção: deploy `5e1ae1e` ok e leitura do painel com dados reais (17 agentes, sem erro). A leitura mostrou contagem dupla das mensagens seguradas pela Laya (Caroline aparecia crítica com 45%; o erro real é 17%), corrigida no commit seguinte, antes da primeira rodada.
 - Rodada real com IA em produção: **não verificado**. A primeira é o boletim de sexta, 13/11, às 16h.
 
 ## Decisões e porquês

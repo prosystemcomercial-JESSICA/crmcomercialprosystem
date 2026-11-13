@@ -60,11 +60,13 @@ export function avaliarAgente(n: NumerosAgente, L = LIMITES): Avaliacao {
   if (d) {
     const total = d.sozinha + d.aprovada + d.editada + d.descartada;
     if (total >= L.amostraMin) {
-      taxa = (d.editada + d.descartada + d.segurada_laya) / total;
+      // Segurada pela Laya não entra na conta (13/11/2026, visto em produção): ela vai para o Rafael, que descarta
+      // (já conta como descartada) ou aprova (não era erro). Somar seria contar duas vezes e punir alarme falso.
+      taxa = (d.editada + d.descartada) / total;
       if (taxa >= L.erroAtencao) {
         nivel = pior(nivel, taxa >= L.erroCritico ? 'critico' : 'atencao');
-        const partes = [d.editada && `${d.editada} corrigida(s)`, d.descartada && `${d.descartada} descartada(s)`, d.segurada_laya && `${d.segurada_laya} segurada(s) pela Laya`].filter(Boolean);
-        sinais.push(`${pct(taxa)} das mensagens com problema (${partes.join(', ')} de ${total})`);
+        const partes = [d.editada && `${d.editada} corrigida(s)`, d.descartada && `${d.descartada} descartada(s)`].filter(Boolean);
+        sinais.push(`${pct(taxa)} das mensagens com problema (${partes.join(', ')} de ${total}${d.segurada_laya ? `; a Laya segurou ${d.segurada_laya} para conferir` : ''})`);
       }
     }
   }

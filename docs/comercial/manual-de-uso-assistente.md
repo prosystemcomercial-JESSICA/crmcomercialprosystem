@@ -1738,7 +1738,7 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 
 **O que conta como "errando muito"**
 - Com pelo menos 8 mensagens na semana:
-  - 25% ou mais corrigidas, descartadas ou seguradas pela Laya é **atenção**;
+  - 25% ou mais corrigidas ou descartadas (a mensagem segurada pela Laya só conta se o Rafael descartar) é **atenção**;
   - 40% ou mais é **crítico**.
 - Nota do boletim abaixo de 6 é atenção, e abaixo de 4 é crítico.
 - Falha de IA aparece como problema técnico e não é culpa do agente.
