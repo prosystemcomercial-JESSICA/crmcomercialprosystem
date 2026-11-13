@@ -2384,6 +2384,15 @@ Print da Jessica: ao tocar em "…" numa conversa do WhatsApp no celular, a folh
 - **Tela:** o aviso da aba Onboarding técnico explica que o card vai sozinho para Em andamento.
 - **Teste:** `backend/tests/implantacao-onboarding-coluna.test.ts` (4 casos).
 
+### Atualização 13/11/2026: a Laya mede sozinha a temperatura dos leads
+
+Pedido da Jessica: "a Laya já aprendeu o suficiente, comece a medir sozinha as temperaturas, com todos os pendentes". Antes, a coluna "Confirmar temperatura (ensina a Laya)" dos painéis dos SDRs esperava a Jessica escolher a temperatura de cada lead ("Está certo?").
+
+1. A cada 10 minutos, a Laya pega os leads dos SDRs com nota e sem temperatura confirmada (e os que ela mediu e mudaram depois).
+2. Lê só as falas do cliente (sem robô da loja), aplica o termômetro e grava a temperatura confirmada com o motivo.
+3. A temperatura do lead no CRM acompanha, salvo se uma pessoa trocou à mão e o cliente não falou depois.
+4. No painel do agente, a coluna mostra "🤖 Laya mediu: <motivo>". Se a Jessica trocar, vale a escolha dela ("✔ confirmado"), a Laya não mexe mais nesse lead e a troca vira exemplo de treino.
+
 ### Atualização 13/11/2026: o Rafael estudou a base de conhecimento (Universidade Prosystem)
 
 - **Pedido da Jessica:** "ele tem que estudar a nossa base de conhecimentos… leia por aqui e passe tudo para ele, coloque direto no conhecimento dele".

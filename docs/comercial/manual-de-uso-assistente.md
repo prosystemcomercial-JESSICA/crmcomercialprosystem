@@ -279,7 +279,7 @@ Os três conversam pela IA no WhatsApp da empresa, cada um com o próprio painel
 - Cada mensagem aparece para você **aprovar**, **ajustar** ou **🔄 Refazer**, com o campo opcional "o que mudar?".
 - Refazer escreve outra versão na hora, diferente das descartadas.
 - Os seus ajustes ensinam o seu tom para eles.
-- Confirmar a temperatura na tabela do painel ensina a Laya.
+- A **Laya mede sozinha** a temperatura de cada lead (desde 13/11/2026) e mostra o motivo em roxo ("🤖 Laya mediu: ..."). Se estiver errado, troque na tabela: a sua escolha vale, ela não mexe mais naquele lead e a correção ensina a Laya.
 
 **Proteção do número (o mais importante)**
 - **Um limite único por dia** para os três agentes e as campanhas juntos: 15 primeiros contatos por dia nas duas primeiras semanas, depois até 30.
