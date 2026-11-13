@@ -1725,3 +1725,43 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Quando a dúvida é sobre o produto, ele procura primeiro na Universidade e só vai para a internet se não achar.
 - Se a Universidade responde, ele não pergunta isso para você e põe o link do artigo na resposta.
 - Quando a Universidade ganhar artigos novos, peça ao Claude para "reler a Universidade para o Rafael".
+
+## Diretoria dos agentes: Vitória (CEO), Gustavo e Renata (gerentes) (13/11/2026)
+
+**Quem é quem**
+- **Vitória, CEO dos agentes:** toda segunda às 8h faz a reunião da semana. Lê os números do comercial inteiro, o relatório do Analista de Resultados e o boletim do Rafael. Escreve o diagnóstico, as prioridades e o plano da semana, define as metas do mês (dos agentes e das vendedoras) e toma providências. Ela tem **liberdade total**: aplica na hora e manda o resumo no seu WhatsApp.
+- **Gustavo, gerente de Entrada de leads e Vendas**, e **Renata, gerente de Clientes e Inteligência:** nos dias úteis às 18h conferem os números de cada agente. Quem erra muito sobe uma escada:
+  1. cobrança por escrito, com os números e o prazo;
+  2. depois de 2 dias, se não melhorar, treino com o Rafael (ou uma regra nova, para quem não conversa com cliente);
+  3. depois de mais 3 dias, o caso vai para a Vitória, que decide às 18h30.
+- **Rafael e Laya:** toda sexta às 16h fazem o boletim com a nota de cada agente (de 0 a 10), o motivo e o que melhorar. O boletim vai para a Vitória.
+
+**O que conta como "errando muito"**
+- Com pelo menos 8 mensagens na semana:
+  - 25% ou mais corrigidas, descartadas ou seguradas pela Laya é **atenção**;
+  - 40% ou mais é **crítico**.
+- Nota do boletim abaixo de 6 é atenção, e abaixo de 4 é crítico.
+- Falha de IA aparece como problema técnico e não é culpa do agente.
+
+**O que a Vitória pode fazer sozinha**
+- Mandar um recado para um agente.
+- Criar uma regra nova.
+- Pausar por 1 a 3 dias a Caroline, o Julio ou o Luiz Felipe. Eles voltam sozinhos no fim do prazo.
+- Pedir um treino ao Rafael.
+- Dar metas aos agentes e às vendedoras.
+
+**O que ela não faz**
+- **Nunca** mexe na meta que você lançou à mão.
+- **Nunca** fala com cliente.
+- **Nunca** passa por cima das regras da casa: WhatsApp protegido, nada de apagar lead, nada de atividade automática e nada de preço ou desconto.
+
+**Onde ver e desfazer**
+- No **Escritório**, clique na Vitória, no Gustavo ou na Renata, ou toque no link do aviso do WhatsApp.
+- O painel tem estas abas:
+  - **Plano e providências:** cada item tem o botão **Desfazer**.
+  - **Desempenho:** situação, nota e escada de cada agente.
+  - **Metas do mês:** com barra de progresso.
+  - **Boletim**.
+  - **Cobranças**.
+- Os botões de cima rodam a reunião, a conferência dos gerentes ou o boletim na hora, sem esperar o horário.
+- Na sala do Escritório, os três sentam na **Diretoria · sala da Jessica**.

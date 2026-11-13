@@ -823,7 +823,7 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
 
 /** Caderno do Rafael em markdown: tudo o que está aprovado (parâmetros do setor), por tipo. */
 export async function cadernoRafael(prisma: PrismaClient): Promise<string> {
-  const ds = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO' }, orderBy: [{ tipo: 'asc' }, { titulo: 'asc' }] });
+  const ds = await prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', tipo: { notIn: ['BOLETIM', 'PLANO', 'DECISAO'] } }, orderBy: [{ tipo: 'asc' }, { titulo: 'asc' }] });
   const NOME: Record<string, string> = { POP: 'POPs', PROCESSO: 'Processos', EXEMPLO: 'Exemplos', DICA: 'Dicas', ABORDAGEM: 'Abordagens iniciais', CONCORRENCIA: 'Concorrência', ALERTA: 'Revisões de conversas' };
   const l = ['# Caderno do Rafael · parâmetros do setor comercial', '', `Documentos aprovados (${ds.length}). Gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.`, ''];
   let tipo = '';

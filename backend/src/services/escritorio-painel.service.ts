@@ -9,7 +9,7 @@ import type { EstadoAgente } from './escritorio.service';
 // do dia entre agentes (organograma vivo), a fila "Esperando você" e o teto mensal de IA. Somente leitura.
 
 export const CHAVE_TETO_IA = 'ia.teto_mensal_brl';
-const REMETENTE: Record<string, string[]> = {
+export const REMETENTE: Record<string, string[]> = {
   caroline: ['caroline'], julio: ['julio'], luiz_felipe: ['luiz_felipe', 'cadencia_automatica'],
   bia: ['bot'], clarice: ['assistente_ia'], otavio: ['otavio'],
 };

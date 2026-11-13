@@ -17,6 +17,7 @@ import PainelMila from '@/components/escritorio/PainelMila';
 import PainelJoana from '@/components/escritorio/PainelJoana';
 import SalaTreinamento, { type FalaNaSala } from '@/components/escritorio/SalaTreinamento';
 import PainelHeitor from '@/components/escritorio/PainelHeitor';
+import PainelDiretoria from '@/components/escritorio/PainelDiretoria';
 import { ConfigPortalImplantacao } from '@/components/implantacao/Portal';
 import { MuralEquipe } from '@/components/escritorio/MuralEquipe';
 import PlacarComercial from '@/components/escritorio/PlacarComercial';
@@ -35,8 +36,8 @@ import { type AgenteTela, type Painel, haQuanto } from '@/components/escritorio/
 // e consumo de IA com teto. Somente leitura (os painéis de cada agente continuam onde a Jessica decide).
 
 type Agente = AgenteTela;
-const PAINEIS = ['rafael', 'mila', 'joana', 'luiz_felipe', 'julio', 'heitor', 'sofia', 'caroline', 'laya', 'otavio'] as const;
-const SETORES_VISTA = ['entrada', 'vendas', 'inteligencia', 'clientes'];
+const PAINEIS = ['rafael', 'mila', 'joana', 'luiz_felipe', 'julio', 'heitor', 'sofia', 'caroline', 'laya', 'otavio', 'vitoria', 'gustavo', 'renata'] as const;
+const SETORES_VISTA = ['entrada', 'vendas', 'inteligencia', 'clientes', 'direcao'];
 
 // Ações de exemplo da simulação (nomes fictícios).
 const ACOES_SIMULADAS: Record<string, string[]> = {
@@ -91,11 +92,12 @@ export default function EscritorioPage() {
   };
   const [chat, setChat] = useState<string | null>(null);
   const [conversasAgentes, setConversasAgentes] = useState<any[]>([]); // conversas entre agentes (balões redondos)
-  const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia' | 'caroline' | 'laya' | 'otavio'>(null); // painéis dos agentes em janela
+  const [janela, setJanela] = useState<null | 'treino' | 'rafael' | 'mila' | 'joana' | 'luiz_felipe' | 'julio' | 'heitor' | 'sofia' | 'caroline' | 'laya' | 'otavio' | 'vitoria' | 'gustavo' | 'renata'>(null); // painéis dos agentes em janela
   // Link do aviso (?rafael=perguntas) abre direto nas perguntas do Rafael; a contagem fica em "Esperando você".
   const [abaRafael, setAbaRafael] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('rafael') === 'perguntas') { setAbaRafael('PERGUNTAS'); setJanela('rafael'); }
+    if (new URLSearchParams(window.location.search).get('diretoria')) setJanela('vitoria'); // link dos avisos da diretoria (13/11/2026)
   }, []);
   const chamar = (id: string) => { setChamados(c => ({ ...c, [id]: 'sala' })); setSel(id); setChat(id); };
   const liberar = (id: string) => setChamados(c => { const n = { ...c }; delete n[id]; return n; });
@@ -177,7 +179,7 @@ export default function EscritorioPage() {
           <div style={{ width: '100%', maxWidth: 1100, background: 'var(--t-content-bg)', borderRadius: 16, padding: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.25)', display: 'grid', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t-text-primary)' }}>
-                {({ treino: '🎓 Treinamentos', rafael: '📚 Rafael · vendas', mila: '💚 Mila · Customer Success', joana: '📰 Joana · Informativo Prosystem', laya: '🧠 Laya · o cérebro da equipe', caroline: '💬 Caroline · SDR (primeiro contato)', luiz_felipe: '📄 Luiz Felipe · Propostas não assinadas', julio: '🔁 Julio · Follow-up de leads', heitor: '🧭 Heitor · Prospecção no Google Maps', otavio: '🛠️ Otávio · Implantação e serviços', sofia: '🔎 Pesquisas da Sofia' } as Record<string, string>)[janela]}
+                {({ treino: '🎓 Treinamentos', rafael: '📚 Rafael · vendas', mila: '💚 Mila · Customer Success', joana: '📰 Joana · Informativo Prosystem', laya: '🧠 Laya · o cérebro da equipe', caroline: '💬 Caroline · SDR (primeiro contato)', luiz_felipe: '📄 Luiz Felipe · Propostas não assinadas', julio: '🔁 Julio · Follow-up de leads', heitor: '🧭 Heitor · Prospecção no Google Maps', otavio: '🛠️ Otávio · Implantação e serviços', sofia: '🔎 Pesquisas da Sofia', vitoria: '👩‍💼 Vitória · CEO dos agentes', gustavo: '👔 Gustavo · Gerente de Entrada e Vendas', renata: '👩‍💼 Renata · Gerente de Clientes e Inteligência' } as Record<string, string>)[janela]}
               </h2>
               <button onClick={() => setJanela(null)} aria-label="Fechar" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
@@ -192,6 +194,7 @@ export default function EscritorioPage() {
             {janela === 'heitor' && <PainelHeitor />}
             {janela === 'otavio' && <ConfigPortalImplantacao />}
             {janela === 'sofia' && <PesquisasSofia />}
+            {(janela === 'vitoria' || janela === 'gustavo' || janela === 'renata') && <PainelDiretoria foco={janela} />}
           </div>
         </div>
       )}

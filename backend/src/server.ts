@@ -404,6 +404,10 @@ async function iniciarSchedulerAssistente() {
       // Joana: Informativo Prosystem quinzenal (escreve na quinta; e-mails aprovados saem em lotes).
       const { rodarJoana } = await import('./services/joana.service.js');
       await rodarJoana(prismaClient!, agora).catch((e: any) => console.error('[JOANA]', e?.message));
+      // Diretoria dos agentes (13/11/2026): boletim do Rafael e da Laya (sexta 16h), Vitória (segunda 8h e casos dos
+      // gerentes às 18h30) e gerentes Gustavo e Renata (dias úteis 18h). Em segundo plano: a IA leva minutos.
+      const { rodarDiretoria } = await import('./services/diretoria.service.js');
+      rodarDiretoria(prismaClient!, agora).catch((e: any) => console.error('[DIRETORIA]', e?.message));
       // Heitor (prospecção no Google Maps): dias úteis 7h–18h, uma rodada por hora até a cota do dia (roda em segundo plano).
       const { rodarHeitor } = await import('./services/heitor.service.js');
       await rodarHeitor(prismaClient!, agora).catch((e: any) => console.error('[HEITOR]', e?.message));
@@ -704,6 +708,7 @@ async function loadRoutes() {
     ['especialista',          () => import('./routes/especialista'),          'especialistaRoutes'],
     ['heitor',                () => import('./routes/heitor'),                'heitorRoutes'],
     ['joana',                 () => import('./routes/joana'),                 'joanaRoutes'],
+    ['diretoria',             () => import('./routes/diretoria'),             'diretoriaRoutes'],
   ];
 
   let ok = 0;

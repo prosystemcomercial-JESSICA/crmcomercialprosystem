@@ -236,5 +236,7 @@ export async function montarEscritorio(prisma: PrismaClient, agora = new Date())
       portalCfg?.agente_ativo ? 'De olho nas implantações, serviços e treinamentos; responde o técnico no WhatsApp' : 'Desligado: ligue no painel dele'),
     estado('joana', temChave, maisRecente<Acao>(ultJoana ? { texto: ultJoana.status === 'PROPOSTO' ? 'escreveu o Informativo e espera sua aprovação' : 'publicou o Informativo', em: ultJoana.decidido_em || ultJoana.created_at } : null, acaoRegistrada('joana')),
       [{ rotulo: 'para aprovar', valor: joanaPendentes }, { rotulo: 'edições publicadas', valor: joanaPublicadas }], temChave ? 'Informativo Prosystem quinzenal (quinta de manhã), a partir das pesquisas da Sofia' : 'Esperando a chave da IA em Configurações'),
+    // Diretoria dos agentes (13/11/2026): Vitória, Gustavo e Renata.
+    ...(await import('./diretoria.service').then(m => m.estadosDiretoria(prisma, agora, temChave)).catch(() => [] as EstadoAgente[])),
   ];
 }

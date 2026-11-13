@@ -5,7 +5,7 @@ const BASE_URL = process.env.E2E_BASE_URL || 'https://efficient-ambition-product
 export default defineConfig({
   testDir: './e2e',
   // Local mocked UI suite has its own server/config; keep production smoke tests separate.
-  testIgnore: ['**/implantacao-quadro.spec.ts', '**/agenda-tecnico.spec.ts', '**/whatsapp-layout.spec.ts', '**/whatsapp-isolation.spec.ts', '**/whatsapp-kanban.spec.ts', '**/aparencia.spec.ts', '**/menu.spec.ts'],
+  testIgnore: ['**/implantacao-quadro.spec.ts', '**/agenda-tecnico.spec.ts', '**/diretoria.spec.ts', '**/whatsapp-layout.spec.ts', '**/whatsapp-isolation.spec.ts', '**/whatsapp-kanban.spec.ts', '**/aparencia.spec.ts', '**/menu.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

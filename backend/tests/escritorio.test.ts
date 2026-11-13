@@ -4,8 +4,9 @@ import { AGENTES, statusAgente, maisRecente, registrarAcaoAgente, acaoRegistrada
 const agora = new Date('2026-09-25T15:00:00Z');
 
 describe('escritório virtual', () => {
-  it('equipe: 17 agentes, com o Otávio na implantação', () => {
-    expect(AGENTES).toHaveLength(17);
+  it('equipe: 20 agentes, com o Otávio na implantação e a diretoria (13/11/2026)', () => {
+    expect(AGENTES).toHaveLength(20);
+    expect(AGENTES.map(a => a.nome)).toEqual(expect.arrayContaining(['Vitória', 'Gustavo', 'Renata']));
     expect(AGENTES.map(a => a.nome)).toContain('Otávio');
     expect(AGENTES.map(a => a.nome)).toContain('Luiz Felipe');
     expect(AGENTES.map(a => a.nome)).toContain('Zequinha');

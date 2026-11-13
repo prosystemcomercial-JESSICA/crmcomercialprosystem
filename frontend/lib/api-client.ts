@@ -1572,6 +1572,10 @@ class ApiClient {
   async rafaelTreinar(agente: 'luiz_felipe' | 'julio' | 'caroline' = 'luiz_felipe') { return this.client.post('/especialista/treinar', { agente }); }
   async rafaelTreinamentos() { return this.client.get('/especialista/treinamentos'); }
   async milaEstudar(tema?: string | null) { return this.client.post('/especialista/mila/estudar', { tema }); }
+  // Diretoria dos agentes (13/11/2026): Vitória (CEO), Gustavo e Renata (gerentes), boletim do Rafael e da Laya.
+  async diretoria() { return this.client.get('/diretoria'); }
+  async diretoriaRodar(quem: 'boletim' | 'vitoria' | 'gerentes') { return this.client.post(`/diretoria/rodar/${quem}`); }
+  async diretoriaDesfazer(doc: string, i: number) { return this.client.post(`/diretoria/providencia/${doc}/${i}/desfazer`); }
   async joanaEdicoes() { return this.client.get('/joana/edicoes'); }
   async joanaEscrever() { return this.client.post('/joana/escrever', {}); }
   async joanaAprovar(id: string) { return this.client.post(`/joana/edicoes/${id}/aprovar`, {}); }

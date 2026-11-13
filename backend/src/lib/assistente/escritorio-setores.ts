@@ -6,6 +6,7 @@ export const SETORES = [
   { id: 'vendas', nome: 'Vendas', agentes: ['caroline', 'julio', 'lurdinha', 'luiz_felipe'] },
   { id: 'inteligencia', nome: 'Inteligência e treino', agentes: ['rafael', 'laya', 'olivia', 'sofia', 'joana'] },
   { id: 'clientes', nome: 'Clientes e gestão', agentes: ['helena', 'mila', 'otavio', 'marta'] },
+  { id: 'direcao', nome: 'Diretoria', agentes: ['vitoria', 'gustavo', 'renata'] },
 ] as const;
 
 /** Ligações entre agentes: `tipo` passa = o lead ou o material segue; orienta = ensina, confere ou devolve. */
@@ -26,6 +27,15 @@ export const LIGACOES: { de: string; para: string; tipo: 'passa' | 'orienta'; ro
   { de: 'joana', para: 'zequinha', tipo: 'passa', rotulo: 'Informativo' },
   { de: 'helena', para: 'mila', tipo: 'passa', rotulo: 'pesquisas de satisfação' },
   { de: 'otavio', para: 'mila', tipo: 'passa', rotulo: 'implantações' },
+  // Diretoria (13/11/2026): Rafael e Laya passam o boletim; gerentes cobram e levam à Vitória o que não melhora.
+  { de: 'rafael', para: 'vitoria', tipo: 'passa', rotulo: 'boletim de desempenho' },
+  { de: 'laya', para: 'vitoria', tipo: 'passa', rotulo: 'mensagens seguradas' },
+  { de: 'gustavo', para: 'vitoria', tipo: 'passa', rotulo: 'casos que não melhoram' },
+  { de: 'renata', para: 'vitoria', tipo: 'passa', rotulo: 'casos que não melhoram' },
+  { de: 'vitoria', para: 'gustavo', tipo: 'orienta', rotulo: 'metas e providências' },
+  { de: 'vitoria', para: 'renata', tipo: 'orienta', rotulo: 'metas e providências' },
+  { de: 'gustavo', para: 'caroline', tipo: 'orienta', rotulo: 'cobranças' },
+  { de: 'renata', para: 'mila', tipo: 'orienta', rotulo: 'cobranças' },
 ];
 
 export const setorDe = (id: string) => SETORES.find(s => (s.agentes as readonly string[]).includes(id))?.id || 'clientes';

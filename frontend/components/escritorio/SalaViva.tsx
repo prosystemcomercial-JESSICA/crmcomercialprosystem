@@ -29,7 +29,11 @@ const SETORES: Record<string, string[]> = {
   vendas: ['caroline', 'julio', 'lurdinha', 'luiz_felipe'],
   inteligencia: ['rafael', 'laya', 'olivia', 'sofia', 'joana'],
   clientes: ['helena', 'mila', 'otavio', 'marta'],
+  direcao: ['vitoria', 'gustavo', 'renata'], // Diretoria (13/11/2026): senta na sala da Jessica
 };
+/** Setor da diretoria fica na sala da Jessica. */
+const salaDoSetor = (sid: string | null | undefined) => (sid === 'direcao' ? 'jessica' : sid);
+const MESAS_DIRECAO: P[] = [{ x: 895, y: 590 }, { x: 895, y: 668 }, { x: 1135, y: 668 }];
 
 type Sala = { id: string; nome: string; x: number; y: number; w: number; h: number; lado: 'baixo' | 'cima' | 'esq'; piso: string; tom: string; porta: P; corredor: P };
 const SALAS: Sala[] = ([
@@ -39,7 +43,7 @@ const SALAS: Sala[] = ([
   { id: 'clientes', nome: 'Clientes e gestão', x: 410, y: 380, w: 370, h: 320, lado: 'cima', piso: '#fff4e8', tom: '#ea580c' },
   { id: 'reuniao', nome: 'Sala de reunião', x: 815, y: 20, w: 365, h: 220, lado: 'esq', piso: '#eef2f7', tom: '#475569' },
   { id: 'cafe', nome: 'Café e lounge', x: 815, y: 260, w: 365, h: 200, lado: 'esq', piso: '#fdf2e9', tom: '#b45309' },
-  { id: 'jessica', nome: 'Sala da Jessica', x: 815, y: 480, w: 365, h: 220, lado: 'esq', piso: '#fefce8', tom: '#ca8a04' },
+  { id: 'jessica', nome: 'Diretoria · sala da Jessica', x: 815, y: 480, w: 365, h: 220, lado: 'esq', piso: '#fefce8', tom: '#ca8a04' },
 ] as Omit<Sala, 'porta' | 'corredor'>[]).map(s => {
   const porta = s.lado === 'baixo' ? { x: s.x + s.w / 2, y: s.y + s.h } : s.lado === 'cima' ? { x: s.x + s.w / 2, y: s.y } : { x: s.x, y: s.y + s.h / 2 };
   return { ...s, porta, corredor: s.lado === 'esq' ? { x: CORR_X, y: porta.y } : { x: porta.x, y: CORR_Y } };
@@ -55,7 +59,7 @@ const CAFE: Lugar[] = [
 ].map((p, i) => ({ id: `cafe${i}`, zona: 'cafe' as const, p }));
 const MESA_REUNIAO = { x: 1000, y: 130 };
 const reuniaoLugar = (i: number, n: number): P => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return { x: MESA_REUNIAO.x + Math.cos(a) * 150, y: MESA_REUNIAO.y + 8 + Math.sin(a) * 74 }; };
-const SALA_JESSICA: P[] = [{ x: 945, y: 668 }, { x: 990, y: 680 }, { x: 1100, y: 680 }, { x: 1145, y: 668 }];
+const SALA_JESSICA: P[] = [{ x: 965, y: 668 }, { x: 1005, y: 680 }, { x: 1045, y: 680 }, { x: 1085, y: 668 }]; // cadeiras de visita (afastadas das mesas da diretoria, 13/11/2026)
 const JESSICA = { mesa: { x: 1045, y: 600 }, assento: { x: 1052, y: 588 } };
 
 /** Onde a Jessica para ao visitar uma sala (perto da porta, fora das mesas). */
@@ -98,6 +102,7 @@ export const VISUAL: Record<string, [string, boolean, string?]> = {
   sofia: ['#e0b100', true], caroline: ['#b45309', true], julio: ['#1c1917', false], rafael: ['#3f2a1d', false],
   olivia: ['#111827', true], heitor: ['#78350f', false, '#c68642'], mila: ['#7c2d12', true], otavio: ['#292524', false, '#e0ac69'],
   joana: ['#1f1a17', true, '#8d5524'], jessica: ['#5a3825', true],
+  vitoria: ['#2b1d14', true, '#a86b3c'], gustavo: ['#3f3f46', false], renata: ['#4a2511', true, '#f1c27d'],
 };
 
 function salaDoPonto(p: P) { return SALAS.find(s => p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y && p.y <= s.y + s.h); }
@@ -123,10 +128,12 @@ function rota(de: P, para: P): P[] {
 type Lugares = Record<string, { sala: string; mesa: P; assento: P }>;
 /** Mesas: duas colunas por sala (corredor no meio), até três fileiras. */
 function montarMesas(ids: string[]): Lugares {
-  const porSala: Record<string, string[]> = { entrada: [], vendas: [], inteligencia: [], clientes: [] };
+  const porSala: Record<string, string[]> = { entrada: [], vendas: [], inteligencia: [], clientes: [], direcao: [] };
   ids.forEach(id => { const s = Object.keys(SETORES).find(k => SETORES[k].includes(id)) || 'clientes'; porSala[s].push(id); });
   const out: Lugares = {};
+  porSala.direcao.forEach((id, i) => { const mesa = MESAS_DIRECAO[i % MESAS_DIRECAO.length]; out[id] = { sala: 'jessica', mesa, assento: { x: mesa.x + 12, y: mesa.y - 4 } }; });
   Object.entries(porSala).forEach(([sid, lista]) => {
+    if (sid === 'direcao') return;
     const s = SALA[sid];
     lista.forEach((id, i) => {
       const col = i % 2, lin = Math.floor(i / 2);
@@ -385,8 +392,9 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
     lerTema(); tic(); const i = setInterval(tic, 20_000); return () => clearInterval(i);
   }, []);
 
-  const apagada = (salaId: string) => !!destacar && SETORES[destacar] && salaId !== destacar && salaId in SETORES;
-  const agenteApagado = (id: string) => !!destacar && !!SETORES[destacar] && mesas[id]?.sala !== destacar;
+  const destaque = salaDoSetor(destacar);
+  const apagada = (salaId: string) => !!destacar && SETORES[destacar] && salaId !== destaque && (salaId in SETORES || salaId === 'jessica');
+  const agenteApagado = (id: string) => !!destacar && !!SETORES[destacar] && mesas[id]?.sala !== destaque;
   const porSala = (sid: string) => agentes.filter(a => mesas[a.id]?.sala === sid);
 
   // Enquadramento: escritório inteiro (na página ou centralizado em tela cheia) ou zoom na sala visitada.
@@ -424,8 +432,8 @@ export default function SalaViva({ agentes, conversas = [], passagens = [], sele
           return (
             <div key={s.id} className={`sv-sala${apagada(s.id) ? ' apagada' : ''}`} style={{ left: s.x, top: s.y, width: s.w, height: s.h, background: s.piso, ['--tom' as string]: s.tom }}>
               <span className="sv-porta" style={ePorta} />
-              {s.id in SETORES
-                ? <button className="sv-placa" onClick={() => onSetor?.(s.id)} aria-label={`Setor ${s.nome}: ${trab} de ${lista.length} trabalhando`}>
+              {s.id in SETORES || (s.id === 'jessica' && lista.length > 0)
+                ? <button className="sv-placa" onClick={() => onSetor?.(s.id === 'jessica' ? 'direcao' : s.id)} aria-label={`Setor ${s.nome}: ${trab} de ${lista.length} trabalhando`}>
                     {erro && <i className="sv-placa-erro" aria-hidden />}{s.nome}<small>{trab}/{lista.length} trabalhando</small>
                   </button>
                 : <span className="sv-placa estatica">{s.nome}{s.id === 'jessica' && hora ? <small>{hora}</small> : null}</span>}
@@ -549,7 +557,7 @@ function Boneco({ id, cor, chapeu = null }: { id: string; cor: string; chapeu?: 
 
 function EstilosSala() {
   return <style>{`
-    .sv-caixa{position:relative;width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+    .sv-caixa{position:relative;isolation:isolate;width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
     .sv-caixa.cheia{position:fixed;inset:0;z-index:9999;height:100dvh;background:#0f172a;overflow:hidden}
     .sv-caixa.visitando{overflow:hidden}
     .sv-barra{position:absolute;right:8px;top:6px;z-index:9500;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;max-width:calc(100% - 16px)}

@@ -20,6 +20,10 @@ export const AGENTES = [
   { id: 'mila', nome: 'Mila', funcao: 'CS · clientes da base (8 meses ou mais e contratos do ano)', cor: '#0e7490' },
   { id: 'otavio', nome: 'Otávio', funcao: 'Implantação · acompanha instalações, serviços e treinamentos, avisa e tira dúvidas do técnico', cor: '#0369a1' },
   { id: 'joana', nome: 'Joana', funcao: 'Jornalista · Informativo Prosystem a partir das pesquisas da Sofia', cor: '#c2410c' },
+  // Diretoria dos agentes (13/11/2026): CEO e gerentes. Ninguém dos três fala com cliente.
+  { id: 'vitoria', nome: 'Vitória', funcao: 'CEO · metas, plano comercial, resultados no contexto geral e providências', cor: '#0f172a' },
+  { id: 'gustavo', nome: 'Gustavo', funcao: 'Gerente de Entrada de leads e Vendas · cobra quem erra muito', cor: '#334155' },
+  { id: 'renata', nome: 'Renata', funcao: 'Gerente de Clientes e Inteligência · cobra quem erra muito', cor: '#9f1239' },
 ] as const;
 export type AgenteId = typeof AGENTES[number]['id'];
 export type StatusAgente = 'trabalhando' | 'parado' | 'desligado';

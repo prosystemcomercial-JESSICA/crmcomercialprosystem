@@ -30,6 +30,7 @@ const POR_ARQUIVO: Record<string, string> = {
   'implantacao-portal': 'portal',
   'sofia-pesquisa': 'sofia',
   'agentes-conversa': 'escritorio',
+  'diretoria': 'vitoria',
 };
 
 /** Assistente que fez a chamada, lido da pilha (primeiro serviço fora do cliente de IA). */

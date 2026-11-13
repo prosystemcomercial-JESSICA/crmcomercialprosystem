@@ -4,7 +4,7 @@
 
 import type { AgenteTela, Painel } from './tipos';
 
-export type Vista = 'todos' | 'entrada' | 'vendas' | 'inteligencia' | 'clientes' | 'esperando' | 'consumo' | 'organograma' | 'treinos';
+export type Vista = 'todos' | 'entrada' | 'vendas' | 'inteligencia' | 'clientes' | 'direcao' | 'esperando' | 'consumo' | 'organograma' | 'treinos';
 
 export default function MenuSetores({ vista, onVista, painel, agentes }: { vista: Vista; onVista: (v: Vista) => void; painel: Painel | null; agentes: AgenteTela[] | null }) {
   const doSetor = (ids: string[]) => (agentes || []).filter(a => ids.includes(a.id));
