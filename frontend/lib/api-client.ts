@@ -1591,6 +1591,9 @@ class ApiClient {
   async getPlacarComercial() { return this.client.get('/comercial/placar'); }
   // Funil por origem (parte 4 do plano, 14/10/2026)
   async getFunilOrigem(dias = 30) { return this.client.get('/comercial/funil-origem', { params: { dias } }); }
+  // Painel de Leads da Laya (13/11/2026): canal, funil, conversão, desempenho, o que melhorar e o porquê do Rafael.
+  async painelLeads(dias = 30) { return this.client.get('/comercial/painel-leads', { params: { dias } }); }
+  async painelLeadsPorque() { return this.client.post('/comercial/painel-leads/porque', {}, { timeout: 240_000 }); }
   // Analista de Resultados: relatório de sexta (21/10/2026)
   async getAnalistaResultados(semana?: string | null) { return this.client.get('/comercial/analista', { params: semana ? { semana } : {} }); }
   async gerarAnaliseResultados() { return this.client.post('/comercial/analista/gerar', {}); }

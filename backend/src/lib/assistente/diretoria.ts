@@ -240,6 +240,7 @@ export function horaSP(agora: Date): { hora: number; minuto: number; dow: number
 
 /** Quando cada um trabalha sozinho. */
 export const AGENDA = {
+  porque: (h: ReturnType<typeof horaSP>) => h.dow === 5 && h.hora >= 15,                  // sexta a partir das 15h: Rafael explica o gargalo do Painel de Leads
   boletim: (h: ReturnType<typeof horaSP>) => h.dow === 5 && h.hora >= 16,                 // sexta a partir das 16h
   vitoria: (h: ReturnType<typeof horaSP>) => h.dow === 1 && h.hora >= 8 && h.hora < 18,   // segunda a partir das 8h
   gerentes: (h: ReturnType<typeof horaSP>) => h.dow >= 1 && h.dow <= 5 && h.hora >= 18 && h.hora < 22, // dias úteis a partir das 18h

@@ -52,6 +52,7 @@ Claude é o assistente da reunião semanal da Jessica com os superiores: um rela
 | Conhecimento de produto do Rafael: Universidade Prosystem lida inteira (reler com `npx tsx scripts/ler-universidade.ts`) | `backend/src/lib/assistente/universidade.ts` · `docs/comercial/universidade-prosystem.json` |
 | Chamadas de IA (OpenAI, Grok, Gemini) | `backend/src/services/ia-gemini.service.ts` · `lib/assistente/ia-texto.ts` |
 | Placar, interessados esquecidos, propostas paradas, funil por origem, relatório de sexta | `backend/src/services/placar-comercial.service.ts` · `lib/placar-comercial.ts` · `lib/funil-origem.ts` |
+| Painel de Leads da Laya (canal, funil, conversão, o que melhorar) e o porquê do Rafael | `backend/src/lib/painel-leads.ts` · `services/painel-leads.service.ts` · `frontend/components/escritorio/PainelLeads.tsx` (janela da Laya, `/escritorio?leads=1`) |
 | Programa de Ativos, fila do dia, indicações | `backend/src/routes/ativos.ts` · `services/ativos-fila.service.ts` · `services/indicacoes-clientes.service.ts` |
 | Prospecção do Heitor (Google Maps) e rodízio de números | `services/heitor.service.ts` · `services/prospeccao-rodizio.service.ts` · `lib/whatsapp-vagas.ts` |
 | Telas | `frontend/app/escritorio/page.tsx` (Escritório, placar, painéis) · `frontend/app/ativos/page.tsx` · `frontend/components/escritorio/*` · `frontend/components/ativos/*` |

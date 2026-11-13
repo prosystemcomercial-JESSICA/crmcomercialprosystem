@@ -18,3 +18,21 @@ describe('canal e campanha do lead', () => {
     expect(campanhaDoLead({ origem: 'WHATSAPP' })).toBe('WhatsApp direto');
   });
 });
+
+// Painel de Leads (13/11/2026): as origens escritas de vários jeitos caem no mesmo canal.
+describe('origens escritas de jeitos diferentes', () => {
+  it('junta maiúscula, acento e o nome digitado à mão', () => {
+    expect(canalDoLead({ origem: 'Instagram' })).toBe('Instagram');
+    expect(canalDoLead({ origem: 'INSTAGRAM' })).toBe('Instagram');
+    expect(canalDoLead({ origem: 'Indicação' })).toBe('Indicação');
+    expect(canalDoLead({ origem: 'INDICACAO' })).toBe('Indicação da loja (decisor)');
+    expect(canalDoLead({ origem: 'Prospecção ativa' })).toBe('Prospecção ativa (equipe)');
+    expect(canalDoLead({ origem: 'Cliente antigo' })).toBe('Cliente antigo');
+    expect(canalDoLead({ origem: 'CLIENTE_ANTIGO' })).toBe('Cliente antigo');
+    expect(canalDoLead({ origem: 'RECUPERACAO_CLIENTE_INATIVO' })).toBe('Recuperação de inativos');
+    expect(canalDoLead({ origem: 'CAMPANHA_PADARIA_2025_2026' })).toBe('Campanha pelo WhatsApp');
+    expect(campanhaDoLead({ origem: 'CAMPANHA_PADARIA_2025_2026' })).toBe('Campanha padaria 2025 2026');
+    expect(canalDoLead({ origem: 'Instagram', utm_source: 'facebook' })).toBe('Anúncio (Meta)');
+    expect(canalDoLead({ origem: null })).toBe('Sem origem');
+  });
+});

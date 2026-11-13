@@ -373,6 +373,7 @@ export async function rodarVitoria(prisma: PrismaClient, agora = new Date(), mod
     const planoAnterior = await prisma.especialistaDoc.findFirst({ where: { tipo: 'PLANO', origem: 'vitoria' }, orderBy: { created_at: 'desc' }, select: { conteudo: true } }).catch(() => null);
     contexto = [
       `=== RETRATO COMERCIAL (mês atual x anterior) ===\n${JSON.stringify(await retratoComercial(prisma, agora))}`,
+      await (await import('./painel-leads.service')).resumoPainelParaVitoria(prisma, agora).then(t => `=== PAINEL DE LEADS DA LAYA (canal, funil, conversão; últimos 30 dias) ===\n${t}`).catch(() => ''),
       analise ? `=== RELATÓRIO DO ANALISTA DE RESULTADOS (mais recente) ===\n${JSON.stringify(analise).slice(0, 4000)}` : '',
       boletim ? `=== BOLETIM DO RAFAEL E DA LAYA ===\n${boletim.resumo}\n${boletim.agentes.map(b => `- ${b.id}: ${b.nota ?? 'sem nota'} · ${b.motivo}${b.melhorar ? ` · melhorar: ${b.melhorar}` : ''}`).join('\n')}` : '=== BOLETIM ===\nAinda não há boletim desta semana.',
       `=== METAS DOS AGENTES EM ${mes} ===\n${metasAg.length ? metasAg.map(m => `- ${m.agente}: ${m.atual}/${m.alvo} ${m.rotulo}`).join('\n') : 'Nenhuma meta definida ainda neste mês: defina as metas do mês.'}`,
@@ -482,6 +483,7 @@ export async function rodarDiretoria(prisma: PrismaClient, agora = new Date()) {
     if (!(await marcarUmaVez(prisma, o, chave))) return;
     try { await fn(); } catch (e: any) { console.error(`[DIRETORIA] ${o}:`, e?.message); await desmarcar(prisma, o, chave); }
   };
+  if (AGENDA.porque(h)) await tentar('porque', semanaDe(agora), async () => (await import('./painel-leads.service')).rafaelExplicaGargalo(prisma, agora));
   if (AGENDA.boletim(h)) await tentar('boletim', semanaDe(agora), () => gerarBoletim(prisma, agora));
   if (AGENDA.vitoria(h)) await tentar('vitoria', semanaDe(agora), () => rodarVitoria(prisma, agora, 'semanal'));
   if (AGENDA.gerentes(h)) await tentar('gerentes', diaDe(agora), () => rodarGerentes(prisma, agora));

@@ -1766,3 +1766,29 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
   - **Cobranças**.
 - Os botões de cima rodam a reunião, a conferência dos gerentes ou o boletim na hora, sem esperar o horário.
 - Na sala do Escritório, os três sentam na **Diretoria · sala da Jessica**.
+
+## Painel de Leads da Laya (13/11/2026)
+
+**Onde abrir:** no **Escritório**, clique na **Laya** e fique na aba **📊 Painel de Leads**. Também dá para abrir:
+- pelo botão "Abrir o Painel de Leads" no setor **Vendas**;
+- pelo link direto `comercial.prosystemnet.com/escritorio?leads=1`.
+
+**Quem faz o quê**
+- **Laya mede:** soma todos os leads, por canal, e mostra até onde cada um chegou.
+- **Rafael explica:** toda sexta às 15h lê as conversas do canal que mais trava e escreve por que os leads não chegam à demonstração e o que cada um deve fazer. Se quiser na hora, clique em **Pedir ao Rafael agora** (leva 1 a 2 minutos).
+- **Vitória decide:** na reunião de segunda ela recebe esse painel e a leitura do Rafael e toma as providências.
+
+**O que tem no painel**
+- **Números principais:** leads que chegaram, quantos responderam, demonstrações, contratos, conversão, valor fechado, tempo até o primeiro contato e leads ainda sem contato. Cada um vem comparado com o período anterior.
+- **O que precisa melhorar:** a lista do que está fora do normal, do mais urgente ao menos, com quem deve agir.
+- **Funil:** chegaram, receberam contato, responderam, interessados, demonstração, proposta e contrato. O painel destaca a etapa onde mais gente fica para trás.
+- **Por canal:** de onde vêm os leads (Heitor, WhatsApp direto, indicação, anúncio, Instagram...) e quanto cada canal converte. Clique no nome do canal para ver as campanhas.
+- **Leads por semana**, **Por que perdemos**, **Temperatura dos leads em aberto**, **Agentes** (do contato à demonstração) e **Vendedoras** (propostas e fechamento).
+
+**Período:** escolha 7, 30, 60 ou 90 dias no canto de cima. A comparação é sempre com o mesmo número de dias logo antes.
+
+**Para os números ficarem certos**
+- Ao cadastrar um lead à mão, escolha **de onde ele veio**.
+- Ao marcar um lead como perdido, **escreva o motivo**.
+
+**Importante:** quando o painel avisar que há muitos leads sem contato, a saída **não é aumentar o limite de mensagens do WhatsApp** (isso arrisca o número). O certo é chamar primeiro os leads de melhor perfil e ajustar o ritmo de captação do Heitor.

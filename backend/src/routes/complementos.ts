@@ -85,6 +85,29 @@ export async function complementosRoutes(fastify: FastifyInstance, options: { pr
     return reply.send({ status: 'success', data: await funilPorOrigem(prisma, dias) });
   });
 
+  // Painel de Leads da Laya (13/11/2026): canal, funil, conversão, desempenho e o que melhorar.
+  fastify.get('/comercial/painel-leads', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const dias = Math.max(7, Math.min(180, Number((request.query as any)?.dias) || 30));
+    const { painelLeads } = await import('../services/painel-leads.service');
+    return reply.send({ status: 'success', data: await painelLeads(prisma, dias) });
+  });
+
+  // O Rafael lê as conversas do maior gargalo e explica o porquê (1 a 2 min, uma chamada de IA).
+  let porqueRodando = false;
+  fastify.post('/comercial/painel-leads/porque', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    if (porqueRodando) return reply.code(409).send({ status: 'error', message: 'O Rafael já está lendo as conversas. Aguarde.' });
+    porqueRodando = true;
+    try {
+      const { rafaelExplicaGargalo } = await import('../services/painel-leads.service');
+      const porque = await rafaelExplicaGargalo(prisma);
+      return reply.send({ status: 'success', message: `O Rafael leu ${porque.conversas_lidas} conversas.`, data: porque });
+    } catch (e: any) {
+      return reply.code(500).send({ status: 'error', message: `Não deu certo: ${e?.message || 'erro'}` });
+    } finally { porqueRodando = false; }
+  });
+
   fastify.get('/comercial/placar', async (request, reply) => {
     if (!requireGestor(request, reply)) return;
     const { placarComercial } = await import('../services/placar-comercial.service');
