@@ -15,7 +15,8 @@ Print da Jessica da Fila de Chamados (WhatsApp, vista "Por fase") com a coluna F
 ## Verificado
 - vitest `tests/funil-whatsapp.test.ts`: 7/7.
 - `tsc` sem erro nos arquivos mexidos, no backend e no frontend. O erro em `routes/whatsapp.ts:1638` (transferir) já existia antes.
-- **Não verificado:** quantas conversas vão entrar em Fechado em produção. A leitura do banco de produção foi bloqueada pela permissão automática da sessão. O resultado do deploy fica registrado no ESTADO.md.
+- **Deploy** de `c2a0a052` (13/11, 16h33): backup 468M, banco sem alterações, build ok, health 200. No log do backend: `[FUNIL] 6 conversa(s) de cliente fechado movida(s) para Fechado`.
+- **Não verificado:** quais são os 6 clientes, e se algum cliente em implantação ficou de fora. A leitura do banco de produção foi bloqueada pela permissão automática da sessão.
 
 ## Decisões e porquês
 - Sincronização periódica em vez de gancho em cada ponto de fechamento: a venda fecha por vários caminhos (contrato, arrastar o lead, portal da implantação), e o agendador do funil já existia.
