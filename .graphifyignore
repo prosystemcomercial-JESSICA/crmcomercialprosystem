@@ -1,0 +1,15 @@
+# Pastas que não fazem parte do CRM (graphify)
+headroom/
+claude-mem/
+claude-plugins-official/
+_expxagents/
+ruflo/
+mcps/
+squads/
+skills-lock.json
+.claude/
+.agents/
+.codex/
+graphify-out/
+**/.next/
+**/dist/
