@@ -709,7 +709,11 @@ export async function estudarRetencao(prisma: PrismaClient, tema: string | null 
     'Responda APENAS com JSON: {"resumo": string, "documentos": [{"tipo": "POP"|"PROCESSO"|"EXEMPLO"|"DICA", "titulo": string, "conteudo": string (markdown)}]}. De 3 a 6 documentos, cite de quem é cada ideia quando vier de um especialista.',
     await retratoDaBase(prisma),
   ].filter(Boolean).join('\n');
-  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: MILA + (await instrucoesPara(prisma, 'mila')), pergunta, timeoutMs: 240_000, agente: 'mila' });
+  // Manual da Mila (23/11/2026): o estudo parte do manual e propõe melhorias nele, em vez de documentos soltos que se repetem.
+  const { playbookParaPrompt } = await import('@/lib/assistente/playbook-mila');
+  const manual = await playbookParaPrompt([], 16000);
+  const perguntaComManual = `${pergunta}\nVocê já tem um manual de CS (abaixo). Não reescreva o que ele já diz. Traga só o que falta ou o que deve mudar, e no título diga a seção do manual que o documento melhora (ex.: "Seção 4 · Treinamento: ...").`;
+  const { texto, fontes } = await pesquisarComGemini(prisma, { sistema: MILA + manual + (await instrucoesPara(prisma, 'mila')), pergunta: perguntaComManual, timeoutMs: 240_000, agente: 'mila' });
   const r = lerJsonIa<{ resumo: string; documentos: DocNovo[] }>(texto);
   const docs = (r?.documentos || []).filter(d => d?.titulo && d?.conteudo && ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'].includes(d.tipo)).slice(0, 8);
   const gravados = [];
@@ -855,6 +859,10 @@ export async function rodarRafael(prisma: PrismaClient, agora = new Date()) {
   }
   if (dia === 'Thu' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `rafael.treino.luiz_felipe.${hoje}`, 20)) {
     await treinarAgente(prisma, 'luiz_felipe').catch(e => console.error('[RAFAEL] treino:', e?.message));
+  }
+  // Mila (CS): Agenda do CS da semana, toda segunda cedo (gatilhos do manual; só leitura, nada é enviado ao cliente).
+  if (dia === 'Mon' && hora >= 8 && hora < 10 && await podeEnviarUmaVez(prisma, `mila.agenda.${hoje}`, 20)) {
+    await import('./mila-agenda.service').then(m => m.montarAgendaDaSemana(prisma, agora)).catch(e => console.error('[MILA] agenda:', e?.message));
   }
   // Mila (CS): estuda retenção toda segunda de manhã.
   if (dia === 'Mon' && hora >= 10 && hora < 12 && await podeEnviarUmaVez(prisma, `mila.estudo.${hoje}`, 20)) {

@@ -33,7 +33,8 @@ export async function guiaComercial(prisma: PrismaClient): Promise<string> {
   const [daJessica, aprovados] = await Promise.all([
     prisma.especialistaDoc.findMany({ where: { status: 'APROVADO', origem: 'jessica' }, orderBy: { decidido_em: 'desc' }, take: 40, select: { tipo: true, titulo: true, conteudo: true } }).catch(() => []),
     prisma.especialistaDoc.findMany({
-      where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] }, OR: [{ origem: null }, { origem: { not: 'jessica' } }] },
+      // Documentos de CS da Mila ficam fora (23/11/2026): são para a base de clientes, não para a prospecção; a Mila os usa pelo manual dela.
+      where: { status: 'APROVADO', tipo: { in: ['POP', 'PROCESSO', 'EXEMPLO', 'DICA'] }, OR: [{ origem: null }, { origem: { notIn: ['jessica', 'mila'] } }] },
       orderBy: { decidido_em: 'desc' }, take: 30, select: { tipo: true, titulo: true, conteudo: true },
     }).catch(() => []),
   ]);

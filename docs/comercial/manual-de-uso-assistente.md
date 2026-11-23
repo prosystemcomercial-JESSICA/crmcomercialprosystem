@@ -1848,3 +1848,25 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Quando o gasto do dia chega nesse valor, a OpenAI para até a meia-noite. Os agentes continuam trabalhando com as outras IAs.
 - Você recebe um aviso no WhatsApp quando isso acontece (uma vez por dia).
 - Para ver ou mudar: **Escritório › Consumo de IA › cartão "OpenAI hoje"**. Digite o valor e toque em **Salvar limite**. Digite 0 para tirar o limite.
+
+
+## Mila (CS): manual de trabalho e Agenda do CS (desde 23/11/2026)
+
+**O que mudou.** Tudo o que a Mila escreveu sobre retenção, jornada, implantação, treinamento, pesquisas e cancelamento virou um manual só: `docs/comercial/playbook-mila-cs.md`. Ela segue esse manual no estudo de segunda, na conversa com você no Escritório e na oferta de upgrade. Os documentos de CS dela deixaram de ir para a Caroline e as vendedoras, que fazem prospecção.
+
+**Agenda do CS, toda segunda de manhã.** No Escritório › Painel da Mila aparece a "Agenda do CS · semana de dd/mm", e você recebe um aviso no WhatsApp com quantas contas há em cada grupo:
+- implantação parada há 10 dias ou mais;
+- virada na última semana (checagem do primeiro dia);
+- D+7 (primeiro resultado e reforço de treino);
+- D+30 (fim do acompanhamento intensivo);
+- D+90 (a conta entra na base da Mila);
+- contas em atenção (nota ruim ou regular da Helena);
+- caso de churn parado há 7 dias;
+- saída sem motivo nos últimos 30 dias;
+- loja ativa do mesmo grupo (mesmo CNPJ raiz) de quem saiu.
+
+Cada linha diz quem, quando e o que fazer, com a mensagem sugerida e a seção do manual. **Nada é enviado ao cliente e nenhuma atividade é criada**: a equipe lê o histórico, adapta e manda uma mensagem por vez.
+
+**Oferta de upgrade.** Agora a lista sai sem quem tem caso de churn aberto e sem quem é do mesmo grupo de quem saiu nos últimos 90 dias. Cada oferta tem um segmento só (farmácia, padaria ou varejo), com uma loja por grupo, e a coluna "Não conhece (pela pesquisa)" mostra "sem pesquisa" quando o cliente nunca respondeu. A oferta de 11/11 que está esperando você foi montada pela regra antiga: o melhor é descartar, para a Mila montar uma nova.
+
+**Para mudar uma regra** (um prazo, uma mensagem, um critério), peça a mudança no manual. O que você aprovar da Mila serve de sugestão para a próxima versão do manual.

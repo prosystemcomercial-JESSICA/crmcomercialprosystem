@@ -3,7 +3,7 @@ import { chamarGemini } from './ia-gemini.service';
 import { lerJsonIa } from '@/lib/assistente/ia-texto';
 import { TEXTO_DE_GENTE } from '@/lib/assistente/texto-de-gente';
 import { registrarAcaoAgente } from '@/lib/assistente/escritorio';
-import { escolherParaUpgrade, ferramentasNovas, mesesDeCasa, emailValido, DIAS_ENTRE_OFERTAS, MESES_MINIMOS } from '@/lib/assistente/mila-upgrade';
+import { escolherParaUpgrade, ferramentasConfirmadas, familiaSegmento, mesesDeCasa, emailValido, DIAS_ENTRE_OFERTAS, MESES_MINIMOS, type ClienteBase } from '@/lib/assistente/mila-upgrade';
 
 /**
  * MILA · oferta de upgrade para clientes da base (11/11/2026).
@@ -17,6 +17,7 @@ const MILA_UPGRADE = [
   'Você escreve para clientes que já usam o sistema há bastante tempo, convidando para conhecer o plano Plus e as ferramentas novas.',
   'Tom de parceira que cuida da conta, não de vendedora. Português do Brasil, frases curtas, sem travessão, sem exagero de emoji.',
   'Nunca cite preço, desconto, prazo ou condição comercial. Nunca invente recurso: fale só das ferramentas listadas no pedido.',
+  'Você é mulher: escreva no feminino ("obrigada"). Fale só do segmento informado no pedido (farmácia, padaria ou loja); nunca use o segmento errado.',
   TEXTO_DE_GENTE,
 ].join('\n');
 
@@ -37,33 +38,50 @@ export async function proporOfertaUpgrade(prisma: PrismaClient, agora = new Date
   }
   const base = await prisma.cliente.findMany({
     where: { situacao: 'ATIVA' },
-    select: { id: true, nome: true, nome_fantasia: true, email: true, segmento: true, plano: true, situacao: true, data_entrada: true, risco_atencao: true, apresentou_plus: true, conhece_dashboard: true, conhece_mensageria: true, conhece_gerencial: true, conhece_atencao_farma: true },
+    select: { id: true, nome: true, nome_fantasia: true, email: true, cnpj: true, segmento: true, plano: true, situacao: true, data_entrada: true, risco_atencao: true, apresentou_plus: true, conhece_dashboard: true, conhece_mensageria: true, conhece_gerencial: true, conhece_atencao_farma: true },
   });
-  const escolhidos = escolherParaUpgrade(base, agora, await jaOfertados(prisma, agora));
+  // Manual da Mila, seção 12 (23/11/2026): fora quem tem caso de churn aberto e quem é do mesmo grupo (CNPJ raiz) de quem saiu
+  // nos últimos 90 dias; "não conhece" só vale para quem respondeu a pesquisa da Helena.
+  const { cnpjRaiz: raiz } = await import('@/lib/assistente/mila-agenda');
+  const [casosAbertos, saidas, respostas] = await Promise.all([
+    prisma.casoChurn.findMany({ where: { status: { in: ['NOVO', 'DIAGNOSTICADO', 'PLANEJADO', 'EXECUTANDO'] } }, select: { clienteId: true } }),
+    prisma.cliente.findMany({ where: { situacao: 'INATIVA', inativado_em: { gte: new Date(+agora - 90 * 864e5) } }, select: { cnpj: true } }),
+    prisma.pesquisaSatisfacao.findMany({ where: { cliente_id: { not: null } }, select: { cliente_id: true }, distinct: ['cliente_id'] }),
+  ]);
+  const raizesSaida = new Set(saidas.map(x => raiz(x.cnpj)).filter(Boolean) as string[]);
+  const bloqueados = new Set([...casosAbertos.map(x => x.clienteId), ...base.filter(c => { const r = raiz(c.cnpj); return r && raizesSaida.has(r); }).map(c => c.id)]);
+  const responderam = new Set(respostas.map(x => x.cliente_id!));
+  const novas = (c: ClienteBase) => ferramentasConfirmadas(c, responderam.has(c.id));
+  const escolhidos = escolherParaUpgrade(base, agora, await jaOfertados(prisma, agora), undefined, bloqueados);
   if (!escolhidos.length) { registrarAcaoAgente('mila', 'conferiu a base: ninguém novo para a oferta de upgrade'); return null; }
 
   const conta = (xs: string[]) => Object.entries(xs.reduce<Record<string, number>>((m, x) => (m[x] = (m[x] || 0) + 1, m), {})).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}: ${n}`).join(', ');
-  const ferramentas = conta(escolhidos.flatMap(ferramentasNovas));
+  const ferramentas = conta(escolhidos.flatMap(novas));
+  const SEG = { farmacia: 'farmácias e drogarias', padaria: 'padarias', varejo: 'lojas de varejo (não são farmácias)' } as const;
+  const segmentoOferta = SEG[familiaSegmento(escolhidos[0])];
+  const { playbookParaPrompt } = await import('@/lib/assistente/playbook-mila');
   const { instrucoesPara } = await import('./agentes-conversa.service');
   const pergunta = [
     `Escreva UM e-mail de convite para ${escolhidos.length} clientes antigos (${MESES_MINIMOS} meses ou mais de casa) que ainda não estão no plano Plus.`,
+    `Segmento desta oferta: ${segmentoOferta}. Escreva só para esse tipo de loja.`,
     `Perfil do grupo: segmentos (${conta(escolhidos.map(c => c.segmento || 'não informado'))}); planos atuais (${conta(escolhidos.map(c => c.plano || 'não informado'))}).`,
-    ferramentas ? `Ferramentas que eles ainda não conhecem (use só estas): ${ferramentas}.` : 'Fale do plano Plus de forma geral, sem listar recursos.',
+    ferramentas ? `Ferramentas que eles disseram na pesquisa não conhecer (use só estas): ${ferramentas}.` : 'Não há pesquisa dizendo o que eles conhecem: fale do plano Plus de forma geral, sem listar recursos e sem dizer que eles não conhecem algo.',
     'O e-mail: agradece o tempo de parceria, diz em 2 ou 3 linhas o que o cliente ganha no dia a dia da loja com essas ferramentas e convida para uma apresentação de 20 minutos, sem compromisso. Chamada final: responder este e-mail ou chamar no WhatsApp da Prosystem.',
     'Markdown simples, até 170 palavras, sem o nome do cliente (o mesmo texto vai para todos). Assunto curto e específico, sem caixa alta.',
     'Responda APENAS com JSON: {"assunto": string, "email": string}',
   ].join('\n');
-  const r = lerJsonIa<{ assunto: string; email: string }>(await chamarGemini(prisma, { sistema: MILA_UPGRADE + (await instrucoesPara(prisma, 'mila')), partes: [{ text: pergunta }], json: true, temperatura: 0.5, timeoutMs: 120_000 }));
+  const r = lerJsonIa<{ assunto: string; email: string }>(await chamarGemini(prisma, { sistema: MILA_UPGRADE + (await playbookParaPrompt([12], 6000)) + (await instrucoesPara(prisma, 'mila')), partes: [{ text: pergunta }], json: true, temperatura: 0.5, timeoutMs: 120_000 }));
   if (!r?.assunto || !r?.email) throw new Error('a Mila não conseguiu escrever a oferta desta vez');
 
   const dia = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const comEmail = escolhidos.filter(c => emailValido(c.email));
   const md = [
     `# Oferta de upgrade · ${dia}`, '',
+    `Segmento: ${segmentoOferta}. Fora desta lista: clientes com caso de churn aberto, em atenção e do mesmo grupo de quem saiu nos últimos 90 dias; uma loja por grupo.`, '',
     `${escolhidos.length} cliente(s) escolhido(s): ${comEmail.length} recebem o e-mail abaixo depois da sua aprovação; ${escolhidos.length - comEmail.length} não têm e-mail no cadastro (a equipe pode ligar).`, '',
     '## E-mail', `**Assunto:** ${r.assunto}`, '', r.email, '',
-    '## Clientes', '| Cliente | Plano | Tempo de casa | Ainda não conhece | E-mail |', '| --- | --- | --- | --- | --- |',
-    ...escolhidos.map(c => `| ${(c.nome_fantasia || c.nome).replace(/\|/g, ' ')} | ${c.plano || '—'} | ${mesesDeCasa(c, agora)} meses | ${ferramentasNovas(c).join(', ') || '—'} | ${emailValido(c.email) ? 'sim' : 'não tem'} |`),
+    '## Clientes', '| Cliente | Plano | Tempo de casa | Não conhece (pela pesquisa) | E-mail |', '| --- | --- | --- | --- | --- |',
+    ...escolhidos.map(c => `| ${(c.nome_fantasia || c.nome).replace(/\|/g, ' ')} | ${c.plano || '—'} | ${mesesDeCasa(c, agora)} meses | ${responderam.has(c.id) ? (novas(c).join(', ') || 'conhece todas') : 'sem pesquisa'} | ${emailValido(c.email) ? 'sim' : 'não tem'} |`),
   ].join('\n');
   const fontes: Fontes = { oferta: { assunto: r.assunto.slice(0, 150), email: r.email }, clientes: escolhidos.map(c => ({ id: c.id, nome: c.nome_fantasia || c.nome, email: emailValido(c.email) ? c.email!.trim().toLowerCase() : null })), envio: null };
   const doc = await prisma.especialistaDoc.create({ data: { tipo: 'UPGRADE', titulo: `Oferta de upgrade · ${dia}`, conteudo: md, origem: 'mila', status: 'PROPOSTO', fontes: fontes as any } });

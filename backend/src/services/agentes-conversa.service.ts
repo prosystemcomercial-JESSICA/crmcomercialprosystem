@@ -59,6 +59,7 @@ export async function falarComAgente(
       'Use apenas os dados abaixo. Se não souber, diga o que falta. Não invente números.',
       instr,
       aprendido,
+      agente === 'mila' ? await import('@/lib/assistente/playbook-mila').then(m => m.playbookParaPrompt([], 20000)).catch(() => '') : '',
       (() => { const m = memoriaDoAgente(agente); return m.length ? `\n### O que você viveu e aprendeu com os colegas\n${m.slice(0, 8).map(x => `- ${x.texto}`).join('\n')}` : ''; })(),
       `\n### Seu dia\nStatus: ${eu?.status}. ${eu?.numeros.map(n => `${n.valor} ${n.rotulo}`).join(', ')}. ${eu?.observacao || ''}`,
       `\n### Suas últimas ações\n${hist.slice(0, 10).map(h => `- ${h.em.slice(0, 16).replace('T', ' ')}: ${h.texto}`).join('\n') || '- nenhuma ainda'}`,
