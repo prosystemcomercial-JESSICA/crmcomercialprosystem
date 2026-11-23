@@ -13,7 +13,9 @@ Em `GET /contratos-comerciais/:id/resumo-assinatura`, o "Início do contato" era
 
 ## Verificação
 - Checagem de tipos: nenhum erro novo. O erro na linha ~803 (troca de CNPJ, `$queryRawUnsafe`) já existia.
-- Não foi possível conferir em produção nesta sessão, porque o acesso SSH foi bloqueado pela permissão do Claude.
+- Deploy `8ffe330b` feito: a CI passou, o backup (482M) foi conferido, o banco não mudou e o site e a API respondem.
+- Dados de produção: o lead foi criado em 23/11/2026 15:23 (antes dava 0 dias), a proposta `c81` é de 06/08/2026 (expirada) e o aceite da `d99` foi em 23/11/2026. O resumo esperado: início 06/08/2026, fechamento 23/11/2026, 109 dias, mais a linha da primeira proposta.
+- O texto da API não foi gerado aqui, porque isso exige uma sessão de usuário.
 
 ## Pendências
-- Fazer o deploy deste commit e abrir o Resumo p/ e-mail do contrato para conferir as datas.
+- A Jessica confere o botão Resumo p/ e-mail do contrato.
