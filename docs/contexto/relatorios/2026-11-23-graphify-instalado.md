@@ -46,5 +46,30 @@ A Jessica escreveu: "procure a ferramenta grafify". Depois escolheu as opções 
 - **Não feito:** o hook do git com atualização automática (`graphify hook install`), porque o modo automático negou a permissão. A Jessica pode rodar o comando ela mesma ou liberar a permissão. Enquanto isso, vale a regra do `graphify update .`.
 - **Pendente (Jessica):** decidir se quer o grafo já gerado agora em todos os outros projetos (CRM da Letícia, Agenda/Orbit, Ravena e outros). Pela regra, ele é gerado na primeira tarefa de cada projeto.
 
+## Continuação: gatilho do git e grafo em todos os projetos
+- **Pedido:** "ESTA AUTORIZADO" (o `graphify hook install`) e "TODOS OS PROJETOS" (gerar o grafo em todos agora).
+- **Feito:**
+  - Gatilho do git (post-commit e post-checkout) e grafo só da estrutura nos 8 projetos:
+
+    | Projeto | Nós |
+    |---|---|
+    | CRM Comercial | 5.836 |
+    | CRM da Letícia | 4.962 |
+    | Agenda/Orbit | 2.274 |
+    | Ravena | 51 |
+    | mktecosystem | 7.836 (sem `graph.html`, porque passa de 7.000) |
+    | Giro | 269 |
+    | Rafa Diniz | 1.216 |
+    | Site da Rafa | 117 |
+
+  - O script usado está na pasta temporária da sessão, com o nome `grafo_projeto.sh`.
+  - Na Agenda, as pastas `clientes/`, `vendas/` e `videos/` ficaram fora do grafo, porque guardam dados e não código.
+- **Decisões:**
+  - Nos outros repositórios, nada foi para o git, para não disparar deploy (Letícia na VPS, Agenda na Vercel). Tudo ficou na configuração local de cada um (`.git/info/exclude` e `.git/info/attributes`).
+  - Na Agenda, o husky fez o gatilho ir para `.husky/post-commit` e `.husky/post-checkout`. Os dois também foram excluídos só no git local.
+  - O `.gitattributes` versionado do mktecosystem foi restaurado. A linha do graphify foi para `.git/info/attributes`.
+- **Verificado:** nos 8 projetos, `graph.json` existe, `graphify hook status` responde "installed" e o `git status` não mostra arquivo nenhum do graphify.
+- **Não verificado:** um commit de verdade disparando o gatilho. Ele roda no próximo commit de cada projeto.
+
 ## Próxima sessão
 - Antes de mexer no código, rode `graphify update .` para atualizar o grafo. Depois use `graphify query "..."`, ou a skill `graphify`, para perguntas de arquitetura.
