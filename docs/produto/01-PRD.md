@@ -2509,3 +2509,10 @@ Pedido da Jessica (print da tela): os quadros dos agentes ficavam numa grade com
 - **Proteção do número:** o mesmo link nunca vai duas vezes para o mesmo contrato (`podeEnviarUmaVez`, chave `contrato_link.<id>.<sha1 do link, 12>`, 1 ano). Um link trocado vai. Vale também para o envio pela ZapSign. Ao marcar Assinado direto, nada é enviado (só o agradecimento, como antes).
 - **Resposta da API:** o PATCH devolve `whatsapp: true|false` quando havia link. A tela Contratos mostra "Link salvo e enviado para o WhatsApp do cliente…" ou avisa que a mensagem não saiu (sem conversa do cliente ou link já enviado); ao arrastar o card, o aviso aparece no topo da página.
 - **Continua igual:** lembrete ao cliente em 24 h e aviso à gestão em 48 h (contam de `sent_to_sign_at`), agradecimento ao assinar. Sem mudança de banco. Testes: `tests/contrato-assinatura.test.ts` (12).
+
+### Atualização 23/11/2026: "Resumo p/ e-mail" conta o ciclo desde a primeira proposta
+
+- **Pedido da Jessica:** no resumo para o e-mail do contrato da farmácia de Aracruz/ES (proposta de 06/08/2026 expirada, reativada e fechada em 23/11), o cálculo estava errado.
+- **Causa:** em `GET /contratos-comerciais/:id/resumo-assinatura` (`backend/src/routes/contratos-comerciais.ts`), o "Início do contato" era só a data de criação do lead. Num cliente reativado, o lead ou a proposta nova são recentes e o "Tempo de fechamento" saía quase zero.
+- **Agora:** o início é a data mais antiga entre o lead, a proposta ligada ao contrato e a **primeira proposta do mesmo CNPJ** (busca por CNPJ só com dígitos ou formatado, inclusive propostas expiradas). Quando a primeira proposta não é a do contrato, o texto ganha a linha "📄 Primeira proposta: dd/mm/aaaa (reativada em dd/mm/aaaa)".
+- **Continua igual:** a data de fechamento (fechamento do lead → aceite da proposta → data do contrato) e todo o resto do texto. Sem mudança de banco.

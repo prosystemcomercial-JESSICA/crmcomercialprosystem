@@ -557,8 +557,24 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const simNao = (b: any) => b === true ? 'Sim' : (b === false ? 'Não' : '');
     const ou = (...xs: any[]) => { for (const x of xs) if (x !== null && x !== undefined && `${x}`.trim() !== '') return x; return ''; };
 
+    // Primeira proposta do mesmo CNPJ (inclui as expiradas/reativadas): quando o
+    // cliente é reativado, o lead ou a proposta nova são recentes e o "tempo de
+    // fechamento" saía errado. O ciclo começa no que vier primeiro.
+    let primeiraProposta: any = null;
+    if (cnpjDigits.length === 14) {
+      const fmt = cnpjDigits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+      primeiraProposta = await prisma.propostaComercial.findFirst({
+        where: { OR: [{ cnpj: cnpjDigits }, { cnpj: fmt }] },
+        orderBy: { created_at: 'asc' },
+        select: { id: true, created_at: true },
+      }).catch(() => null);
+    }
+
     // Datas do ciclo.
-    const inicio = ou(lead?.created_at);
+    const datasInicio = [lead?.created_at, primeiraProposta?.created_at, p?.created_at]
+      .filter(Boolean).map((x: any) => new Date(x).getTime());
+    const inicio = datasInicio.length ? new Date(Math.min(...datasInicio)) : '';
+    const reativada = !!(primeiraProposta && p && primeiraProposta.id !== p.id);
     const fechamento = ou(lead?.fechamento_data, p?.data_aceite, c.data_contrato);
     let tempo = '';
     if (inicio && fechamento) {
@@ -615,6 +631,7 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     const L: string[] = [];
     L.push(`📅 Início do contato: ${d(inicio)}`);
     L.push(`📅 Fechamento: ${d(fechamento)}`);
+    if (reativada) L.push(`📄 Primeira proposta: ${d(primeiraProposta.created_at)} (reativada em ${d(p.created_at)})`);
     L.push(`⏱️ Tempo de fechamento: ${tempo}`);
     L.push('');
     L.push(`Origem do lead: ${origemRot}${origemObs ? ' - ' + origemObs : ''}`);

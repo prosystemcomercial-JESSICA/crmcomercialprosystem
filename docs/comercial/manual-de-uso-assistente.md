@@ -1827,3 +1827,8 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Em **Contratos**, ao colar o link do contrato e marcar **Enviado p/ assinatura** (ou arrastar o card para lá), o CRM já manda para o WhatsApp do cliente a mensagem com o link e o passo a passo para assinar. Você não precisa mais copiar e mandar.
 - A tela confirma: "Link salvo e enviado para o WhatsApp do cliente". Se aparecer que a mensagem não saiu, é porque o CRM não achou a conversa do cliente (ou esse mesmo link já tinha ido): aí mande você.
 - O mesmo link não é mandado duas vezes. Se trocar o link, o novo vai.
+
+### Atualização 23/11/2026: resumo para o e-mail de cliente reativado
+
+- Em **Contratos**, o botão **Resumo p/ e-mail** agora conta o **Tempo de fechamento** desde a **primeira proposta** daquele CNPJ, mesmo que ela tenha expirado.
+- Quando o cliente foi reativado com uma proposta nova, o resumo mostra também: "📄 Primeira proposta: 06/08/2026 (reativada em 23/11/2026)".
