@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -130,6 +130,7 @@ export default function ContratosPage() {
   const [preview, setPreview]         = useState<any>(null);
   const [loadingPrev, setLoadingPrev] = useState(false);
   const [zapMsg, setZapMsg]           = useState('');
+  const [avisoTopo, setAvisoTopo]     = useState(''); // resultado do envio do link quando o card foi arrastado
   const [editando, setEditando]       = useState(false);
   const [editForm, setEditForm]       = useState<any>({});
   const [salvandoEdit, setSalvandoEdit] = useState(false);
@@ -226,6 +227,14 @@ export default function ContratosPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  // Resposta do envio do link ao cliente (23/11/2026): o link colado vai sozinho para o WhatsApp dele.
+  const avisoLink = (whatsapp: unknown) => whatsapp === true
+    ? 'Link salvo e enviado para o WhatsApp do cliente, com as instruções para assinar.'
+    : whatsapp === false
+      ? 'Link salvo, mas a mensagem não saiu: não achei o WhatsApp do cliente (ou esse link já tinha sido enviado). Se precisar, mande você.'
+      : 'Link salvo e contrato marcado como enviado para assinatura.';
+  const ultimoWhatsapp = useRef<unknown>(undefined);
+
   // Enviado p/ assinatura, Aguardando e Assinado pedem o link enviado ao cliente (se o contrato ainda não tem).
   const moveStatus = async (contrato: ContratoComercial, novoStatus: string, link?: string): Promise<boolean> => {
     if (contrato.status === novoStatus) return true;
@@ -238,7 +247,9 @@ export default function ContratosPage() {
     if (novoStatus === 'ASSINADO' && selected?.id === contrato.id && signedUrl.trim()) dados.zapsign_signed_file_url = signedUrl.trim();
     setContratos(prev => prev.map(c => c.id === contrato.id ? { ...c, status: novoStatus, ...(link ? { zapsign_signing_url: link } : {}) } : c));
     try {
-      await apiClient.updateContratoComercial(contrato.id, dados);
+      const r = await apiClient.updateContratoComercial(contrato.id, dados);
+      ultimoWhatsapp.current = r.data?.whatsapp;
+      if (link && novoStatus !== 'ASSINADO' && selected?.id !== contrato.id) setAvisoTopo(avisoLink(r.data?.whatsapp));
       if (novoStatus === 'ASSINADO') load();
       return true;
     } catch (e: any) {
@@ -259,7 +270,7 @@ export default function ContratosPage() {
     if (selected?.id === contrato.id) {
       setSelected({ ...selected, status, zapsign_signing_url: link });
       setLinkEnvio(link);
-      setZapMsg(status === 'ASSINADO' ? 'Contrato marcado como assinado! A implantação foi aberta no portal técnico.' : 'Link salvo e contrato marcado como enviado para assinatura.');
+      setZapMsg(status === 'ASSINADO' ? 'Contrato marcado como assinado! A implantação foi aberta no portal técnico.' : avisoLink(ultimoWhatsapp.current));
     }
   };
 
@@ -407,8 +418,8 @@ export default function ContratosPage() {
     if (!linkOk(link)) { setZapMsg('Cole o link do contrato enviado ao cliente (começa com https://).'); return; }
     setMarcando(true); setZapMsg('');
     try {
-      await apiClient.updateContratoComercial(selected.id, { status: 'ENVIADO_ASSINATURA', zapsign_signing_url: link });
-      setZapMsg('Link salvo e contrato marcado como enviado para assinatura.');
+      const r = await apiClient.updateContratoComercial(selected.id, { status: 'ENVIADO_ASSINATURA', zapsign_signing_url: link });
+      setZapMsg(avisoLink(r.data?.whatsapp));
       setSelected({ ...selected, status: 'ENVIADO_ASSINATURA', zapsign_signing_url: link });
       load();
     } catch (e: any) { setZapMsg(e?.response?.data?.message || 'Erro'); }
@@ -458,6 +469,14 @@ export default function ContratosPage() {
   return (
     <DashboardLayout>
       <div className="ios-tela w-full px-4 sm:px-6 py-4 space-y-4" style={{ background: 'var(--t-content-bg)', minHeight: 'calc(100vh - 56px)' }}>
+
+        {avisoTopo && (
+          <div className="flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold"
+            style={{ background: 'var(--t-card-bg)', border: '1px solid var(--t-card-border)', color: avisoTopo.includes('não saiu') ? '#b45309' : '#16a34a' }}>
+            <span>{avisoTopo}</span>
+            <button onClick={() => setAvisoTopo('')} className="text-xs opacity-70 hover:opacity-100" aria-label="Fechar aviso">✕</button>
+          </div>
+        )}
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between flex-wrap gap-3">

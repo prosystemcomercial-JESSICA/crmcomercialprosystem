@@ -68,3 +68,45 @@ describe('contrato: link enviado ao cliente', () => {
     expect(linkValido(null)).toBe(false);
   });
 });
+
+import { vi } from 'vitest';
+
+describe('contrato: link colado vai direto ao cliente (23/11/2026)', () => {
+  it('mensagem traz o link e o passo a passo', () => {
+    const t = textoLinkAssinatura('Maria Silva', 'https://app.zapsign.com.br/verificar/abc');
+    expect(t).toContain('https://app.zapsign.com.br/verificar/abc');
+    expect(t).toContain('Como assinar');
+    expect(t).toContain('1. Toque no link');
+  });
+
+  it('envia uma vez por link; o mesmo link não repete e um link trocado vai', async () => {
+    vi.resetModules();
+    const enviados: string[] = [];
+    vi.doMock('../src/services/evolution.service', () => ({
+      enviarTexto: async (_t: string, _n: string, texto: string) => { enviados.push(texto); return { externo_id: 'x' + enviados.length }; },
+    }));
+    vi.doMock('../src/lib/whatsapp-empresa', () => ({ obterInstanciaEmpresa: async () => ({ instance_token: 'tk' }) }));
+    vi.doMock('../src/lib/assistente/escritorio', () => ({ registrarAcaoAgente: () => {} }));
+    vi.doMock('../src/services/whatsapp-eventos.service', () => ({ emitirEventoConversa: () => {} }));
+    const marcas = new Map<string, string>();
+    let link = 'https://z/1';
+    const prisma: any = {
+      contratoComercial: { findUnique: async () => ({ id: 'c1', numero_contrato: '1/2026', proposta_comercial_id: 'p1', representante_nome: 'Ana', representante_telefone: null, zapsign_signing_url: link }) },
+      propostaComercial: { findUnique: async () => ({ wpp_conversa_id: 'w1' }) },
+      whatsappConversa: { findUnique: async () => ({ id: 'w1', contato_numero: '5527999990000' }), update: async () => ({}) },
+      whatsappMensagem: { create: async () => ({}) },
+      configuracaoIntegracao: {
+        findUnique: async ({ where }: any) => (marcas.has(where.chave) ? { chave: where.chave, valor: marcas.get(where.chave) } : null),
+        create: async ({ data }: any) => { marcas.set(data.chave, data.valor); return data; },
+        updateMany: async () => ({ count: 0 }),
+      },
+    };
+    const { enviarLinkAssinatura } = await import('../src/services/contrato-assinatura.service');
+    expect(await enviarLinkAssinatura(prisma, 'c1')).toBe(true);
+    expect(await enviarLinkAssinatura(prisma, 'c1')).toBe(false);
+    link = 'https://z/2';
+    expect(await enviarLinkAssinatura(prisma, 'c1')).toBe(true);
+    expect(enviados).toHaveLength(2);
+    expect(enviados[1]).toContain('https://z/2');
+  });
+});

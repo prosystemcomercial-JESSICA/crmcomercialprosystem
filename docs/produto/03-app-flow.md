@@ -2478,3 +2478,12 @@ Pedido da Jessica (print da tela): os quadros dos agentes ficavam numa grade com
 
 - **Pedido da Jessica (print da tela):** "Acho que não precisamos dessa seção, já estão nos cards dos clientes, isso acaba ficando repetitivo, vamos deixar apenas no card e implemente a barra de evolução lá."
 - **Fluxo:** Portal Técnico → Quadro → card da implantação mostra o bloco do onboarding (etapa, barra, itens, prazo) até ele terminar → clicar no card abre a ficha (no onboarding, quando ele está pendente). O caminho antigo Menu → Onboarding técnico não existe mais; links com `?tab=onboarding` caem no Quadro.
+
+### Atualização 23/11/2026: link colado em "Enviado p/ assinatura" vai direto para o cliente
+
+- **Pedido da Jessica:** "quando eu colar o link de enviado para a assinatura, a mensagem com o link e instruções deve ir diretamente para o cliente assinar."
+- **Antes:** o link colado à mão (exigido desde 12/11 para ir a Enviado p/ assinatura) só ficava guardado no contrato; a mensagem ao cliente só saía no envio automático pela ZapSign (que depende do Plano de API).
+- **Agora:** ao colar o link (no painel do contrato, em "Marcar como enviado", ou na janela que abre ao arrastar o card para Enviado p/ assinatura ou Aguardando assinatura), o `PATCH /contratos-comerciais/:id` chama `enviarLinkAssinatura` (`services/contrato-assinatura.service.ts`), que manda pelo WhatsApp da empresa, na conversa da proposta (ou pelo telefone de quem assina), a mensagem com o link e o passo a passo (`textoLinkAssinatura` em `lib/assistente/contrato.ts`: abrir o link, conferir nome e CPF, assinar com o dedo, confirmar o código se pedir).
+- **Proteção do número:** o mesmo link nunca vai duas vezes para o mesmo contrato (`podeEnviarUmaVez`, chave `contrato_link.<id>.<sha1 do link, 12>`, 1 ano). Um link trocado vai. Vale também para o envio pela ZapSign. Ao marcar Assinado direto, nada é enviado (só o agradecimento, como antes).
+- **Resposta da API:** o PATCH devolve `whatsapp: true|false` quando havia link. A tela Contratos mostra "Link salvo e enviado para o WhatsApp do cliente…" ou avisa que a mensagem não saiu (sem conversa do cliente ou link já enviado); ao arrastar o card, o aviso aparece no topo da página.
+- **Continua igual:** lembrete ao cliente em 24 h e aviso à gestão em 48 h (contam de `sent_to_sign_at`), agradecimento ao assinar. Sem mudança de banco. Testes: `tests/contrato-assinatura.test.ts` (12).

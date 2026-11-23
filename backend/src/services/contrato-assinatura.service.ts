@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import * as evo from './evolution.service';
 import { obterInstanciaEmpresa } from '@/lib/whatsapp-empresa';
 import { emitirEventoConversa } from './whatsapp-eventos.service';
@@ -106,13 +107,22 @@ export async function captarDadosAssinante(prisma: PrismaClient, conversaId: str
   return true;
 }
 
-/** Depois de enviar à ZapSign: o link de assinatura vai pelo WhatsApp da empresa. */
+/**
+ * Link de assinatura no WhatsApp do cliente, com as instruções. Vale para o envio pela ZapSign e para o
+ * link colado à mão em "Enviado p/ assinatura" (pedido da Jessica, 23/11/2026). O mesmo link nunca vai
+ * duas vezes para o mesmo contrato (proteção do número); um link novo (trocado) vai.
+ */
 export async function enviarLinkAssinatura(prisma: PrismaClient, contratoId: string): Promise<boolean> {
   const c = await prisma.contratoComercial.findUnique({ where: { id: contratoId } });
   if (!c?.zapsign_signing_url) return false;
   const alvo = await conversaDoContrato(prisma, c);
   if (!alvo) return false;
-  return enviar(prisma, alvo.conversaId, alvo.numero, textoLinkAssinatura(c.representante_nome, c.zapsign_signing_url));
+  const { podeEnviarUmaVez } = await import('./envio-unico.service');
+  const marca = createHash('sha1').update(c.zapsign_signing_url).digest('hex').slice(0, 12);
+  if (!(await podeEnviarUmaVez(prisma, `contrato_link.${c.id}.${marca}`, 24 * 365))) return false;
+  const ok = await enviar(prisma, alvo.conversaId, alvo.numero, textoLinkAssinatura(c.representante_nome, c.zapsign_signing_url));
+  if (ok) registrarAcaoAgente('marta', `mandou o link de assinatura do contrato ${c.numero_contrato} ao cliente`);
+  return ok;
 }
 
 async function conversaDoContrato(prisma: PrismaClient, c: { proposta_comercial_id: string | null; representante_telefone: string | null }) {

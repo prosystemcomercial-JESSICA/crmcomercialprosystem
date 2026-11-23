@@ -110,7 +110,19 @@ export const textoPedeFaltante = (falta: string[]) =>
   `Obrigado! Só falta ${falta.length > 1 ? `${falta.slice(0, -1).join(', ')} e ${falta[falta.length - 1]}` : falta[0]} de quem vai assinar o contrato.`;
 
 export const textoLinkAssinatura = (nome: string | null, link: string) =>
-  `${primeiro(nome) ? `${primeiro(nome)}, o` : 'O'} seu contrato com a Prosystem está pronto! ✍️\n\nÉ só abrir o link e assinar pelo celular, leva menos de 2 minutos:\n${link}`;
+  [
+    `${primeiro(nome) ? `${primeiro(nome)}, o` : 'O'} seu contrato com a Prosystem está pronto para assinar! ✍️`,
+    '',
+    link,
+    '',
+    '*Como assinar (leva uns 2 minutos, pelo celular mesmo):*',
+    '1. Toque no link acima e leia o contrato.',
+    '2. Confira o seu nome e CPF e toque em *Assinar*.',
+    '3. Faça a sua assinatura na tela (com o dedo) e confirme.',
+    '4. Se pedir, confirme o código enviado por e-mail ou SMS.',
+    '',
+    'Pronto! Assim que assinar, a gente já agenda a sua implantação. Qualquer dúvida, é só responder aqui. 😊',
+  ].join('\n');
 
 export const textoLembreteAssinatura = (nome: string | null, link: string) =>
   `Oi${primeiro(nome) ? `, ${primeiro(nome)}` : ''}! Passando pra lembrar do contrato: assim que assinar, já agendamos a sua implantação. 😊\n${link}`;

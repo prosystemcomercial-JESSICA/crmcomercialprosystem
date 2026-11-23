@@ -1821,3 +1821,9 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - O item **Onboarding técnico** saiu do menu do Portal Técnico, porque repetia o que já está nos cards.
 - No **Quadro**, enquanto o primeiro contato com o cliente não termina, o card mostra a etapa (Sem técnico, Primeiro contato, Diagnóstico ou Aprovação do cliente), uma **barra de evolução** com os itens feitos (ex.: 7/22) e o prazo de 2 dias úteis. Se o prazo passou, aparece "atrasado" em vermelho.
 - Quando o onboarding termina, o bloco some do card. Para fazer o onboarding, é só clicar no card, como antes.
+
+### Atualização 23/11/2026: o link de assinatura vai sozinho para o cliente
+
+- Em **Contratos**, ao colar o link do contrato e marcar **Enviado p/ assinatura** (ou arrastar o card para lá), o CRM já manda para o WhatsApp do cliente a mensagem com o link e o passo a passo para assinar. Você não precisa mais copiar e mandar.
+- A tela confirma: "Link salvo e enviado para o WhatsApp do cliente". Se aparecer que a mensagem não saiu, é porque o CRM não achou a conversa do cliente (ou esse mesmo link já tinha ido): aí mande você.
+- O mesmo link não é mandado duas vezes. Se trocar o link, o novo vai.

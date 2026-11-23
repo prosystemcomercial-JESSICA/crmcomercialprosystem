@@ -1035,7 +1035,15 @@ export async function contratosComerciais(fastify: FastifyInstance, options: { p
     }
 
     const contrato = await prisma.contratoComercial.update({ where: { id }, data: payload });
-    return reply.send({ status: 'ok', data: comPendencias(contrato) });
+
+    // Link colado em "Enviado p/ assinatura" (pedido da Jessica, 23/11/2026): a mensagem com o link e as
+    // instruções vai direto para o WhatsApp do cliente. Só quando chega um link (novo ou o mesmo, que não repete).
+    let whatsapp: boolean | undefined;
+    if (payload.zapsign_signing_url && (contrato.status === 'ENVIADO_ASSINATURA' || contrato.status === 'AGUARDANDO_ASSINATURA')) {
+      const { enviarLinkAssinatura } = await import('@/services/contrato-assinatura.service');
+      whatsapp = await enviarLinkAssinatura(prisma, id).catch(() => false);
+    }
+    return reply.send({ status: 'ok', data: comPendencias(contrato), ...(whatsapp !== undefined ? { whatsapp } : {}) });
   });
 
   // ── GERAR CADASTRO DO CLIENTE a partir do contrato assinado ─────────────────
