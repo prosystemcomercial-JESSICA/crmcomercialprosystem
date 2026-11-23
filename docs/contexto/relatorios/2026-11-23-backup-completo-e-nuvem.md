@@ -13,7 +13,11 @@ Jessica: "Verifique como está o backup do sistema, preciso que não dê mais er
 ## Verificado
 - Execução completa do `backup-servidor.sh` no servidor numa pasta isolada (`/root/teste-backup`), com teste de restauração: 113 tabelas, 36.803 linhas restauradas iguais ao JSON, 6.162 mensagens de WhatsApp; saída 0; contêiner de teste removido.
 - `tests/backup-vigia.test.ts` 7/7; `tsc` sem erros nos arquivos mexidos; `bash -n` em todos os scripts.
-- Instalação no servidor, primeira execução real e cópia no PC: ver o fim deste relatório (atualizado após o deploy).
+- Deploy de `9724879` (CI verde; backup do deploy 481 MB "conferido"; banco sem alterações; build ok; site e API respondendo).
+- `backup-instalar.sh` rodado: cron `0 6,17` → `/usr/local/bin/backup-comercial.sh` → script do repositório.
+- Primeira execução real (23/11, 15h20 UTC): dump 480 MB, 113 tabelas, restauração ok (36.815 linhas = JSON), 0 erros; `servidor.json` gravado. A limpeza apagou as pastas antigas de 10 a 15/11 (backups só em JSON, sem WhatsApp).
+- Tarefa do Windows `CRM_Backup_Diario_17h` disparada à mão: resultado 0, backup baixado e sha256 conferido; marca `copia-pc.json` enviada.
+- Não verificado: o aviso do vigia chegando no WhatsApp com o texto novo (o esperado agora é só "nuvem desligada", até o MEGA ser ligado).
 
 ## Decisões e porquês
 - O arquivo de restauração é o **mysqldump** (foto única, restaurável); o JSON fica como segunda via legível.
