@@ -8,12 +8,14 @@ A Jessica mostrou o quadro da Caroline "Com erro" e perguntou o que estava acont
 - Trava em `falar` (`backend/src/services/caroline.service.ts`): 2 seguradas por repetição desde a última fala do cliente → `nada`, `dados.parou_repeticao`, `ultima_caroline_em = agora` (AGUARDANDO fora da fase de resposta), ORIENTACAO da Laya para o agente, aviso único à gestão com link.
 - Ensino: reescrita da Laya cita as falas repetidas (`falasRepetidas`); prompt mostra as versões descartadas por qualquer pessoa com o motivo da Laya.
 - Regras puras e testes: `backend/src/lib/laya-guardia.ts`, `backend/tests/laya-guardia.test.ts`. Texto do mural do Rafael ajustado.
+- **Segundo laço (achado no log depois do deploy):** retomada que a IA não montava (lead do Julio e do Luiz Felipe) era tentada a cada 2 min, 924 vezes no log recente. Agora espera 1 h, 3 h e 24 h (`backend/src/lib/assistente/falha-retomada.ts`, chamada em `falar`; abertura fora, porque já tem trava própria). Testes `backend/tests/falha-retomada.test.ts`.
 - Documentos: os 6 de `docs/produto/`, manual, novidades e `ESTADO.md`.
 
 ## Verificado
 - vitest `laya-guardia` e `rafael-aprovador`: 20/20.
 - `tsc` do backend: nenhum erro novo nos arquivos mexidos (só o antigo `demo_a_partir`).
-- Deploy e comportamento em produção: ver o commit e o ESTADO.md. A trava em si só será vista em ação quando houver nova repetição (não verificado com caso real).
+- Deploy de `904bf31b`: CI verde, backup 482M conferido, banco sem alterações, serviços online. vitest `falha-retomada` 2/2.
+- O motivo de a IA não montar a retomada desses 2 leads não foi investigado (o atraso resolve o gasto; a causa de cada caso fica para depois). A trava em si só será vista em ação quando houver nova repetição (não verificado com caso real).
 
 ## Decisões e porquês
 - Limite 2 (não 3): com 2 a Laya já pediu uma reescrita e ela voltou repetida; a 3ª só gastava IA.

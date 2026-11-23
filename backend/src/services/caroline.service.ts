@@ -1237,6 +1237,15 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
   if (!r) {
     console.warn(`[CAROLINE] sem resposta utilizável para ${sdr.numero}`); if (!motivoFalha.has(sdr.id)) motivoFalha.set(sdr.id, 'a IA não gerou uma resposta utilizável');
     if (fase === 'resposta') await pedirSocorro(prisma, sdr, 'não consegui montar uma resposta');
+    else if (fase !== 'abertura') { // a abertura já tem a sua trava (3 falhas pausam o agente 1 h)
+      // Retomada/abertura/encerramento que não saiu: a próxima tentativa espera 1 h, 3 h, 24 h (23/11/2026; antes
+      // repetia a cada rodada de 2 min, sem fim). O retomar_em é respeitado pela fila de retomadas.
+      const { proximaFalhaRetomada } = await import('@/lib/assistente/falha-retomada');
+      const dF: any = sdr.dados || {};
+      const f = proximaFalhaRetomada(dF.falha_retomada, new Date());
+      await prisma.sdrLead.update({ where: { id: sdr.id }, data: { dados: { ...dF, falha_retomada: { n: f.n, em: f.em }, retomar_em: f.tentar_em } } }).catch(() => {});
+      registrarAcaoAgente(agenteDe(sdr), `não conseguiu montar a ${fase} para ${sdr.nome || 'um lead'} (${f.n}ª vez seguida): tenta de novo em ${new Date(f.tentar_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`);
+    }
     return 'falha';
   }
   // Trava contra repetição: mensagem muito parecida com uma das últimas do agente não sai (na resposta, só quase-cópia).

@@ -1840,3 +1840,4 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Quando o cliente escreve de novo, o agente volta sozinho e responde ao que ele disse agora.
 - Na reescrita, a Laya mostra ao agente exatamente qual frase ele estava repetindo, e as versões descartadas entram no aprendizado da Caroline.
 - Motivo: de 16 a 18/11 a Caroline tentou 410 vezes reescrever em poucas conversas (uma delas 218 vezes). Isso não chegou aos clientes, mas gastou IA e fez a Vitória pausar a Caroline.
+- Também em 23/11: quando um agente não consegue montar uma retomada, ele não tenta mais a cada 2 minutos. Espera 1 hora, depois 3 horas e depois o dia seguinte. Antes, um lead do Julio e um do Luiz Felipe estavam gastando IA sem parar, e isso inflava as "falhas" no quadro do Luiz Felipe.
