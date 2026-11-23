@@ -3,6 +3,7 @@ import { somarPorAgente, usoAgenteVazio, type FonteAgente, type UsoAgente } from
 import { cotaGroqVazia, type CotaGroq } from '@/lib/ia-groq';
 import { custoUsd, tabelaDePrecos } from '@/lib/custo-ia';
 import { anotarErro, somarErros, type ErrosDoDia } from '@/lib/ia-erros';
+import { CHAVE_LIMITE_DIARIO_OPENAI, lerLimiteDiario, situacaoLimiteDiario, type SituacaoLimiteDiario } from '@/lib/limite-diario-ia';
 
 // Contador de uso das IAs por dia (OpenAI paga, Grok, Laya local grátis, Whisper local grátis). Conta em
 // memória e grava a cada rodada do agendador em ConfiguracaoIntegracao 'ia.uso.AAAA-MM-DD'.
@@ -34,8 +35,42 @@ export function registrarChamadaIa(agente: string, fonte: FonteAgente, r: { ok: 
   u.custo_gravado++;
   if ((fonte === 'openai' || fonte === 'grok') && r.modelo) {
     const usd = custoUsd(tabelaDePrecos(process.env), r.modelo, r.tokensEntrada || 0, r.tokensSaida || 0) || 0;
-    if (fonte === 'openai') u.custo_openai_usd += usd; else u.custo_grok_usd += usd;
+    if (fonte === 'openai') { u.custo_openai_usd += usd; if (gastoOpenAi?.dia === dia) gastoOpenAi.usd += usd; }
+    else u.custo_grok_usd += usd;
   }
+}
+
+// Limite diário da OpenAI (23/11/2026). Gasto de hoje em dólar: lido do banco + memória no máximo a cada minuto e
+// somado a cada chamada paga entre uma leitura e outra. O limite configurado é relido a cada minuto.
+let gastoOpenAi: { dia: string; usd: number; em: number } | null = null;
+let limiteOpenAi: { valor: number; em: number } | null = null;
+
+export async function gastoOpenAiHojeUsd(prisma: PrismaClient): Promise<number> {
+  const dia = hojeSP();
+  if (gastoOpenAi?.dia === dia && Date.now() - gastoOpenAi.em < 60_000) return gastoOpenAi.usd;
+  const [hoje] = await usoIaPorAgente(prisma, [dia]);
+  const usd = Object.values(hoje?.agentes || {}).reduce((s, u) => s + (u.custo_openai_usd || 0), 0);
+  gastoOpenAi = { dia, usd, em: Date.now() };
+  return usd;
+}
+
+export async function limiteDiarioOpenAiBrl(prisma: PrismaClient): Promise<number> {
+  if (limiteOpenAi && Date.now() - limiteOpenAi.em < 60_000) return limiteOpenAi.valor;
+  const r = await prisma.configuracaoIntegracao.findUnique({ where: { chave: CHAVE_LIMITE_DIARIO_OPENAI } }).catch(() => null);
+  limiteOpenAi = { valor: lerLimiteDiario(r?.valor, process.env), em: Date.now() };
+  return limiteOpenAi.valor;
+}
+
+/** Depois de mudar o limite no painel: vale na hora. */
+export function esquecerLimiteDiarioOpenAi() { limiteOpenAi = null; }
+
+/** Situação de hoje: gasto em reais, limite e se a OpenAI está bloqueada. */
+export async function situacaoOpenAiHoje(prisma: PrismaClient): Promise<SituacaoLimiteDiario & { dia: string; cotacao: number }> {
+  const [usd, limite] = await Promise.all([gastoOpenAiHojeUsd(prisma), limiteDiarioOpenAiBrl(prisma)]);
+  // Sem gasto ou sem limite, a cotação não muda nada: não consulta (evita rede a cada chamada de IA).
+  const { cotacaoDolar } = await import('./cotacao-dolar.service');
+  const cot = usd > 0 && limite > 0 ? await cotacaoDolar(prisma).catch(() => ({ valor: 5.5 })) : { valor: 0 };
+  return { dia: hojeSP(), cotacao: cot.valor, ...situacaoLimiteDiario(usd * cot.valor, limite) };
 }
 
 // Motivos das falhas, por dia (12/11/2026). Só o motivo: não mexe nos contadores de chamadas e falhas,

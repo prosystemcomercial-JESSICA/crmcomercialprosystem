@@ -20,6 +20,8 @@ export type Consumo = {
   /** Motivos das falhas no mês, por agente (gravados desde 12/11/2026). */
   erros_por_agente?: Record<string, { provedor: string; motivo: string; texto: string; n: number; primeiro: string; ultimo: string; exemplo: string; modelo?: string; dias: number }[]>;
   cotacao: number;
+  /** Limite diário da OpenAI (23/11/2026): gasto de hoje em R$, limite (0 = sem limite) e se ela está bloqueada. */
+  openai_hoje?: { dia: string; gasto: number; limite: number; usado: number; nivel: 'sem_limite' | 'ok' | 'atencao' | 'bloqueado'; bloqueado: boolean } | null;
 };
 export type Painel = {
   setores: Setor[];

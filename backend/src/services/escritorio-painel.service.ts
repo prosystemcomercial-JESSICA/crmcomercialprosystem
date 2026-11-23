@@ -56,7 +56,10 @@ export async function consumoDoMes(prisma: PrismaClient, agora = new Date()) {
   const { resumoErrosPorAgente } = await import('@/lib/ia-erros');
   const diasDoMes = Array.from({ length: decorridos }, (_, i) => `${mes}-${String(i + 1).padStart(2, '0')}`);
   const errosPorAgente = resumoErrosPorAgente((await errosIaPorDia(prisma, diasDoMes)).map(d => d.erros));
-  return { mes, brl, previsao, teto, ...situacaoTeto(brl, previsao, teto), por_dia: porDia, por_agente: porAgente, falhas_provedor: falhasProvedor, erros_por_agente: errosPorAgente, cotacao: cot.valor };
+  // Limite diário da OpenAI (23/11/2026): gasto de hoje, limite e se ela está bloqueada.
+  const { situacaoOpenAiHoje } = await import('./uso-ia.service');
+  const openaiHoje = await situacaoOpenAiHoje(prisma).catch(() => null);
+  return { mes, brl, previsao, teto, ...situacaoTeto(brl, previsao, teto), por_dia: porDia, por_agente: porAgente, falhas_provedor: falhasProvedor, erros_por_agente: errosPorAgente, cotacao: cot.valor, openai_hoje: openaiHoje };
 }
 
 /** Aviso único por mês quando o gasto passa de 80% do teto (e outro quando estoura). */

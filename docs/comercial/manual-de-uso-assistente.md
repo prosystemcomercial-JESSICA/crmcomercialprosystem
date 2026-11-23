@@ -1841,3 +1841,10 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 - Na reescrita, a Laya mostra ao agente exatamente qual frase ele estava repetindo, e as versões descartadas entram no aprendizado da Caroline.
 - Motivo: de 16 a 18/11 a Caroline tentou 410 vezes reescrever em poucas conversas (uma delas 218 vezes). Isso não chegou aos clientes, mas gastou IA e fez a Vitória pausar a Caroline.
 - Também em 23/11: quando um agente não consegue montar uma retomada, ele não tenta mais a cada 2 minutos. Espera 1 hora, depois 3 horas e depois o dia seguinte. Antes, um lead do Julio e um do Luiz Felipe estavam gastando IA sem parar, e isso inflava as "falhas" no quadro do Luiz Felipe.
+
+### Atualização 23/11/2026: limite diário da OpenAI
+
+- A chave paga da OpenAI agora tem um **limite por dia**: R$ 15,00 (mais ou menos 3 dólares).
+- Quando o gasto do dia chega nesse valor, a OpenAI para até a meia-noite. Os agentes continuam trabalhando com as outras IAs.
+- Você recebe um aviso no WhatsApp quando isso acontece (uma vez por dia).
+- Para ver ou mudar: **Escritório › Consumo de IA › cartão "OpenAI hoje"**. Digite o valor e toque em **Salvar limite**. Digite 0 para tirar o limite.

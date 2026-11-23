@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { registrarUsoIa, registrarChamadaIa, registrarErroIa, registrarReservaGroq, carregarCotaGroq, atualizarCotaGroq } from './uso-ia.service';
+import { registrarUsoIa, registrarChamadaIa, registrarErroIa, registrarReservaGroq, carregarCotaGroq, atualizarCotaGroq, situacaoOpenAiHoje } from './uso-ia.service';
+import { textoBloqueioOpenAi } from '@/lib/limite-diario-ia';
 import { cabeNoGroq, lerCotaGroq } from '@/lib/ia-groq';
 import { agenteDaPilha, tokensDaResposta } from '@/lib/uso-ia-agentes';
 import { jsonParaIa, extensaoAudio } from '@/lib/assistente/ia-texto';
@@ -40,6 +41,25 @@ setInterval(() => {
     }).catch(() => {});
   }
 }, 60_000).unref?.();
+
+// Limite diário da OpenAI (23/11/2026, pedido da Jessica: no máximo R$ 15,00 por dia). Chegou no limite: a OpenAI
+// fica fora até a meia-noite (Brasília), os agentes seguem pelas outras IAs e a gestão recebe um aviso por dia.
+// Não conta como falha da OpenAI (não pausa o provedor nem o agente). Se a leitura falhar, não bloqueia.
+async function bloqueioOpenAi(prisma: PrismaClient | null): Promise<string | null> {
+  if (!prisma) return null;
+  const s = await situacaoOpenAiHoje(prisma).catch(() => null);
+  if (!s?.bloqueado) return null;
+  const msg = textoBloqueioOpenAi(s.limite);
+  void (async () => {
+    const { podeEnviarUmaVez } = await import('./envio-unico.service');
+    if (!(await podeEnviarUmaVez(prisma, `ia.limite_diario_openai.${s.dia}`, 26))) return;
+    console.warn('[IA] OpenAI bloqueada pelo limite diário:', s.gasto, '/', s.limite);
+    const reais = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+    await enviarAvisoGestao(prisma, 'lead_qualificado', `🛑 *Limite diário da OpenAI atingido*\nGasto hoje: ${reais(s.gasto)} · limite ${reais(s.limite)}.\nA OpenAI fica fora até a meia-noite; os agentes seguem com as outras IAs. O valor muda no Escritório › Consumo de IA.`);
+  })().catch(() => {});
+  return msg;
+}
 
 /** Para o painel: estado de cada provedor (sem chave, ok, pausado) e o último erro. */
 export async function estadoProvedoresIa(prisma: PrismaClient) {
@@ -220,6 +240,7 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
   const fonte = p.grok ? 'grok' : 'openai';
   const modelo = p.modelo || (p.grok ? MODELO_XAI : MODELO_OPENAI);
   if (semaforoIa.bloqueado(fonte)) throw pausaDe(fonte);
+  if (!p.grok) { const b = await bloqueioOpenAi(prismaAviso); if (b) throw new Error(b); }
   registrarUsoIa(fonte);
   const res = await fetch(p.grok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -252,6 +273,8 @@ async function chamarOpenAI(p: { sistema: string; conteudo: any[]; json?: boolea
 }
 
 async function transcreverOpenAI(mime: string, base64: string, timeoutMs: number, agente: string): Promise<string> {
+  const bloqueio = await bloqueioOpenAi(prismaAviso);
+  if (bloqueio) throw new Error(bloqueio);
   registrarUsoIa('openai');
   const ext = extensaoAudio(mime);
   const form = new FormData();
@@ -383,7 +406,8 @@ async function seguirRota(prisma: PrismaClient, agente: string, q: Pedido): Prom
   const rota = (await rotasIa(prisma))[funcaoDoAgente(agente)];
   if (!rota) return { resultado: null, auto: true };
   const chaveG = await chaveSoGemini(prisma);
-  const chaves: Record<Provedor, boolean> = { groq: !!chaveGroq(), openrouter: !!chaveOpenRouter(), openai: !!chaveOpenAI(), grok: !!chaveXai(), gemini: !!chaveG };
+  // OpenAI no limite do dia conta como "sem chave": a rota pula para a reserva sem registrar falha.
+  const chaves: Record<Provedor, boolean> = { groq: !!chaveGroq(), openrouter: !!chaveOpenRouter(), openai: !!chaveOpenAI() && !(await bloqueioOpenAi(prisma)), grok: !!chaveXai(), gemini: !!chaveG };
   const plano = planoDaRota(rota, catalogo(process.env), { imagem: !q.partes.every(x => 'text' in x), busca: q.busca, temChave: pv => chaves[pv] });
   let erro: Error | undefined;
   for (const m of plano.tentar) {
@@ -410,13 +434,14 @@ export async function pesquisarComGemini(prisma: PrismaClient, p: { sistema: str
   // Automático: Gemini grátis (com busca no Google) antes da OpenAI paga.
   const gratis = await tentarGeminiGratis(prisma, { sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 180_000, agente });
   if (gratis) return { texto: gratis.texto, fontes: gratis.fontes.slice(0, 15) };
-  if (chaveOpenAI()) {
+  const bloqueio = chaveOpenAI() ? await bloqueioOpenAi(prisma) : null;
+  if (chaveOpenAI() && !bloqueio) {
     const r = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo: [{ type: 'input_text', text: p.pergunta }], busca: true, timeoutMs: p.timeoutMs ?? 180_000, agente }));
     if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
     return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
   }
   const chave = await chaveSoGemini(prisma);
-  if (!chave) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
+  if (!chave) throw new Error(bloqueio || 'A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
   const r = await chamarApiGemini(chave, { modelo: MODELO, sistema: p.sistema, partes: [{ text: p.pergunta }], busca: true, temperatura: 0.3, timeoutMs: p.timeoutMs ?? 120_000, agente });
   if (!r.texto) throw new Error('A pesquisa não devolveu resultado.');
   return { texto: r.texto, fontes: r.fontes.slice(0, 15) };
@@ -446,13 +471,16 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     const r = await tentarGeminiGratis(prisma, { sistema: p.sistema, partes: p.partes, json: p.json, temperatura: p.temperatura, timeoutMs: p.timeoutMs, agente });
     if (r) return r.texto;
   }
+  // OpenAI no limite do dia: tratada como sem chave daqui para baixo (segue Grok/Gemini, se houver).
+  const bloqueio = chaveOpenAI() ? await bloqueioOpenAi(prisma) : null;
+  const openAiLivre = !!chaveOpenAI() && !bloqueio;
   if (p.simples && soTexto && chaveXai()) {
     try {
       const conteudo = p.partes.map(x => ({ type: 'input_text', text: (x as { text: string }).text }));
       const { texto } = textoOpenAI(await chamarOpenAI({ sistema: p.sistema, conteudo, json: p.json, timeoutMs: p.timeoutMs ?? 60_000, grok: true, agente }));
       if (texto) return texto;
     } catch (e) {
-      if (!chaveOpenAI() && !(await chaveSoGemini(prisma))) throw e;
+      if (!openAiLivre && !(await chaveSoGemini(prisma))) throw e;
     }
   }
   // Áudio (o único uso é transcrever): primeiro o Whisper local, sem custo.
@@ -465,7 +493,7 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     }
   }
   const chaveG = await chaveSoGemini(prisma);
-  if (chaveOpenAI() && !(temAudio && chaveG)) {
+  if (openAiLivre && !(temAudio && chaveG)) {
     const conteudo = conteudoOpenAI(p.partes);
     // Áudio: transcrição da OpenAI (o único uso de áudio é transcrever).
     const audio = conteudo.find((c: any) => c.type === 'audio') as any;
@@ -474,7 +502,7 @@ export async function chamarGemini(prisma: PrismaClient, p: { sistema: string; p
     if (!texto) throw new Error('A IA não devolveu resposta.');
     return texto;
   }
-  if (!chaveG) throw new Error('A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
+  if (!chaveG) throw new Error(bloqueio || 'A chave da IA ainda não foi configurada (Configurações → Assistente no WhatsApp).');
   const { texto } = await chamarApiGemini(chaveG, { modelo: MODELO, sistema: p.sistema, partes: p.partes, json: p.json, temperatura: p.temperatura, timeoutMs: p.timeoutMs ?? 45_000, agente });
   if (!texto) throw new Error('A IA não devolveu resposta.');
   return texto;

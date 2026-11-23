@@ -1100,6 +1100,20 @@ export async function whatsappRoutes(fastify: FastifyInstance, options: { prisma
     return reply.send({ status: 'success', message: valor ? `Teto mensal de IA: ${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Aviso no WhatsApp a partir de 80%.` : 'Teto removido.' });
   });
 
+  // Limite diário da OpenAI (23/11/2026): ao chegar nele, a OpenAI para até a meia-noite. 0 = sem limite.
+  fastify.post('/assistente/escritorio/limite-diario-openai', async (request, reply) => {
+    if (!requireGestor(request, reply)) return;
+    const valor = Number((request.body as any)?.valor);
+    if (!Number.isFinite(valor) || valor < 0 || valor > 10000) return reply.status(400).send({ status: 'error', message: 'Informe um valor entre R$ 0 e R$ 10.000 (0 = sem limite).' });
+    const { CHAVE_LIMITE_DIARIO_OPENAI } = await import('@/lib/limite-diario-ia');
+    const { esquecerLimiteDiarioOpenAi } = await import('@/services/uso-ia.service');
+    const quem = getUser(request)?.id || 'gestao';
+    await prisma.configuracaoIntegracao.upsert({ where: { chave: CHAVE_LIMITE_DIARIO_OPENAI }, create: { chave: CHAVE_LIMITE_DIARIO_OPENAI, valor: String(valor), updated_by: quem }, update: { valor: String(valor), updated_by: quem } });
+    esquecerLimiteDiarioOpenAi();
+    cachePainel = null;
+    return reply.send({ status: 'success', message: valor ? `Limite diário da OpenAI: ${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Ao chegar nele, ela para até a meia-noite.` : 'Limite diário da OpenAI removido.' });
+  });
+
   fastify.get('/assistente/escritorio/agentes/:id/historico', async (request, reply) => {
     const { id } = request.params as { id: string };
     const { AGENTES } = await import('@/lib/assistente/escritorio');

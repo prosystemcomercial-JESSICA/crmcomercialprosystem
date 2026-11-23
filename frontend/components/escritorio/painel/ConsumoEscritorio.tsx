@@ -10,7 +10,44 @@ import type { AgenteTela, Consumo, Provedor } from './tipos';
 import { NOME_PROVEDOR, reais } from './tipos';
 
 const COR_NIVEL = { sem_teto: '#64748b', ok: '#16a34a', atencao: '#ca8a04', estourou: '#dc2626' } as const;
-const ESTADO_IA = { ok: ['Respondendo', '#16a34a'], pausado: ['Em pausa', '#dc2626'], sem_uso: ['Sem uso desde o último reinício', '#64748b'], sem_chave: ['Sem chave', '#94a3b8'] } as const;
+const COR_LIMITE = { sem_limite: '#64748b', ok: '#16a34a', atencao: '#ca8a04', bloqueado: '#dc2626' } as const;
+
+// Limite diário da OpenAI (23/11/2026): gasto de hoje contra o limite; ao chegar nele, a OpenAI para até a meia-noite.
+function LimiteDiarioOpenAi({ h, onSalvo }: { h: NonNullable<Consumo['openai_hoje']>; onSalvo: () => void }) {
+  const [valor, setValor] = useState(h.limite ? String(h.limite).replace('.', ',') : '0');
+  const [msg, setMsg] = useState<string | null>(null);
+  const salvar = async () => {
+    const v = Number(valor.replace(/\./g, '').replace(',', '.'));
+    if (!Number.isFinite(v) || v < 0) { setMsg('Informe um valor em reais (0 = sem limite).'); return; }
+    try { const r = await apiClient.salvarLimiteDiarioOpenAi(v); setMsg(r.data?.message || 'Salvo.'); onSalvo(); }
+    catch (e) { setMsg((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Não deu para salvar.'); }
+  };
+  const cor = COR_LIMITE[h.nivel];
+  const pct = h.limite ? Math.min(100, h.usado * 100) : 0;
+  return (
+    <section className="esc-cartao" aria-label="Limite diário da OpenAI" style={h.bloqueado ? { borderColor: cor } : undefined}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'flex-end' }}>
+        <span style={{ display: 'grid' }}><small style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>OpenAI hoje</small><b style={{ fontSize: 26, color: 'var(--t-text-primary)' }}>{reais(h.gasto)}</b></span>
+        <span style={{ display: 'grid' }}><small style={{ fontSize: 12, color: 'var(--t-text-muted)' }}>Limite por dia</small><b style={{ fontSize: 18, color: cor }}>{h.limite ? `${reais(h.limite)} · ${Math.round(h.usado * 100)}% usado` : 'sem limite'}</b></span>
+        {h.bloqueado && <span role="status" style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c', background: '#dc26261a', borderRadius: 8, padding: '4px 8px' }}>Limite atingido: a OpenAI está parada até a meia-noite</span>}
+      </div>
+      {h.limite > 0 && (
+        <div style={{ position: 'relative', height: 14, borderRadius: 7, background: 'var(--t-content-bg)', marginTop: 12 }} role="img" aria-label={`Gasto de hoje ${reais(h.gasto)} de ${reais(h.limite)}`}>
+          <span style={{ position: 'absolute', inset: 0, width: `${pct}%`, borderRadius: 7, background: cor }} />
+        </div>
+      )}
+      <p style={{ fontSize: 12, color: 'var(--t-text-muted)', marginTop: 6 }}>Ao chegar no limite, a OpenAI para até a meia-noite (horário de Brasília) e os agentes seguem pelas outras IAs. Você recebe um aviso no WhatsApp. 0 = sem limite.</p>
+      <form onSubmit={e => { e.preventDefault(); void salvar(); }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+        <label htmlFor="limite-openai" style={{ fontSize: 13, color: 'var(--t-text-secondary)' }}>Limite diário da OpenAI (R$)</label>
+        <input id="limite-openai" inputMode="decimal" value={valor} onChange={e => setValor(e.target.value)} placeholder="ex.: 15" style={{ width: 120, minHeight: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--t-card-border)', background: 'var(--t-card-bg)', color: 'var(--t-text-primary)' }} />
+        <button type="submit" className="esc-btn primario" style={{ background: '#2563eb' }}>Salvar limite</button>
+        {msg && <span role="status" style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{msg}</span>}
+      </form>
+    </section>
+  );
+}
+
+const ESTADO_IA ={ ok: ['Respondendo', '#16a34a'], pausado: ['Em pausa', '#dc2626'], sem_uso: ['Sem uso desde o último reinício', '#64748b'], sem_chave: ['Sem chave', '#94a3b8'] } as const;
 
 export default function ConsumoEscritorio({ c, provedores, agentes, onSalvo }: { c: Consumo; provedores: Provedor[]; agentes: AgenteTela[]; onSalvo: () => void }) {
   const [teto, setTeto] = useState(c.teto ? String(c.teto) : '');
@@ -61,6 +98,8 @@ export default function ConsumoEscritorio({ c, provedores, agentes, onSalvo }: {
           {msg && <span role="status" style={{ fontSize: 12, color: 'var(--t-text-secondary)' }}>{msg}</span>}
         </form>
       </section>
+
+      {c.openai_hoje && <LimiteDiarioOpenAi h={c.openai_hoje} onSalvo={onSalvo} />}
 
       <section className="esc-cartao" aria-label="IAs agora">
         <b style={{ fontSize: 14, color: 'var(--t-text-primary)' }}>Cada IA agora</b>
