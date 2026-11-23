@@ -7,6 +7,12 @@
 
 - **Reunião semanal com a diretoria (pedido da Jessica, 20/10/2026):** Claude monta o relatório da reunião semanal, completo e clicável, com dados de produção; siga `docs/contexto/reuniao-semanal.md`.
 
+- **graphify em toda tarefa de código (pedido da Jessica, 23/11/2026):** antes de ler ou buscar no código, consulte
+  o grafo: `graphify query "pergunta"`, `graphify explain "X"` ou `graphify affected "X"`. Depois de mudar o código,
+  rode `graphify update .`. Se não houver `graphify-out/` (ele fica fora do git), gere com
+  `graphify extract . --code-only` e depois `graphify cluster-only . --no-label`. O `.graphifyignore` já exclui as
+  pastas que não são do CRM.
+
 - Falar sempre em português do Brasil.
 - Não bagunçar o que existe: agregar e analisar o fluxo inteiro, não só a função.
 - A cada entrega: commit e push no `main`, deploy com backup (script de deploy com lista `PERMITIDO` para o banco).

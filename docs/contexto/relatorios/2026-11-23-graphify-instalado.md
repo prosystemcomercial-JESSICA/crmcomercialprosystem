@@ -31,5 +31,20 @@ A Jessica escreveu: "procure a ferramenta grafify". Depois escolheu as opções 
 ## Pendente
 - A Jessica decide se quer nomear os grupos (`graphify label .`) e se quer o hook do git que atualiza o grafo a cada commit (`graphify hook install`).
 
+## Continuação: regra de uso em tudo
+- **Pedido:** "deixe como regra o uso em tudo".
+- **Feito:**
+  - Regra escrita em `C:\Users\prosy\CLAUDE.md`, que vale para todos os projetos (seção "graphify em todo projeto de código"), e no `CLAUDE.md` do CRM.
+  - Hook PreToolUse do graphify (`graphify.exe hook-guard search|read`) adicionado ao `settings.json` dos dois perfis do Claude. O matcher é `Bash|PowerShell` para buscas e `Read|Glob` para leituras. Há backup `settings.json.bak-20261123-graphify` nos dois perfis. O script usado está na pasta temporária da sessão.
+- **Verificado:**
+  - Pelo Bash, o hook devolve o aviso dentro do CRM e não devolve nada em `C:\Users\prosy`.
+  - Nesta sessão, o aviso já apareceu em leituras e buscas de verdade.
+  - Pelo PowerShell, o teste não funcionou: o pipe do PowerShell coloca BOM no texto, o JSON falha e o hook fica quieto. Isso não afeta o Claude Code, que manda o JSON sem BOM.
+- **Decisões:**
+  - O hook ficou nas configurações gerais dos perfis, e não por projeto, para valer em tudo. Ele só age onde já existe grafo.
+  - A ferramenta PowerShell entrou no matcher de busca (o padrão do graphify só tem Bash).
+- **Não feito:** o hook do git com atualização automática (`graphify hook install`), porque o modo automático negou a permissão. A Jessica pode rodar o comando ela mesma ou liberar a permissão. Enquanto isso, vale a regra do `graphify update .`.
+- **Pendente (Jessica):** decidir se quer o grafo já gerado agora em todos os outros projetos (CRM da Letícia, Agenda/Orbit, Ravena e outros). Pela regra, ele é gerado na primeira tarefa de cada projeto.
+
 ## Próxima sessão
 - Antes de mexer no código, rode `graphify update .` para atualizar o grafo. Depois use `graphify query "..."`, ou a skill `graphify`, para perguntas de arquitetura.
