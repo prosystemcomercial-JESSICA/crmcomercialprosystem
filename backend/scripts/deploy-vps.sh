@@ -38,8 +38,14 @@ else
   echo "ATENÇÃO: publicando sem conferir a pipeline (SEM_CI=1)"
 fi
 TS=$(date +%Y%m%d-%H%M%S)
-mysqldump -u"$DBU" -h"$DBH" -P"$DBPT" --no-tablespaces --single-transaction "$DBN" | gzip > /root/backups-deploy/pre-deploy-$TS.sql.gz
-echo "backup: $(ls -lh /root/backups-deploy/pre-deploy-$TS.sql.gz | awk '{print $5}')"
+# Backup antes do deploy (23/11/2026: com pipefail e conferência; antes, um mysqldump que falhasse no meio deixava
+# um arquivo quebrado e o deploy seguia). Sem backup bom, nada é publicado.
+BK=/root/backups-deploy/pre-deploy-$TS.sql.gz
+set -o pipefail
+mysqldump -u"$DBU" -h"$DBH" -P"$DBPT" --no-tablespaces --single-transaction --quick --routines --triggers --hex-blob --default-character-set=utf8mb4 --max-allowed-packet=1G "$DBN" | gzip > "$BK" \
+  && gzip -t "$BK" && zcat "$BK" | tail -1 | grep -q '^-- Dump completed' \
+  || { echo "BACKUP DO DEPLOY FALHOU ($BK): nada foi publicado"; exit 1; }
+echo "backup: $(ls -lh "$BK" | awk '{print $5}') (conferido)"
 cd /var/www/comercial-prosystem
 LOCKS_ANTES=$(md5sum backend/package-lock.json frontend/package-lock.json 2>/dev/null)
 git pull --ff-only -q && git log -1 --oneline

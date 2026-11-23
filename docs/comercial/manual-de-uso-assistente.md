@@ -987,6 +987,13 @@ O cabeçalho do card mostra o perfil (ex.: "Implantação · Varejo · banco zer
 
 - Os arquivos que os clientes enviam pelo portal (certificado, XMLs, listas) entram em todos os backups do servidor e seguem para o computador e o MEGA. Se a cópia falhar, a gestão é avisada no WhatsApp.
 
+### Atualização 23/11/2026: backup completo e na nuvem
+
+- O CRM faz backup **duas vezes por dia** (3h e 14h) com **tudo**: leads, clientes, contratos, conversas e fotos do WhatsApp e os arquivos que os clientes enviam pelo portal.
+- Todo dia, o servidor **testa se o backup restaura** num banco de teste separado e confere tabela por tabela.
+- Cada backup bom vai sozinho para a **nuvem (MEGA)**, sem depender do seu computador. O seu computador guarda uma cópia extra quando está ligado.
+- Se qualquer parte falhar (backup, teste de restauração, nuvem, disco cheio), você recebe o aviso **"Backup do CRM com problema"** no WhatsApp, com o motivo.
+
 ### Atualização 05/10/2026: card mais completo
 
 - **Testes de conversão** voltaram ao card (Execução). Na conversão, a virada só libera com os testes conferidos.

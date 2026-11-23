@@ -1,54 +1,77 @@
-// Vigia dos backups do CRM Comercial (pedido da Jessica, 02/10/2026: "me avise quando o backup falhar").
-// Confere a cada hora:
-//  1) backup da VPS (cron 3h e 14h de Brasília): o mais novo tem que ter menos de 13 h e terminar sem erros;
-//  2) cópia no computador da Jessica (tarefa das 17h): marca enviada pelo sync com menos de 30 h;
-//  3) cópia na nuvem (MEGA): última cópia com menos de 54 h.
+// Vigia dos backups do CRM Comercial (pedido da Jessica, 02/10/2026: "me avise quando o backup falhar";
+// refeito em 23/11/2026, quando se descobriu que o backup diário saía sem as mensagens do WhatsApp desde 23/10
+// e que a cópia "no MEGA" nunca subia para a nuvem).
+// Confere a cada hora o /var/backups-comercial-status/servidor.json, gravado pelo backend/scripts/backup-servidor.sh:
+//  1) último backup bom do servidor (dump completo + JSON) com menos de 13 h; última execução sem erro;
+//  2) teste de restauração (MySQL descartável) com menos de 30 h e aprovado;
+//  3) cópia na nuvem (MEGA, enviada pelo servidor) com menos de 30 h, e espaço livre na conta;
+//  4) disco do servidor abaixo de 85%;
+//  5) cópia extra no computador da Jessica (opcional): só avisa se parar por mais de 7 dias.
 // Problema → aviso no WhatsApp da gestão, no máximo 1 vez a cada 6 h por tipo de problema.
 import type { PrismaClient } from '@prisma/client';
 import { promises as fs } from 'fs';
 
-const DIR_BACKUP = process.env.BACKUP_DIR || '/var/backups-comercial';
-const LOG_BACKUP = process.env.BACKUP_LOG || '/var/log/backup-comercial.log';
-const MARCA_PC = '/var/backups-comercial-status/copia-pc.json';
+const DIR_STATUS = process.env.BACKUP_STATUS_DIR || '/var/backups-comercial-status';
+const STATUS = `${DIR_STATUS}/servidor.json`;
+const MARCA_PC = `${DIR_STATUS}/copia-pc.json`;
 
 const horasDesde = (d: Date) => (Date.now() - d.getTime()) / 3600_000;
 const fmt = (d: Date) => d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const data = (s: unknown) => (typeof s === 'string' && !isNaN(Date.parse(s)) ? new Date(s) : null);
+
+export type ProblemaBackup = { chave: string; texto: string };
+
+/** Só a análise (sem enviar nada): usada pelo vigia e pelos testes. */
+export function analisarStatusBackup(status: any, marcaPc: any): ProblemaBackup[] {
+  const problemas: ProblemaBackup[] = [];
+  if (!status) return [{ chave: 'vps_sem_status', texto: 'Não encontrei o resultado do backup do servidor (servidor.json). O backup pode não estar rodando.' }];
+
+  const ultimoOk = data(status.ultimo_ok_em);
+  if (!ultimoOk || horasDesde(ultimoOk) > 13) {
+    problemas.push({ chave: 'vps_atrasado', texto: `O servidor não faz um backup completo e bom desde ${ultimoOk ? fmt(ultimoOk) : 'nunca'} (deveria rodar às 3h e às 14h).` });
+  }
+  if (status.ok === false) {
+    const erros = Array.isArray(status.erros) ? status.erros.join('; ') : '';
+    problemas.push({ chave: 'vps_falhou', texto: `O último backup do servidor (${data(status.em) ? fmt(data(status.em)!) : '?'}) falhou: ${erros.slice(0, 220) || 'erro sem descrição'}.` });
+  }
+
+  const rest = status.restauracao;
+  const restEm = data(rest?.em);
+  if (!restEm || horasDesde(restEm) > 30) {
+    problemas.push({ chave: 'restauracao_atrasada', texto: `O teste que prova que o backup restaura não roda desde ${restEm ? fmt(restEm) : 'nunca'}.` });
+  } else if (rest.ok === false) {
+    problemas.push({ chave: 'restauracao_falhou', texto: `O teste de restauração de ${fmt(restEm)} falhou: o backup pode não servir. Verificar hoje.` });
+  }
+
+  const nuvem = status.nuvem;
+  if (!nuvem || nuvem.configurada === false) {
+    problemas.push({ chave: 'nuvem_desligada', texto: 'A cópia na nuvem (MEGA) ainda não está ligada: os backups estão só no servidor.' });
+  } else {
+    const nOk = data(nuvem.ultimo_ok_em);
+    if (!nOk || horasDesde(nOk) > 30) problemas.push({ chave: 'nuvem_atrasada', texto: `A cópia na nuvem (MEGA) não sobe desde ${nOk ? fmt(nOk) : 'nunca'}.` });
+    const livre = Number(nuvem.livre_bytes);
+    if (Number.isFinite(livre) && nuvem.livre_bytes != null && livre < 3 * 1024 ** 3) {
+      problemas.push({ chave: 'nuvem_cheia', texto: `A conta do MEGA está quase cheia (${(livre / 1024 ** 3).toFixed(1)} GB livres).` });
+    }
+  }
+
+  if (Number(status.disco_pct) >= 85) {
+    problemas.push({ chave: 'disco_cheio', texto: `O disco do servidor está com ${status.disco_pct}% ocupado: se lotar, o backup e o CRM param.` });
+  }
+
+  const pc = data(marcaPc?.pc_em);
+  if (marcaPc && (!pc || horasDesde(pc) > 24 * 7)) {
+    problemas.push({ chave: 'pc_atrasado', texto: `A cópia extra no seu computador não roda desde ${pc ? fmt(pc) : 'nunca'} (o servidor e o MEGA continuam com os backups).` });
+  }
+  return problemas;
+}
+
+async function lerJson(caminho: string) {
+  try { return JSON.parse(await fs.readFile(caminho, 'utf8')); } catch { return null; }
+}
 
 export async function verificarBackups(prisma: PrismaClient): Promise<string[]> {
-  const problemas: { chave: string; texto: string }[] = [];
-
-  // 1) Backup da VPS.
-  try {
-    const pastas = (await fs.readdir(DIR_BACKUP)).filter(n => /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(n)).sort();
-    const ultima = pastas[pastas.length - 1];
-    if (!ultima) problemas.push({ chave: 'vps_vazio', texto: `Nenhum backup encontrado em ${DIR_BACKUP}.` });
-    else {
-      const em = new Date(ultima.replace(/T(\d{2})-(\d{2})-(\d{2})$/, 'T$1:$2:$3Z'));
-      if (horasDesde(em) > 13) problemas.push({ chave: 'vps_atrasado', texto: `O backup do servidor não roda desde ${fmt(em)} (deveria rodar às 3h e às 14h).` });
-      const arquivos = await fs.readdir(`${DIR_BACKUP}/${ultima}`).catch(() => []);
-      if (arquivos.length < 50) problemas.push({ chave: 'vps_incompleto', texto: `O último backup (${fmt(em)}) está incompleto: só ${arquivos.length} tabelas salvas.` });
-    }
-  } catch (e: any) {
-    problemas.push({ chave: 'vps_erro', texto: `Não consegui ler a pasta de backups do servidor (${e?.message}).` });
-  }
-  try {
-    const log = await fs.readFile(LOG_BACKUP, 'utf8');
-    const resumo = log.split('\n').filter(l => /\[BACKUP\] (OK|ERRO|FALHA)/i.test(l)).pop() || '';
-    const erros = Number(resumo.match(/(\d+) erros?/)?.[1] || 0);
-    if (/ERRO|FALHA/i.test(resumo.split('—')[0]) || erros > 0) problemas.push({ chave: 'vps_falhou', texto: `O último backup do servidor terminou com erro: "${resumo.trim().slice(0, 160)}".` });
-  } catch { /* log ausente: a checagem da pasta já cobre */ }
-
-  // 2) e 3) Cópia no computador e na nuvem.
-  try {
-    const marca = JSON.parse(await fs.readFile(MARCA_PC, 'utf8'));
-    const pc = marca.pc_em ? new Date(marca.pc_em) : null;
-    if (!pc || horasDesde(pc) > 30) problemas.push({ chave: 'pc_atrasado', texto: `A cópia dos backups no seu computador não roda desde ${pc ? fmt(pc) : 'nunca'} (o computador precisa estar ligado às 17h).` });
-    const mega = marca.mega_em ? new Date(marca.mega_em) : null;
-    if (!mega || horasDesde(mega) > 54) problemas.push({ chave: 'mega_atrasado', texto: `A cópia na nuvem (MEGA) não roda desde ${mega ? fmt(mega) : 'nunca'}.` });
-  } catch {
-    problemas.push({ chave: 'pc_sem_marca', texto: 'Ainda não recebi a confirmação da cópia no seu computador (ela é enviada depois da cópia das 17h).' });
-  }
-
+  const problemas = analisarStatusBackup(await lerJson(STATUS), await lerJson(MARCA_PC));
   if (!problemas.length) return [];
   const { podeEnviarUmaVez } = await import('./envio-unico.service');
   const novos: string[] = [];
