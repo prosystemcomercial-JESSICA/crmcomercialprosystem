@@ -24,12 +24,35 @@ export function repeteAgente(mensagens: string[], ultimas: string[], limiar = 0.
   return mensagens.some(m => ultimas.some(u => semelhanca(m, u) >= limiar));
 }
 
+/** As falas anteriores do agente que a mensagem nova repete (para a reescrita saber o que evitar). */
+export function falasRepetidas(mensagens: string[], ultimas: string[], limiar = 0.6): string[] {
+  return ultimas.filter(u => u && mensagens.some(m => semelhanca(m, u) >= limiar));
+}
+
+export const MOTIVO_REPETICAO = 'repete o que o agente já disse nesta conversa';
+/**
+ * Trava do laço de repetição (23/11/2026). De 16 a 18/11 a Caroline escreveu 410 mensagens que não saíram:
+ * a cada rodada (2 min) ela reescrevia a mesma resposta, a Laya segurava por repetição, o Rafael descartava e
+ * a rodada seguinte tentava de novo (uma conversa sozinha somou 218). Com 2 mensagens seguradas por repetição
+ * depois da última fala do cliente, o agente para de escrever nessa conversa até o cliente mandar algo novo.
+ */
+export const LIMITE_SEGURADAS_REPETICAO = 2;
+export function seguradasPorRepeticao(itens: { acao: string | null; created_at: Date }[], ultimaDoCliente: Date | null): number {
+  return itens.filter(i => {
+    if (ultimaDoCliente && i.created_at <= ultimaDoCliente) return false;
+    try { return String(JSON.parse(i.acao || '{}')?.laya_motivo || '').includes(MOTIVO_REPETICAO); } catch { return false; }
+  }).length;
+}
+export function travadaPorRepeticao(itens: { acao: string | null; created_at: Date }[], ultimaDoCliente: Date | null): boolean {
+  return seguradasPorRepeticao(itens, ultimaDoCliente) >= LIMITE_SEGURADAS_REPETICAO;
+}
+
 /** Problemas que não precisam de IA para ver. Vazio = passou. */
 export function conferirPura(p: { mensagens: string[]; ultimas: string[] }): string[] {
   const problemas: string[] = [];
   if (p.mensagens.some(linkIncompleto)) problemas.push('link incompleto ou quebrado');
   if (p.mensagens.some(pareceCortada)) problemas.push('texto cortado no meio');
-  if (repeteAgente(p.mensagens, p.ultimas)) problemas.push('repete o que o agente já disse nesta conversa');
+  if (repeteAgente(p.mensagens, p.ultimas)) problemas.push(MOTIVO_REPETICAO);
   if (p.mensagens.length > MAX_MENSAGENS_POR_VEZ) problemas.push(`${p.mensagens.length} mensagens de uma vez (máximo ${MAX_MENSAGENS_POR_VEZ})`);
   return problemas;
 }

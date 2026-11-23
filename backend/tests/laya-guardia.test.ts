@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { conferirPura, linkIncompleto, pareceCortada, cobertura } from '../src/lib/laya-guardia';
+import { conferirPura, linkIncompleto, pareceCortada, cobertura, falasRepetidas, seguradasPorRepeticao, travadaPorRepeticao, MOTIVO_REPETICAO } from '../src/lib/laya-guardia';
 
 describe('Laya guardiã: conferência pura', () => {
   it('pega link quebrado, texto cortado e repetição', () => {
@@ -35,5 +35,42 @@ describe('Laya guardiã · fase da conversa (11/11/2026)', () => {
     expect(avisoDaFase('retomada')).toContain('retomada programada');
     expect(avisoDaFase('encerramento')).toContain('encerramento');
     expect(avisoDaFase('resposta')).toBe('');
+  });
+});
+
+describe('Laya: trava do laço de repetição (23/11/2026)', () => {
+  const segurada = (motivo: string, em: string) => ({ acao: JSON.stringify({ laya_motivo: motivo }), created_at: new Date(em) });
+  const cliente = new Date('2026-11-18T12:00:00Z');
+
+  it('para depois de 2 repetições seguradas desde a última fala do cliente', () => {
+    const itens = [segurada(MOTIVO_REPETICAO, '2026-11-18T12:02:00Z'), segurada(MOTIVO_REPETICAO, '2026-11-18T12:04:00Z')];
+    expect(seguradasPorRepeticao(itens, cliente)).toBe(2);
+    expect(travadaPorRepeticao(itens, cliente)).toBe(true);
+  });
+
+  it('uma repetição só ainda deixa tentar', () => {
+    expect(travadaPorRepeticao([segurada(MOTIVO_REPETICAO, '2026-11-18T12:02:00Z')], cliente)).toBe(false);
+  });
+
+  it('mensagem nova do cliente zera a contagem', () => {
+    const itens = [segurada(MOTIVO_REPETICAO, '2026-11-18T12:02:00Z'), segurada(MOTIVO_REPETICAO, '2026-11-18T12:04:00Z')];
+    expect(travadaPorRepeticao(itens, new Date('2026-11-18T12:10:00Z'))).toBe(false);
+  });
+
+  it('outros motivos da Laya não contam como repetição', () => {
+    const itens = [segurada('texto cortado no meio', '2026-11-18T12:02:00Z'), segurada('nota 4/10 da Laya: mudou de assunto', '2026-11-18T12:04:00Z')];
+    expect(travadaPorRepeticao(itens, cliente)).toBe(false);
+    expect(travadaPorRepeticao([segurada(`texto cortado no meio; ${MOTIVO_REPETICAO}`, '2026-11-18T12:02:00Z'), segurada(MOTIVO_REPETICAO, '2026-11-18T12:03:00Z')], cliente)).toBe(true);
+  });
+
+  it('cliente que nunca escreveu: conta todas', () => {
+    expect(travadaPorRepeticao([segurada(MOTIVO_REPETICAO, '2026-11-18T12:02:00Z'), segurada(MOTIVO_REPETICAO, '2026-11-19T12:02:00Z')], null)).toBe(true);
+  });
+
+  it('a reescrita recebe as falas que foram repetidas', () => {
+    const ultimas = ['Separei uma apresentação rápida para você conhecer o sistema da farmácia', 'Qual sistema vocês usam hoje?'];
+    const r = falasRepetidas(['Boa tarde! Separei uma apresentação rápida para você conhecer o sistema da farmácia'], ultimas);
+    expect(r).toEqual([ultimas[0]]);
+    expect(conferirPura({ mensagens: [ultimas[0]], ultimas })).toContain(MOTIVO_REPETICAO);
   });
 });

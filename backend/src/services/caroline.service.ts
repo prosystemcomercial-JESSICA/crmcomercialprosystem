@@ -570,10 +570,12 @@ async function gerarResposta(prisma: PrismaClient, sdr: any, fase: FaseCaroline,
     .slice(0, 8).map(i => ({ segmento: String(i.segmento || ''), titulo: `${String(i.titulo)} (pesquisado em ${new Date(i._em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`, resumo: String(i.resumo || '').slice(0, 300), por_que_importa: String(i.por_que_importa || '').slice(0, 200) }));
   // Versões que a Jessica descartou desde a última mensagem enviada: refazer diferente, seguindo o pedido dela.
   const desde = sdr.ultima_caroline_em && !sdr.abertura_enviada ? sdr.ultima_caroline_em : sdr.desde;
-  const descartadas = await prisma.sdrMensagem.findMany({ where: { sdrId: sdr.id, status: 'DESCARTADA', created_at: { gte: desde } }, orderBy: { created_at: 'desc' }, take: 4, select: { texto: true, texto_final: true } });
+  const descartadas = await prisma.sdrMensagem.findMany({ where: { sdrId: sdr.id, status: 'DESCARTADA', created_at: { gte: desde } }, orderBy: { created_at: 'desc' }, take: 4, select: { texto: true, texto_final: true, acao: true } });
+  // Mostra também o motivo da Laya (23/11/2026): a versão descartada por repetição precisa dizer isso.
+  const motivoLaya = (a: string | null) => { try { return String(JSON.parse(a || '{}')?.laya_motivo || ''); } catch { return ''; } };
   const refazer = descartadas.length
-    ? '\n=== A JESSICA DESCARTOU ESTAS VERSÕES (pense diferente: outro gancho, outra estrutura, outras palavras; nunca repita) ===\n' +
-      descartadas.map(d => `- "${d.texto.slice(0, 400)}"${d.texto_final ? `\n  Pedido dela: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
+    ? '\n=== ESTAS VERSÕES SUAS FORAM DESCARTADAS E NÃO SAÍRAM (pense diferente: outro gancho, outra estrutura, outras palavras; nunca repita) ===\n' +
+      descartadas.map(d => `- "${d.texto.slice(0, 400)}"${motivoLaya(d.acao) ? `\n  A Laya segurou: ${motivoLaya(d.acao).slice(0, 200)}` : ''}${d.texto_final ? `\n  Motivo: ${d.texto_final.slice(0, 300)}` : ''}`).join('\n')
     : '';
   const ap = await apresentacaoPara(prisma, sdr, fase);
   const { contextoDaEquipe } = await import('./equipe.service');
@@ -1103,6 +1105,35 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     if (velha) await prisma.sdrMensagem.update({ where: { id: pend!.id }, data: { status: 'DESCARTADA', texto_final: 'o cliente escreveu de novo antes da aprovação', decidido_em: new Date() } });
     else if (pend) return 'aprovacao';
   }
+  // Trava do laço de repetição (23/11/2026): 2 mensagens seguradas pela Laya por repetição depois da última fala
+  // do cliente = o agente não tem nada novo a dizer. Para de escrever nesta conversa (sem gastar IA) até o cliente
+  // mandar uma mensagem nova, e a gestão recebe um aviso único com o link para responder.
+  {
+    const { travadaPorRepeticao, seguradasPorRepeticao } = await import('@/lib/laya-guardia');
+    const seguradas = await prisma.sdrMensagem.findMany({ where: { conversaId: sdr.conversaId, acao: { contains: 'laya_motivo' }, ...(sdr.ultima_lead_em ? { created_at: { gt: sdr.ultima_lead_em } } : {}) }, select: { acao: true, created_at: true }, take: 20 });
+    if (travadaPorRepeticao(seguradas, sdr.ultima_lead_em)) {
+      const d: any = sdr.dados || {};
+      const marca = sdr.ultima_lead_em ? new Date(sdr.ultima_lead_em).toISOString() : 'sem_resposta';
+      if (d.parou_repeticao?.ultima_lead_em !== marca) {
+        await prisma.sdrLead.update({ where: { id: sdr.id }, data: {
+          ...(fase === 'resposta' ? { ultima_caroline_em: new Date() } : { status: 'AGUARDANDO', ultima_caroline_em: new Date() }),
+          dados: { ...d, parou_repeticao: { em: new Date().toISOString(), ultima_lead_em: marca, seguradas: seguradasPorRepeticao(seguradas, sdr.ultima_lead_em) } },
+        } });
+        registrarAcaoAgente(agenteDe(sdr), `parou de escrever para ${sdr.nome || 'um lead'}: a Laya segurou 2 mensagens repetidas; só volta quando o cliente escrever`);
+        registrarAcaoAgente('laya', `travou a conversa de ${sdr.nome || 'um lead'} com o ${nomeDe(sdr)}: 2 repetições seguidas, sem mensagem nova do cliente`);
+        const { anotar } = await import('./equipe.service');
+        await anotar(prisma, { de: 'laya', para: agenteDe(sdr), tipo: 'ORIENTACAO', assunto: `Pare de insistir com ${sdr.nome || sdr.numero}`, texto: 'Segurei 2 mensagens suas seguidas nesta conversa porque repetiam o que você já tinha dito. Você não escreve mais aqui até o cliente mandar uma mensagem nova. Quando ele escrever, responda ao que ele disse agora, com outras palavras, sem retomar a pergunta ou a oferta que já fez.', ref: sdr.conversaId }).catch(() => {});
+        if (fase === 'resposta') {
+          const { podeEnviarUmaVez } = await import('./envio-unico.service');
+          if (await podeEnviarUmaVez(prisma, `repeticao.${sdr.id}.${marca}`, 24 * 30)) {
+            const { enviarAvisoGestao } = await import('./assistente-gestao.service');
+            await enviarAvisoGestao(prisma, 'lead_qualificado', `🔁 *${nomeDe(sdr)} parou na conversa de ${sdr.nome || sdr.numero}*\nA Laya segurou 2 mensagens seguidas que repetiam o que já tinha sido dito. Nada saiu para o cliente, e o agente só volta quando ele escrever de novo. Se quiser responder você: https://comercial.prosystemnet.com/whatsapp?conversa=${sdr.conversaId}`).catch(() => {});
+          }
+        }
+      }
+      return 'nada';
+    }
+  }
   // Últimas mensagens do agente: base da trava contra repetição e do "só confirmou".
   const ultimasDoAgente = await prisma.whatsappMensagem.findMany({ where: { conversaId: sdr.conversaId, direcao: 'SAIDA', enviada_por: agenteDe(sdr) }, orderBy: { created_at: 'desc' }, take: 4, select: { conteudo: true, created_at: true } });
   // Cliente só confirmou/agradeceu ("👍", "ok", "obrigado") depois da fala do agente: não responde.
@@ -1246,7 +1277,11 @@ async function falar(prisma: PrismaClient, token: string, sdrId: string, fase: F
     const base = { agente: agenteDe(sdr), conversaId: sdr.conversaId, ultimasDoAgente: ultimasDoAgente.map(u => u.conteudo || ''), fase };
     const c = await layaConfereSaida(prisma, { ...base, mensagens: r.mensagens });
     if (!c.ok) {
-      const nova = await gerarResposta(prisma, sdr, fase, `REVISÃO DA LAYA (siga à risca): ${c.motivo}. Reescreva curta e completa, sem repetir o que você já disse, com o link inteiro ou sem link, respondendo ao que a pessoa disse por último.`);
+      // A Laya mostra quais falas foram repetidas (23/11/2026): sem isso a reescrita voltava com o mesmo texto.
+      const { falasRepetidas } = await import('@/lib/laya-guardia');
+      const ja = falasRepetidas(r.mensagens, base.ultimasDoAgente);
+      const jaDisse = ja.length ? `\nVocê JÁ MANDOU nesta conversa (não repita nem reformule estas ideias; se não houver nada novo a dizer, só responda curto ao que a pessoa escreveu por último):\n${ja.map(t => `- "${t.replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}` : '';
+      const nova = await gerarResposta(prisma, sdr, fase, `REVISÃO DA LAYA (siga à risca): ${c.motivo}. Reescreva curta e completa, sem repetir o que você já disse, com o link inteiro ou sem link, respondendo ao que a pessoa disse por último.${jaDisse}`);
       const c2 = nova ? await layaConfereSaida(prisma, { ...base, mensagens: nova.mensagens }) : c;
       if (nova && c2.ok) { r = nova; registrarAcaoAgente('laya', `corrigiu uma mensagem do ${nomeDe(sdr)} para ${sdr.nome || 'um lead'}: ${c.motivo.slice(0, 90)}`); }
       // Resposta a quem escreveu não espera aprovação por causa de nota (12/11/2026, caso Amor e Açúcar: o cliente

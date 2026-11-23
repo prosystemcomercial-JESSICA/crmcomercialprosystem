@@ -81,7 +81,7 @@ async function revisarUma(prisma: PrismaClient, m: any, meta: any, sdr: any): Pr
       if (r.count) {
         registrarAcaoAgente('rafael', `descartou de vez uma mensagem do ${quem} para ${cliente}: ${d.motivo.slice(0, 90)}`);
         const { anotar } = await import('./equipe.service');
-        await anotar(prisma, { de: 'rafael', para: 'equipe', tipo: 'CONTEXTO', assunto: `Mensagem do ${quem} para ${cliente} descartada`, texto: `Descartei a 3ª versão seguida: ${d.motivo}. Nada foi enviado; o ${quem} segue a conversa na próxima rodada.`, ref: m.conversaId }).catch(() => {});
+        await anotar(prisma, { de: 'rafael', para: 'equipe', tipo: 'CONTEXTO', assunto: `Mensagem do ${quem} para ${cliente} descartada`, texto: `Descartei a 3ª versão seguida: ${d.motivo}. Nada foi enviado. Se a Laya já segurou 2 repetições nesta conversa, o ${quem} só volta a escrever quando o cliente mandar mensagem nova.`, ref: m.conversaId }).catch(() => {});
       }
       return false;
     }

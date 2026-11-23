@@ -1832,3 +1832,11 @@ O Rafael leu a Universidade Prosystem inteira (139 artigos: retaguarda, caixa, S
 
 - Em **Contratos**, o botão **Resumo p/ e-mail** agora conta o **Tempo de fechamento** desde a **primeira proposta** daquele CNPJ, mesmo que ela tenha expirado.
 - Quando o cliente foi reativado com uma proposta nova, o resumo mostra também: "📄 Primeira proposta: 06/08/2026 (reativada em 23/11/2026)".
+
+### Atualização 23/11/2026: os agentes param de insistir quando só repetem
+
+- Se a Laya segurar **2 mensagens seguidas** de um agente (Caroline, Julio ou Luiz Felipe) numa conversa porque elas repetiam o que já tinha sido dito, o agente **para de escrever nessa conversa** até o cliente mandar uma mensagem nova. Nada repetido sai para o cliente.
+- Quando o cliente estava esperando resposta, você recebe **um** aviso no WhatsApp ("🔁 … parou na conversa de …") com o link, para responder você mesma se quiser.
+- Quando o cliente escreve de novo, o agente volta sozinho e responde ao que ele disse agora.
+- Na reescrita, a Laya mostra ao agente exatamente qual frase ele estava repetindo, e as versões descartadas entram no aprendizado da Caroline.
+- Motivo: de 16 a 18/11 a Caroline tentou 410 vezes reescrever em poucas conversas (uma delas 218 vezes). Isso não chegou aos clientes, mas gastou IA e fez a Vitória pausar a Caroline.
