@@ -16,7 +16,10 @@ A Jessica colou os documentos da Mila (DICA, PROCESSO, POP e EXEMPLO de 11/11 a 
 - `npx vitest run tests/mila-agenda.test.ts tests/mila-upgrade.test.ts`: 11 testes passaram.
 - Bateria inteira: 933 testes passaram e 5 falharam. As 5 falhas são de testes de rota que exigem `DATABASE_URL`, que não existe neste computador. Elas não tocam nos arquivos mudados.
 - `npx tsc --noEmit -p . --rootDir .`: nenhum erro nos arquivos mudados.
-- **Não verificado:** a agenda rodando com dados reais de produção. O primeiro resultado aparece na segunda, 8h–10h. Também não foi verificado quantos clientes ativos têm CNPJ de 14 dígitos, o que afeta a seção de grupo.
+- **Deploy `bb92581c`:** backup de 482M conferido, banco sem alterações, build ok, backend respondendo 401. O 502 apareceu só durante o reinício.
+- **Simulação da agenda em produção** (só leitura, script apagado depois), se ela rodasse em 23/11: 1 implantação parada, 3 no marco D+90, 27 contas em atenção e 4 casos de churn parados. Ficaram zeradas a virada, o D+7, o D+30, as saídas sem motivo e as lojas do mesmo grupo. Os 524 clientes ativos com CNPJ têm 14 dígitos. O manual foi lido no servidor (25.519 caracteres). Nenhum erro novo no log do backend.
+- **Não verificado:** a primeira agenda de verdade (segunda, 30/11, 8h–10h) e o aviso no WhatsApp.
+- **Atenção:** 27 contas em atenção é muito para uma semana. Vale a equipe revisar quais continuam em risco e desmarcar as resolvidas.
 
 ## Decisões e porquês
 - **Manual em arquivo, não como mais um documento no banco.** Os documentos se repetiam em versões, e o limite de 30 aprovados mais recentes empurrava uns para fora dos outros. O manual é uma regra única e versionada no git.
